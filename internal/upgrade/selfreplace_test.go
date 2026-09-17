@@ -1,6 +1,8 @@
 package upgrade
 
 import (
+	"github.com/sageox/ox/internal/testguard"
+
 	"archive/tar"
 	"bytes"
 	"compress/gzip"
@@ -163,9 +165,7 @@ func TestReplaceRunningBinary_MissingPlatformAsset(t *testing.T) {
 }
 
 func TestReplaceRunningBinary_NotWritable(t *testing.T) {
-	if os.Geteuid() == 0 {
-		t.Skip("root bypasses directory permissions")
-	}
+	testguard.RequirePOSIXPerms(t)
 	dir := t.TempDir()
 	writeFile(t, filepath.Join(dir, "ox"), "OLD-ox")
 	if err := os.Chmod(dir, 0o500); err != nil {
@@ -335,9 +335,7 @@ func TestReplaceRunningBinary_RollbackFailureIsSurfaced(t *testing.T) {
 // If adapter discovery (os.ReadDir) fails, the upgrade must abort rather than
 // silently replace ox alone and skew adapter versions.
 func TestReplaceRunningBinary_ReadDirFailureAborts(t *testing.T) {
-	if os.Geteuid() == 0 {
-		t.Skip("root bypasses directory permissions")
-	}
+	testguard.RequirePOSIXPerms(t)
 	dir := t.TempDir()
 	writeFile(t, filepath.Join(dir, "ox"), "OLD-ox")
 	writeFile(t, filepath.Join(dir, "ox-adapter-claude-code"), "OLD-adapter")

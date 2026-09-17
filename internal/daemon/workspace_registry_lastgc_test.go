@@ -1,6 +1,8 @@
 package daemon
 
 import (
+	"github.com/sageox/ox/internal/testguard"
+
 	"bytes"
 	"log/slog"
 	"os"
@@ -98,6 +100,7 @@ func mustInitSageoxDir(t *testing.T, root string) {
 // makeSageoxDirUnwritable forces SaveLocalConfig's write to fail for a reason
 // that is NOT "uninitialized", so the warn path is exercised.
 func makeSageoxDirUnwritable(t *testing.T, root string) {
+	testguard.RequirePOSIXPerms(t)
 	t.Helper()
 	dir := filepath.Join(root, ".sageox")
 	if err := os.Chmod(dir, 0o500); err != nil {

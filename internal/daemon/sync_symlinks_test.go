@@ -602,6 +602,7 @@ func TestReconcileProjectSymlinks_TargetRelocated(t *testing.T) {
 // Failure prevented: a permissions error on one workspace cascades into
 // the next reconcile pass, leaving the project unsymlinked.
 func TestReconcileProjectSymlinks_PerProjectFailureIsolation(t *testing.T) {
+	testguard.RequirePOSIXPerms(t)
 	if testing.Short() {
 		t.Skip("short: registry-driven multi-project test is moderately slow")
 	}

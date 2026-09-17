@@ -1,6 +1,8 @@
 package main
 
 import (
+	"github.com/sageox/ox/internal/testguard"
+
 	"bytes"
 	"encoding/json"
 	"os"
@@ -451,6 +453,7 @@ func TestReadUnsavedPlanStamp_CorruptStateDegradesToSilence(t *testing.T) {
 // Arming must never fail the command the agent is waiting on. An unwritable
 // cache directory returns an error for the caller's debug log and nothing else.
 func TestArmUnsavedPlanStamp_UnwritableCacheIsAnErrorNotAPanic(t *testing.T) {
+	testguard.RequirePOSIXPerms(t)
 	root := t.TempDir()
 	cacheParent := filepath.Join(root, ".sageox", "cache")
 	if err := os.MkdirAll(cacheParent, 0o755); err != nil {
@@ -476,6 +479,7 @@ func TestArmUnsavedPlanStamp_UnwritableCacheIsAnErrorNotAPanic(t *testing.T) {
 // every prompt for four hours. That tradeoff is documented in the code and was
 // previously untested.
 func TestEmitUnsavedPlanNudge_StaysSilentWhenItCannotMarkDelivery(t *testing.T) {
+	testguard.RequirePOSIXPerms(t)
 	root := t.TempDir()
 	if err := armUnsavedPlanStamp(root, testAgentID, draftedInput("plan.md"), materialResult()); err != nil {
 		t.Fatalf("arm returned error: %v", err)
@@ -522,6 +526,7 @@ func TestClearUnsavedPlanStamp_NoStampAndNoAgentAreQuietNoOps(t *testing.T) {
 // — a reminder is worth nothing if the feature that carries it can break
 // `ox plan enrich`.
 func TestPlanEnrichCmd_SurvivesAnUnwritableStampCache(t *testing.T) {
+	testguard.RequirePOSIXPerms(t)
 	root := newPlanEnrichTestRepo(t)
 	t.Setenv("SAGEOX_AGENT_ID", testAgentID)
 

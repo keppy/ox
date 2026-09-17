@@ -3,6 +3,8 @@
 package main
 
 import (
+	"github.com/sageox/ox/internal/testguard"
+
 	"encoding/json"
 	"os"
 	"path/filepath"
@@ -858,6 +860,7 @@ func TestFinalizeIncrementalSession_EmptySession(t *testing.T) {
 
 // A failed final Codex drain must preserve its captured prefix and cursor for retry.
 func TestCodexSessionStop_FinalDrainFailurePreservesRecording(t *testing.T) {
+	testguard.RequirePOSIXPerms(t)
 	for _, failure := range []string{"read", "append"} {
 		t.Run(failure, func(t *testing.T) {
 			if failure == "append" && os.Geteuid() == 0 {

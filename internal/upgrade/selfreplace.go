@@ -15,6 +15,7 @@ package upgrade
 
 import (
 	"archive/tar"
+	"archive/zip"
 	"bufio"
 	"bytes"
 	"compress/gzip"
@@ -130,10 +131,38 @@ func isGitHubHost(host string) bool {
 		strings.HasSuffix(host, ".githubusercontent.com")
 }
 
-// AssetName returns the release tarball name for a platform, matching the
+// AssetName returns the release archive name for a platform, matching the
 // GoReleaser name_template "{{.ProjectName}}_{{.Version}}_{{.Os}}_{{.Arch}}".
+// Windows releases are zipped (goreleaser format_overrides); all others are
+// tar.gz.
 func AssetName(version, goos, goarch string) string {
-	return fmt.Sprintf("ox_%s_%s_%s.tar.gz", version, goos, goarch)
+	return fmt.Sprintf("ox_%s_%s_%s.%s", version, goos, goarch, archiveExt(goos))
+}
+
+func archiveExt(goos string) string {
+	if goos == "windows" {
+		return "zip"
+	}
+	return "tar.gz"
+}
+
+// exeSuffix is the executable file suffix for goos ("" except on Windows).
+func exeSuffix(goos string) string {
+	if goos == "windows" {
+		return ".exe"
+	}
+	return ""
+}
+
+// isOxBinaryName reports whether an archive/install-dir basename is the ox CLI
+// or an adapter, tolerating the Windows .exe suffix. It returns the canonical
+// suffix-free name.
+func isOxBinaryName(base string) (canonical string, ok bool) {
+	canonical = strings.TrimSuffix(base, ".exe")
+	if canonical == "ox" || strings.HasPrefix(canonical, "ox-adapter-") {
+		return canonical, true
+	}
+	return "", false
 }
 
 // ReplaceRunningBinary downloads the release tarball for cfg.Version, verifies
@@ -181,9 +210,13 @@ func ReplaceRunningBinary(ctx context.Context, cfg Config) error {
 		return fmt.Errorf("checksum mismatch for %s: refusing to install", asset)
 	}
 
+	// a previous Windows upgrade leaves the old running ox.exe behind as a
+	// .bak (the OS refuses to delete a mapped image); it is deletable now.
+	removeStaleBackups(installDir)
+
 	// extract the binaries we care about into staged temp files next to the
 	// targets (same filesystem => rename is atomic).
-	staged, err := stageBinaries(ctx, tarball, installDir)
+	staged, err := stageBinaries(ctx, tarball, installDir, cfg.OS)
 	if err != nil {
 		return err
 	}
@@ -274,13 +307,24 @@ func commitStaged(ordered []stagedBinary) error {
 		done = append(done, commit{destPath: s.destPath, backupPath: backupPath, hadOriginal: hadOriginal})
 	}
 
-	// success: drop the backups.
+	// success: drop the backups. On Windows the running ox.exe cannot be
+	// deleted while mapped, so its .bak survives until the next upgrade
+	// (see removeStaleBackups); the rename itself already succeeded.
 	for _, c := range done {
 		if c.hadOriginal {
 			_ = os.Remove(c.backupPath)
 		}
 	}
 	return nil
+}
+
+// removeStaleBackups deletes leftover .ox-upgrade-*.bak files in installDir.
+// Best-effort: a file still mapped by a running process simply stays.
+func removeStaleBackups(installDir string) {
+	matches, _ := filepath.Glob(filepath.Join(installDir, ".ox-upgrade-*.bak"))
+	for _, m := range matches {
+		_ = os.Remove(m)
+	}
 }
 
 // withRollbackProblems attaches any rollback restore failures to the primary
@@ -341,8 +385,8 @@ type stagedBinary struct {
 // (os.ReadDir) or the literal "ox", never from the archive. An archive entry
 // named "../../etc/whatever" therefore cannot influence any path — it simply
 // never matches an install target.
-func stageBinaries(ctx context.Context, tarball []byte, installDir string) (staged []stagedBinary, retErr error) {
-	contents, err := readArchiveBinaries(ctx, tarball)
+func stageBinaries(ctx context.Context, archive []byte, installDir, goos string) (staged []stagedBinary, retErr error) {
+	contents, err := readArchiveBinaries(ctx, archive, goos)
 	if err != nil {
 		return nil, err
 	}
@@ -365,7 +409,7 @@ func stageBinaries(ctx context.Context, tarball []byte, installDir string) (stag
 	cleanInstallDir := filepath.Clean(installDir)
 	// error returns below are bare so the named `staged` result survives for
 	// the deferred cleanup — `return nil, err` would blank it and leak temps.
-	targets, err := installTargets(cleanInstallDir)
+	targets, err := installTargets(cleanInstallDir, goos)
 	if err != nil {
 		retErr = err
 		return
@@ -377,7 +421,7 @@ func stageBinaries(ctx context.Context, tarball []byte, installDir string) (stag
 		}
 		// name is a trusted install-target ("ox" literal or an os.ReadDir
 		// entry), so this path is not archive-derived.
-		destPath := filepath.Join(cleanInstallDir, name)
+		destPath := filepath.Join(cleanInstallDir, name+exeSuffix(goos))
 		tmp, err := os.CreateTemp(cleanInstallDir, ".ox-upgrade-*")
 		if err != nil {
 			retErr = fmt.Errorf("stage %s: %w", name, err)
@@ -416,17 +460,20 @@ func stageBinaries(ctx context.Context, tarball []byte, installDir string) (stag
 // the local filesystem, never the archive. A directory-read failure is an
 // error, not a silent fallback to ox-only — that would upgrade ox while
 // leaving installed adapters behind, skewing their protocol versions.
-func installTargets(installDir string) ([]string, error) {
+//
+// Names are canonical (no .exe); the caller re-adds the platform suffix.
+func installTargets(installDir, goos string) ([]string, error) {
 	entries, err := os.ReadDir(installDir)
 	if err != nil {
 		return nil, fmt.Errorf("list install dir %s: %w", installDir, err)
 	}
+	suffix := exeSuffix(goos)
 	targets := []string{"ox"}
 	for _, e := range entries {
-		if e.IsDir() {
+		if e.IsDir() || !strings.HasSuffix(e.Name(), suffix) {
 			continue
 		}
-		if name := e.Name(); strings.HasPrefix(name, "ox-adapter-") {
+		if name, ok := isOxBinaryName(e.Name()); ok && name != "ox" {
 			targets = append(targets, name)
 		}
 	}
@@ -434,10 +481,63 @@ func installTargets(installDir string) ([]string, error) {
 }
 
 // readArchiveBinaries reads the ox and ox-adapter-* regular files from the
-// tarball into memory, keyed by basename. Entry names are used only as map
-// keys (never as filesystem paths), and decompression is bounded per-entry and
-// in total to cap a decompression bomb.
-func readArchiveBinaries(ctx context.Context, tarball []byte) (map[string][]byte, error) {
+// release archive (tar.gz, or zip for Windows) into memory, keyed by canonical
+// basename (.exe stripped). Entry names are used only as map keys (never as
+// filesystem paths), and decompression is bounded per-entry and in total to
+// cap a decompression bomb.
+func readArchiveBinaries(ctx context.Context, archive []byte, goos string) (map[string][]byte, error) {
+	if archiveExt(goos) == "zip" {
+		return readZipBinaries(ctx, archive)
+	}
+	return readTarGzBinaries(ctx, archive)
+}
+
+func readZipBinaries(ctx context.Context, archive []byte) (map[string][]byte, error) {
+	zr, err := zip.NewReader(bytes.NewReader(archive), int64(len(archive)))
+	if err != nil {
+		return nil, fmt.Errorf("open zip: %w", err)
+	}
+	out := make(map[string][]byte)
+	var totalBytes int64
+	for _, f := range zr.File {
+		if err := ctx.Err(); err != nil {
+			return nil, err
+		}
+		if f.FileInfo().IsDir() {
+			continue
+		}
+		name, ok := isOxBinaryName(filepath.Base(f.Name))
+		if !ok {
+			continue
+		}
+		size := int64(f.UncompressedSize64)
+		if size < 0 || size > maxEntryBytes {
+			return nil, fmt.Errorf("archive entry has invalid size %d", size)
+		}
+		totalBytes += size
+		if totalBytes > maxTotalBytes {
+			return nil, fmt.Errorf("archive exceeds %d bytes decompressed", maxTotalBytes)
+		}
+		rc, err := f.Open()
+		if err != nil {
+			return nil, fmt.Errorf("extract %s: %w", name, err)
+		}
+		// LimitReader to size+1 so a header that lies about its size is
+		// caught rather than silently expanded past the cap.
+		data, err := io.ReadAll(io.LimitReader(rc, size+1))
+		_ = rc.Close()
+		if err != nil {
+			return nil, fmt.Errorf("extract %s: %w", name, err)
+		}
+		if int64(len(data)) > size {
+			return nil, fmt.Errorf("archive entry %s larger than declared", name)
+		}
+		out[name] = data
+	}
+	return out, nil
+}
+
+func readTarGzBinaries(ctx context.Context, tarball []byte) (map[string][]byte, error) {
 	gz, err := gzip.NewReader(bytes.NewReader(tarball))
 	if err != nil {
 		return nil, fmt.Errorf("open gzip: %w", err)
@@ -471,8 +571,8 @@ func readArchiveBinaries(ctx context.Context, tarball []byte) (map[string][]byte
 			return nil, fmt.Errorf("archive exceeds %d bytes decompressed", maxTotalBytes)
 		}
 
-		base := filepath.Base(hdr.Name)
-		if base != "ox" && !strings.HasPrefix(base, "ox-adapter-") {
+		base, ok := isOxBinaryName(filepath.Base(hdr.Name))
+		if !ok {
 			continue // LICENSE, README, CHANGELOG, etc.
 		}
 		// hdr.Size <= maxEntryBytes was checked above, so this reads the whole
