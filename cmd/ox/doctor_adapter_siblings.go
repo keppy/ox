@@ -7,6 +7,7 @@ import (
 	"sort"
 	"strings"
 
+	"github.com/sageox/ox/internal/fileutil"
 	"github.com/sageox/ox/internal/session/adapters"
 )
 
@@ -79,7 +80,7 @@ func adapterSiblingsResult(dirs []string) checkResult {
 			// report "present" for a binary session hooks would skip.
 			path := filepath.Join(dir, e.Name())
 			fi, err := os.Stat(path)
-			if err != nil || fi.Mode()&0111 == 0 {
+			if err != nil || !fileutil.IsExecutable(fi, path) {
 				continue
 			}
 			found[name] = true

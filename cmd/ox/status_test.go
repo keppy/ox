@@ -13,6 +13,8 @@ import (
 	"testing"
 	"time"
 
+	"github.com/sageox/ox/internal/testguard"
+
 	"github.com/sageox/ox/internal/api"
 	"github.com/sageox/ox/internal/auth"
 	"github.com/sageox/ox/internal/config"
@@ -478,7 +480,7 @@ func TestShortenPathViaSymlink(t *testing.T) {
 	projectRoot := filepath.Join(t.TempDir(), "project")
 	sageoxDir := filepath.Join(projectRoot, ".sageox")
 	require.NoError(t, os.MkdirAll(sageoxDir, 0755))
-	require.NoError(t, os.Symlink(target, filepath.Join(sageoxDir, "ledger")))
+	testguard.Symlink(t, target, filepath.Join(sageoxDir, "ledger"))
 
 	tests := []struct {
 		name       string

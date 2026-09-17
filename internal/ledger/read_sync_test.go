@@ -14,6 +14,8 @@ import (
 	"testing"
 	"time"
 
+	"github.com/sageox/ox/internal/testguard"
+
 	"github.com/sageox/ox/internal/gitserver"
 	"github.com/sageox/ox/internal/gitutil"
 	"github.com/sageox/ox/internal/lfs"
@@ -249,7 +251,7 @@ func TestReadSyncColdFailureAndIdentityIsolation(t *testing.T) {
 	target := filepath.Join(t.TempDir(), "untouched")
 	require.NoError(t, os.WriteFile(target, []byte("keep"), 0600))
 	require.NoError(t, os.Remove(filepath.Join(f.opts.Path, readReceiptRelative)))
-	require.NoError(t, os.Symlink(target, filepath.Join(f.opts.Path, readReceiptRelative)))
+	testguard.Symlink(t, target, filepath.Join(f.opts.Path, readReceiptRelative))
 	require.False(t, ReadSync(context.Background(), f.opts).Ready)
 	content, err := os.ReadFile(target)
 	require.NoError(t, err)

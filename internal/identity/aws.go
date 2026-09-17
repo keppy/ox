@@ -11,6 +11,8 @@ import (
 	"strings"
 	"time"
 
+	"github.com/sageox/ox/internal/homedir"
+
 	"github.com/sageox/ox/internal/logger"
 	"github.com/sageox/ox/internal/useragent"
 	"gopkg.in/ini.v1"
@@ -63,7 +65,7 @@ func getAWSCredentials() (accessKey, secretKey string) {
 // readAWSCredentials reads AWS credentials from ~/.aws/credentials file.
 // It respects AWS_PROFILE environment variable, otherwise uses [default] profile.
 func readAWSCredentials() (accessKey, secretKey string) {
-	home, err := os.UserHomeDir()
+	home, err := homedir.Dir()
 	if err != nil {
 		return "", ""
 	}

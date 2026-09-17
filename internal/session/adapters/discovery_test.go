@@ -5,6 +5,8 @@ import (
 	"os"
 	"path/filepath"
 	"testing"
+
+	"github.com/sageox/ox/internal/testguard"
 )
 
 func TestDiscoverExternalAdapters_FindsBinaries(t *testing.T) {
@@ -194,9 +196,7 @@ func TestAdapterDirs_ResolvesSymlinkedExecutable(t *testing.T) {
 
 	linkDir := t.TempDir()
 	symlinkedBinary := filepath.Join(linkDir, "ox")
-	if err := os.Symlink(realBinary, symlinkedBinary); err != nil {
-		t.Fatal(err)
-	}
+	testguard.Symlink(t, realBinary, symlinkedBinary)
 
 	oldExecutableFunc := executableFunc
 	executableFunc = func() (string, error) { return symlinkedBinary, nil }

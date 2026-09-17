@@ -36,6 +36,8 @@ import (
 	"strings"
 	"sync"
 
+	"github.com/sageox/ox/internal/homedir"
+
 	"github.com/sageox/ox/internal/endpoint"
 )
 
@@ -48,7 +50,7 @@ var (
 func getHomeDir() string {
 	homeDirOnce.Do(func() {
 		var err error
-		homeDir, err = os.UserHomeDir()
+		homeDir, err = homedir.Dir()
 		if err != nil {
 			homeDir = ""
 		}

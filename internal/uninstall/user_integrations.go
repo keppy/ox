@@ -8,6 +8,8 @@ import (
 	"path/filepath"
 	"runtime"
 
+	"github.com/sageox/ox/internal/homedir"
+
 	"github.com/sageox/ox/internal/constants"
 
 	"github.com/sageox/ox/internal/config"
@@ -28,7 +30,7 @@ type UserIntegrationsFinder struct {
 
 // NewUserIntegrationsFinder creates a new finder
 func NewUserIntegrationsFinder() (*UserIntegrationsFinder, error) {
-	homeDir, err := os.UserHomeDir()
+	homeDir, err := homedir.Dir()
 	if err != nil {
 		return nil, fmt.Errorf("failed to get home directory: %w", err)
 	}

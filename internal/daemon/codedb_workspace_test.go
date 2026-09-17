@@ -9,6 +9,8 @@ import (
 	"testing"
 	"time"
 
+	"github.com/sageox/ox/internal/testguard"
+
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -334,7 +336,7 @@ func TestUpdateProjectRoot_Symlink(t *testing.T) {
 
 	realDir := t.TempDir()
 	linkDir := filepath.Join(t.TempDir(), "link")
-	require.NoError(t, os.Symlink(realDir, linkDir))
+	testguard.Symlink(t, realDir, linkDir)
 
 	mgr := NewCodeDBManager(realDir, codedbTestLogger(), nil)
 

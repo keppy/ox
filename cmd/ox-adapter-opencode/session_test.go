@@ -8,6 +8,8 @@ import (
 	"testing"
 	"time"
 
+	"github.com/sageox/ox/internal/testguard"
+
 	_ "modernc.org/sqlite"
 
 	"github.com/sageox/ox/pkg/adapterprotocol"
@@ -356,9 +358,7 @@ func TestResolveSessionID_ResolvesSymlinkedRepoRoot(t *testing.T) {
 	}
 
 	link := filepath.Join(parent, "link")
-	if err := os.Symlink(real, link); err != nil {
-		t.Fatalf("symlink: %v", err)
-	}
+	testguard.Symlink(t, real, link)
 
 	// OpenCode recorded the canonical, symlink-resolved directory...
 	if _, err := db.Exec(`INSERT INTO session (id, project_id, parent_id, directory, title, version, model, time_created, time_updated)

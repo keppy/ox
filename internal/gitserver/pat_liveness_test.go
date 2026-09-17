@@ -10,6 +10,8 @@ import (
 	"testing"
 	"time"
 
+	"github.com/sageox/ox/internal/testguard"
+
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -231,7 +233,7 @@ exit 0
 	// put our fake git first in PATH
 	fakeDir := t.TempDir()
 	fakePath := fakeDir + "/git"
-	require.NoError(t, os.Symlink(fakeGit.Name(), fakePath))
+	testguard.Symlink(t, fakeGit.Name(), fakePath)
 	t.Setenv("PATH", fakeDir+string(os.PathListSeparator)+os.Getenv("PATH"))
 
 	creds := &GitCredentials{
@@ -293,7 +295,7 @@ func TestClearCredentialHelperEntry(t *testing.T) {
 		require.NoError(t, os.Chmod(fakeGit.Name(), 0700))
 
 		fakeDir := t.TempDir()
-		require.NoError(t, os.Symlink(fakeGit.Name(), fakeDir+"/git"))
+		testguard.Symlink(t, fakeGit.Name(), fakeDir+"/git")
 		t.Setenv("PATH", fakeDir+string(os.PathListSeparator)+os.Getenv("PATH"))
 
 		ClearCredentialHelperEntry("https://git.sageox.ai")
@@ -470,6 +472,6 @@ func installFakeGit(t *testing.T, scriptBody string) {
 	require.NoError(t, os.Chmod(fakeGit.Name(), 0700))
 
 	fakeDir := t.TempDir()
-	require.NoError(t, os.Symlink(fakeGit.Name(), fakeDir+"/git"))
+	testguard.Symlink(t, fakeGit.Name(), fakeDir+"/git")
 	t.Setenv("PATH", fakeDir+string(os.PathListSeparator)+os.Getenv("PATH"))
 }

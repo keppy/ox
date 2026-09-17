@@ -16,6 +16,8 @@ import (
 	"testing"
 	"time"
 
+	"github.com/sageox/ox/internal/homedir"
+
 	"github.com/sageox/agentx"
 	"github.com/sageox/ox/internal/agentinstance"
 	"github.com/sageox/ox/internal/api"
@@ -678,7 +680,7 @@ func sessionPathVariants(repoRoot string) []string {
 // time window. This catches cases where the project hash doesn't match due to
 // path normalization differences (trailing slash, case, mount points).
 func scanClaudeProjectsForSession(agentID string, startedAt time.Time) string {
-	home, err := os.UserHomeDir()
+	home, err := homedir.Dir()
 	if err != nil {
 		return ""
 	}

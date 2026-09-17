@@ -9,6 +9,8 @@ import (
 	"testing"
 	"time"
 
+	"github.com/sageox/ox/internal/testguard"
+
 	"github.com/sageox/ox/internal/fileutil"
 	"github.com/sageox/ox/internal/gitutil"
 	"github.com/stretchr/testify/assert"
@@ -260,7 +262,7 @@ func TestRecoverEmptyTitleMeta_PreservesSymlink(t *testing.T) {
 	require.NoError(t, err)
 	dir := t.TempDir()
 	link := filepath.Join(dir, "meta.json")
-	require.NoError(t, os.Symlink(target, link))
+	testguard.Symlink(t, target, link)
 	writeTestSummary(t, dir, "Recovered title")
 	for _, dryRun := range []bool{true, false} {
 		assert.Contains(t, RecoverEmptyTitleMeta(dir, dryRun).Error, "non-regular")

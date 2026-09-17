@@ -11,6 +11,8 @@ import (
 	"strings"
 	"time"
 
+	"github.com/sageox/ox/internal/homedir"
+
 	"github.com/sageox/ox/internal/doctor"
 )
 
@@ -375,7 +377,7 @@ func probeShellPath(ctx context.Context, shellPath, binary string) (string, erro
 // that environment without importing the caller's PATH.
 func scrubbedShellEnv() []string {
 	env := []string{"PATH=/usr/bin:/bin:/usr/sbin:/sbin"}
-	if home, err := os.UserHomeDir(); err == nil && home != "" {
+	if home, err := homedir.Dir(); err == nil && home != "" {
 		env = append(env, "HOME="+home)
 	}
 	if user := os.Getenv("USER"); user != "" {

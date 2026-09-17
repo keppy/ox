@@ -31,6 +31,8 @@ import (
 	"strings"
 	"time"
 
+	"github.com/sageox/ox/internal/homedir"
+
 	"github.com/sageox/ox/pkg/adapterprotocol"
 	"github.com/sageox/ox/pkg/adapterruntime"
 )
@@ -158,7 +160,7 @@ func readFromOffset(path string, offset int64) ([]adapterprotocol.RawEntry, int6
 // helpers like projectDirMatchesRepo in isolation — the gap that let this
 // adapter ship pointed at a directory ("projects") Droid never wrote.
 func droidSessionsDir() (string, error) {
-	home, err := os.UserHomeDir()
+	home, err := homedir.Dir()
 	if err != nil {
 		return "", fmt.Errorf("cannot determine home directory: %w", err)
 	}

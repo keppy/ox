@@ -6,6 +6,8 @@ import (
 	"os/exec"
 	"path/filepath"
 	"strings"
+
+	"github.com/sageox/ox/internal/homedir"
 )
 
 // Agent represents an AI coding agent with hooks capability
@@ -109,7 +111,7 @@ func (a *ClaudeAgent) DetectProject() bool {
 
 func (a *ClaudeAgent) DetectCLI() bool {
 	// claude is special - also check user-level config since most users have it
-	homeDir, err := os.UserHomeDir()
+	homeDir, err := homedir.Dir()
 	if err != nil {
 		return false
 	}

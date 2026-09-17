@@ -6,6 +6,8 @@ import (
 	"path/filepath"
 	"strings"
 
+	"github.com/sageox/ox/internal/homedir"
+
 	"github.com/sageox/ox/internal/session/omppaths"
 )
 
@@ -25,7 +27,7 @@ import (
 //
 // homeDir is the absolute path to the caller's home directory ($HOME). Passing
 // it in keeps the function pure and testable; production callers should pass
-// os.UserHomeDir() — KnownSessionRootsForCurrentUser does that for them.
+// homedir.Dir() — KnownSessionRootsForCurrentUser does that for them.
 func KnownSessionRoots(adapterName, homeDir string) []string {
 	if homeDir == "" {
 		return nil
@@ -62,7 +64,7 @@ func containsRoot(roots []string, candidate string) bool {
 // KnownSessionRootsForCurrentUser is a convenience wrapper that resolves
 // $HOME via os.UserHomeDir.
 func KnownSessionRootsForCurrentUser(adapterName string) []string {
-	home, err := os.UserHomeDir()
+	home, err := homedir.Dir()
 	if err != nil {
 		return nil
 	}

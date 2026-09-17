@@ -16,6 +16,7 @@ import (
 	"time"
 
 	"github.com/sageox/ox/internal/envutil"
+	"github.com/sageox/ox/internal/fileutil"
 	"github.com/sageox/ox/pkg/adapterprotocol"
 	"github.com/sageox/ox/pkg/ndjson"
 )
@@ -614,7 +615,7 @@ func (s *AdapterSupervisor) findBinary(adapterType string) (string, error) {
 		if err != nil {
 			continue
 		}
-		if fi.Mode()&0111 == 0 {
+		if !fileutil.IsExecutable(fi, path) {
 			continue // not executable
 		}
 		return path, nil

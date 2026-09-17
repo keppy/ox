@@ -8,6 +8,8 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/sageox/ox/internal/testguard"
+
 	"github.com/sageox/ox/internal/config"
 )
 
@@ -51,9 +53,7 @@ func newSymlinkCheckProject(t *testing.T) (repoRoot, ledgerTarget string) {
 
 func linkLedger(t *testing.T, repoRoot, target string) {
 	t.Helper()
-	if err := os.Symlink(target, filepath.Join(repoRoot, ".sageox", "ledger")); err != nil {
-		t.Fatalf("symlink ledger: %v", err)
-	}
+	testguard.Symlink(t, target, filepath.Join(repoRoot, ".sageox", "ledger"))
 }
 
 // TestCheckProjectSymlinks_DanglingTargetIsNotHealthy is the regression this

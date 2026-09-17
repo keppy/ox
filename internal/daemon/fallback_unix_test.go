@@ -16,6 +16,8 @@ import (
 	"testing"
 	"time"
 
+	"github.com/sageox/ox/internal/testguard"
+
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -72,7 +74,7 @@ func startFakeProcess(t *testing.T, name, shellBody string) (int, <-chan struct{
 	sh, err := exec.LookPath("sh")
 	require.NoError(t, err)
 	fakeExe := filepath.Join(t.TempDir(), name)
-	require.NoError(t, os.Symlink(sh, fakeExe))
+	testguard.Symlink(t, sh, fakeExe)
 
 	readyRead, readyWrite, err := os.Pipe()
 	require.NoError(t, err)

@@ -35,6 +35,8 @@ import (
 	"sync"
 	"time"
 
+	"github.com/sageox/ox/internal/homedir"
+
 	"github.com/google/uuid"
 	"github.com/sageox/ox/internal/config"
 	"github.com/sageox/ox/internal/daemon/hooks"
@@ -2090,7 +2092,7 @@ func isValidRepoPath(path string) bool {
 	}
 
 	// get expected base directories
-	homeDir, err := os.UserHomeDir()
+	homeDir, err := homedir.Dir()
 	if err != nil {
 		return false
 	}

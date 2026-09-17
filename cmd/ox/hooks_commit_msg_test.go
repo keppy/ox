@@ -7,6 +7,8 @@ import (
 	"testing"
 	"time"
 
+	"github.com/sageox/ox/internal/testguard"
+
 	"github.com/sageox/ox/internal/config"
 	"github.com/sageox/ox/internal/session"
 	"github.com/stretchr/testify/assert"
@@ -361,7 +363,7 @@ func TestSessionLookupByWorkspace_SymlinkResolution(t *testing.T) {
 	realDir := t.TempDir()
 	symlinkParent := t.TempDir()
 	symlinkPath := filepath.Join(symlinkParent, "linked-workspace")
-	require.NoError(t, os.Symlink(realDir, symlinkPath))
+	testguard.Symlink(t, realDir, symlinkPath)
 
 	sessionsDir := filepath.Join(realDir, "sessions")
 

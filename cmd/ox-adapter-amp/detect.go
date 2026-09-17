@@ -6,6 +6,8 @@ import (
 	"os/exec"
 	"path/filepath"
 
+	"github.com/sageox/ox/internal/homedir"
+
 	"github.com/sageox/ox/pkg/adapterprotocol"
 )
 
@@ -14,7 +16,7 @@ func handleDetect() (*adapterprotocol.DetectResponse, error) {
 		return &adapterprotocol.DetectResponse{Detected: true, Reason: "AGENT_ENV=amp"}, nil
 	}
 
-	home, err := os.UserHomeDir()
+	home, err := homedir.Dir()
 	if err != nil {
 		return &adapterprotocol.DetectResponse{Detected: false, Reason: "cannot determine home directory"}, nil
 	}
@@ -34,7 +36,7 @@ func handleDetect() (*adapterprotocol.DetectResponse, error) {
 func handleDiagnose(p adapterprotocol.DiagnoseParams) (*adapterprotocol.DiagnoseResult, error) {
 	var issues []adapterprotocol.DiagnoseIssue
 
-	home, _ := os.UserHomeDir()
+	home, _ := homedir.Dir()
 	ampDir := filepath.Join(home, ".amp")
 	if _, err := os.Stat(ampDir); os.IsNotExist(err) {
 		issues = append(issues, adapterprotocol.DiagnoseIssue{

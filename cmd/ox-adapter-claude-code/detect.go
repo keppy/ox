@@ -4,6 +4,8 @@ import (
 	"os"
 	"path/filepath"
 
+	"github.com/sageox/ox/internal/homedir"
+
 	"github.com/sageox/ox/pkg/adapterprotocol"
 )
 
@@ -16,7 +18,7 @@ func handleDetect() (*adapterprotocol.DetectResponse, error) {
 		}, nil
 	}
 
-	home, err := os.UserHomeDir()
+	home, err := homedir.Dir()
 	if err != nil {
 		return &adapterprotocol.DetectResponse{
 			Detected: false,

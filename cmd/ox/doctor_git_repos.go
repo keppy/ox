@@ -12,6 +12,8 @@ import (
 	"strings"
 	"time"
 
+	"github.com/sageox/ox/internal/homedir"
+
 	"github.com/sageox/ox/internal/api"
 	"github.com/sageox/ox/internal/auth"
 	"github.com/sageox/ox/internal/cli"
@@ -68,7 +70,7 @@ func checkGitAuth() checkResult {
 // checkSSHAuth checks if SSH authentication is likely configured for git.
 func checkSSHAuth() bool {
 	// check for common SSH key locations
-	homeDir, err := os.UserHomeDir()
+	homeDir, err := homedir.Dir()
 	if err != nil {
 		return false
 	}

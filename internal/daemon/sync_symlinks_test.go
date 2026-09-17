@@ -11,6 +11,8 @@ import (
 	"testing"
 	"time"
 
+	"github.com/sageox/ox/internal/testguard"
+
 	"github.com/sageox/ox/internal/api"
 	"github.com/sageox/ox/internal/endpoint"
 	"github.com/sageox/ox/internal/paths"
@@ -215,7 +217,7 @@ func TestReconcileProjectSymlinks_FlatLayoutMigration(t *testing.T) {
 	target := paths.KBDir(endpoint.Get(), "kb_team")
 	require.NoError(t, os.MkdirAll(target, 0o755))
 	flatLink := filepath.Join(kbDir, "platform")
-	require.NoError(t, os.Symlink(target, flatLink))
+	testguard.Symlink(t, target, flatLink)
 
 	bubbles := []api.KB{{KBID: "kb_team", KBType: api.KBTypeTeam, Slug: "platform"}}
 	s.reconcileProjectSymlinks(context.Background(), projectRoot, bubbles)
@@ -582,7 +584,7 @@ func TestReconcileProjectSymlinks_TargetRelocated(t *testing.T) {
 	// canonical path by writing a divergent symlink first, then asserting
 	// the reconciler corrects it.
 	require.NoError(t, os.Remove(linkPath))
-	require.NoError(t, os.Symlink("/some/other/path", linkPath))
+	testguard.Symlink(t, "/some/other/path", linkPath)
 
 	// second pass — must re-point at the canonical target.
 	s.reconcileProjectSymlinks(context.Background(), projectRoot, bubbles)

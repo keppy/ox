@@ -40,6 +40,8 @@ import (
 	"path/filepath"
 	"strings"
 
+	"github.com/sageox/ox/internal/homedir"
+
 	"github.com/sageox/ox/pkg/adapterprotocol"
 )
 
@@ -356,7 +358,7 @@ func containsOxHook(v any) bool {
 
 func resolveSettingsPath(repoRoot, scope string) (string, error) {
 	if scope == "user" {
-		home, err := os.UserHomeDir()
+		home, err := homedir.Dir()
 		if err != nil {
 			return "", fmt.Errorf("resolve home directory: %w", err)
 		}

@@ -7,6 +7,8 @@ import (
 	"testing"
 	"time"
 
+	"github.com/sageox/ox/internal/testguard"
+
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -691,7 +693,7 @@ func TestCreateOrUpdateSymlink_CorrectTarget(t *testing.T) {
 	require.NoError(t, os.MkdirAll(target, 0755))
 
 	link := filepath.Join(tmpDir, "link")
-	require.NoError(t, os.Symlink(target, link))
+	testguard.Symlink(t, target, link)
 
 	// calling with same target should be a no-op
 	err := createOrUpdateSymlink(link, target)
@@ -715,7 +717,7 @@ func TestCreateOrUpdateSymlink_WrongTarget(t *testing.T) {
 	require.NoError(t, os.MkdirAll(newTarget, 0755))
 
 	link := filepath.Join(tmpDir, "link")
-	require.NoError(t, os.Symlink(oldTarget, link))
+	testguard.Symlink(t, oldTarget, link)
 
 	// should replace symlink to point to new target
 	err := createOrUpdateSymlink(link, newTarget)
@@ -737,7 +739,7 @@ func TestCreateOrUpdateSymlink_DanglingSymlink(t *testing.T) {
 	require.NoError(t, os.MkdirAll(newTarget, 0755))
 
 	link := filepath.Join(tmpDir, "link")
-	require.NoError(t, os.Symlink(deadTarget, link))
+	testguard.Symlink(t, deadTarget, link)
 
 	// dangling symlink should be replaced
 	err := createOrUpdateSymlink(link, newTarget)

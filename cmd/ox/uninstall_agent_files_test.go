@@ -5,6 +5,7 @@ import (
 	"path/filepath"
 	"testing"
 
+	"github.com/sageox/ox/internal/testguard"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -238,7 +239,7 @@ Other content.`,
 			// create CLAUDE.md or symlink if specified
 			if tt.claudeSymlink {
 				claudePath := filepath.Join(tmpDir, "CLAUDE.md")
-				require.NoError(t, os.Symlink("AGENTS.md", claudePath), "failed to create CLAUDE.md symlink")
+				testguard.Symlink(t, "AGENTS.md", claudePath)
 			} else if tt.claudeContent != "" {
 				claudePath := filepath.Join(tmpDir, "CLAUDE.md")
 				require.NoError(t, os.WriteFile(claudePath, []byte(tt.claudeContent), 0644), "failed to create CLAUDE.md")
@@ -353,7 +354,7 @@ Keep this.
 			// create CLAUDE.md or symlink if specified
 			if tt.claudeSymlink {
 				claudePath := filepath.Join(tmpDir, "CLAUDE.md")
-				require.NoError(t, os.Symlink("AGENTS.md", claudePath), "failed to create CLAUDE.md symlink")
+				testguard.Symlink(t, "AGENTS.md", claudePath)
 			} else if tt.claudeContent != "" {
 				claudePath := filepath.Join(tmpDir, "CLAUDE.md")
 				require.NoError(t, os.WriteFile(claudePath, []byte(tt.claudeContent), 0644), "failed to create CLAUDE.md")

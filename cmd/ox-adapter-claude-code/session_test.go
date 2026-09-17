@@ -7,6 +7,8 @@ import (
 	"testing"
 	"time"
 
+	"github.com/sageox/ox/internal/testguard"
+
 	"github.com/sageox/ox/pkg/adapterprotocol"
 )
 
@@ -332,9 +334,7 @@ func TestFindSessionFile_SymlinkResolution(t *testing.T) {
 	symlinkParent := t.TempDir()
 	symlinkTarget := filepath.Join(realBase, "Documents", "Code")
 	symlinkPath := filepath.Join(symlinkParent, "Code")
-	if err := os.Symlink(symlinkTarget, symlinkPath); err != nil {
-		t.Fatal(err)
-	}
+	testguard.Symlink(t, symlinkTarget, symlinkPath)
 	symlinkRepo := filepath.Join(symlinkParent, "Code", "my-repo")
 
 	// resolve realRepo itself (macOS /var -> /private/var)
@@ -387,9 +387,7 @@ func TestFindSessionFile_SymlinkResolution_DirectLookup(t *testing.T) {
 	}
 
 	symlinkParent := t.TempDir()
-	if err := os.Symlink(filepath.Join(realBase, "Documents", "Code"), filepath.Join(symlinkParent, "Code")); err != nil {
-		t.Fatal(err)
-	}
+	testguard.Symlink(t, filepath.Join(realBase, "Documents", "Code"), filepath.Join(symlinkParent, "Code"))
 	symlinkRepo := filepath.Join(symlinkParent, "Code", "my-repo")
 
 	// resolve realRepo itself (macOS /var -> /private/var)
@@ -433,16 +431,12 @@ func TestFindSessionFile_SymlinkResolution_MultiLevel(t *testing.T) {
 	// symlink1 -> realDir
 	symlink1Parent := t.TempDir()
 	symlink1 := filepath.Join(symlink1Parent, "link1")
-	if err := os.Symlink(realDir, symlink1); err != nil {
-		t.Fatal(err)
-	}
+	testguard.Symlink(t, realDir, symlink1)
 
 	// symlink2 -> symlink1
 	symlink2Parent := t.TempDir()
 	symlink2 := filepath.Join(symlink2Parent, "link2")
-	if err := os.Symlink(symlink1, symlink2); err != nil {
-		t.Fatal(err)
-	}
+	testguard.Symlink(t, symlink1, symlink2)
 
 	// resolve realRepo itself (macOS /var -> /private/var)
 	realRepo, _ = filepath.EvalSymlinks(realRepo)
@@ -487,9 +481,7 @@ func TestClaudeProjectHash_SymlinkEquivalence(t *testing.T) {
 
 	symlinkParent := t.TempDir()
 	symlinkPath := filepath.Join(symlinkParent, "link")
-	if err := os.Symlink(realDir, symlinkPath); err != nil {
-		t.Fatal(err)
-	}
+	testguard.Symlink(t, realDir, symlinkPath)
 
 	resolved1, err := filepath.EvalSymlinks(realDir)
 	if err != nil {

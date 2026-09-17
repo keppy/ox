@@ -6,6 +6,8 @@ import (
 	"testing"
 	"time"
 
+	"github.com/sageox/ox/internal/testguard"
+
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -163,7 +165,7 @@ func TestSessionLookup_Validate_SymlinkedSageox(t *testing.T) {
 
 	realDir := filepath.Join(tmpDir, "real-sageox")
 	require.NoError(t, os.MkdirAll(realDir, 0o755))
-	require.NoError(t, os.Symlink(realDir, filepath.Join(tmpDir, ".sageox")))
+	testguard.Symlink(t, realDir, filepath.Join(tmpDir, ".sageox"))
 
 	lookup := SessionLookup{RepoRoot: tmpDir, AgentID: "OxTest", Since: time.Now()}
 	require.NoError(t, lookup.Validate())

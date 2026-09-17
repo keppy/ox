@@ -26,6 +26,8 @@ import (
 	"strings"
 	"time"
 
+	"github.com/sageox/ox/internal/homedir"
+
 	"github.com/sageox/ox/internal/api"
 	"github.com/sageox/ox/internal/daemon"
 	"github.com/sageox/ox/internal/kb"
@@ -480,7 +482,7 @@ func shortenHome(path string) string {
 	if path == "" {
 		return path
 	}
-	home, err := os.UserHomeDir()
+	home, err := homedir.Dir()
 	if err != nil || home == "" {
 		return path
 	}

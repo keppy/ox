@@ -8,6 +8,8 @@ import (
 	"strings"
 	"time"
 
+	"github.com/sageox/ox/internal/homedir"
+
 	"github.com/sageox/ox/internal/config"
 	"github.com/sageox/ox/internal/endpoint"
 	"github.com/sageox/ox/internal/ledger"
@@ -355,7 +357,7 @@ func formatDuration(d time.Duration) string {
 // ShortenPath returns a shortened path for display.
 // Replaces home directory with ~.
 func ShortenPath(path string) string {
-	home, err := os.UserHomeDir()
+	home, err := homedir.Dir()
 	if err != nil {
 		return path
 	}

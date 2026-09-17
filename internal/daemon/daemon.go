@@ -18,6 +18,8 @@ import (
 	"syscall"
 	"time"
 
+	"github.com/sageox/ox/internal/homedir"
+
 	"go.opentelemetry.io/otel/attribute"
 
 	"github.com/sageox/ox/internal/auth"
@@ -1927,7 +1929,7 @@ func (s *daemonServiceImpl) SessionWatchStart(payload SessionWatchStartPayload) 
 // per-daemon-instance value (e.g., for the ox-fault test daemon) without
 // touching the call site.
 func (s *daemonServiceImpl) userHomeDir() string {
-	home, err := os.UserHomeDir()
+	home, err := homedir.Dir()
 	if err != nil {
 		return ""
 	}

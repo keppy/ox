@@ -7,6 +7,8 @@ import (
 	"path/filepath"
 	"sort"
 
+	"github.com/sageox/ox/internal/homedir"
+
 	"github.com/sageox/ox/pkg/adapterprotocol"
 )
 
@@ -18,7 +20,7 @@ func handleDetect() (*adapterprotocol.DetectResponse, error) {
 		return &adapterprotocol.DetectResponse{Detected: true, Reason: "Gemini API key found"}, nil
 	}
 
-	home, err := os.UserHomeDir()
+	home, err := homedir.Dir()
 	if err != nil {
 		return &adapterprotocol.DetectResponse{Detected: false, Reason: "cannot determine home directory"}, nil
 	}
@@ -39,7 +41,7 @@ func handleDetect() (*adapterprotocol.DetectResponse, error) {
 func handleDiagnose(p adapterprotocol.DiagnoseParams) (*adapterprotocol.DiagnoseResult, error) {
 	var issues []adapterprotocol.DiagnoseIssue
 
-	home, _ := os.UserHomeDir()
+	home, _ := homedir.Dir()
 	geminiDir := filepath.Join(home, ".gemini")
 	installed := true
 	if _, err := os.Stat(geminiDir); os.IsNotExist(err) {

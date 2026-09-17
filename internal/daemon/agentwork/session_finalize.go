@@ -17,6 +17,8 @@ import (
 	"syscall"
 	"time"
 
+	"github.com/sageox/ox/internal/homedir"
+
 	"github.com/sageox/ox/internal/endpoint"
 	"github.com/sageox/ox/internal/fileutil"
 	"github.com/sageox/ox/internal/gitutil"
@@ -2272,7 +2274,7 @@ func recoverRawFromSessionFile(logger *slog.Logger, recPath, sessionDir, rawPath
 		}
 	}
 	if state.WatchMode == "tail" {
-		home, err := os.UserHomeDir()
+		home, err := homedir.Dir()
 		if err != nil {
 			return false, fmt.Errorf("resolve session source home: %w", err)
 		}

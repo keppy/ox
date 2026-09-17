@@ -5,6 +5,8 @@ import (
 	"path/filepath"
 	"strings"
 
+	"github.com/sageox/ox/internal/homedir"
+
 	"github.com/sageox/ox/pkg/adapterprotocol"
 )
 
@@ -12,7 +14,7 @@ func handleDiagnose(p adapterprotocol.DiagnoseParams) (*adapterprotocol.Diagnose
 	var issues []adapterprotocol.DiagnoseIssue
 
 	// check if Claude Code is installed
-	home, _ := os.UserHomeDir()
+	home, _ := homedir.Dir()
 	claudeDir := filepath.Join(home, ".claude")
 	if _, err := os.Stat(claudeDir); os.IsNotExist(err) {
 		issues = append(issues, adapterprotocol.DiagnoseIssue{

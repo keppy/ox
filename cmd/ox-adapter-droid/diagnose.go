@@ -6,13 +6,15 @@ import (
 	"path/filepath"
 	"strings"
 
+	"github.com/sageox/ox/internal/homedir"
+
 	"github.com/sageox/ox/pkg/adapterprotocol"
 )
 
 func handleDiagnose(p adapterprotocol.DiagnoseParams) (*adapterprotocol.DiagnoseResult, error) {
 	var issues []adapterprotocol.DiagnoseIssue
 
-	home, _ := os.UserHomeDir()
+	home, _ := homedir.Dir()
 	factoryDir := filepath.Join(home, ".factory")
 	if _, err := os.Stat(factoryDir); os.IsNotExist(err) {
 		issues = append(issues, adapterprotocol.DiagnoseIssue{
