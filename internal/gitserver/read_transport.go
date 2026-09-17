@@ -202,7 +202,10 @@ func (t *ReadTransport) validateConfig(ctx context.Context, dir string, env []st
 
 func (t *ReadTransport) safeConfig(key, value string) bool {
 	switch key {
-	case "", "core.repositoryformatversion", "core.filemode", "core.bare", "core.logallrefupdates", "core.ignorecase", "core.precomposeunicode", "core.sparsecheckout", "core.sparsecheckoutcone", "index.sparse", "extensions.worktreeconfig", "extensions.partialclone", "remote.origin.promisor", "remote.origin.partialclonefilter", "user.name", "user.email", "commit.gpgsign", "tag.gpgsign":
+	// core.symlinks is written by Git for Windows on every init/clone (false
+	// unless Developer Mode). It only governs how symlink entries are
+	// checked out — never a transport or executable surface.
+	case "", "core.repositoryformatversion", "core.filemode", "core.bare", "core.logallrefupdates", "core.ignorecase", "core.precomposeunicode", "core.symlinks", "core.sparsecheckout", "core.sparsecheckoutcone", "index.sparse", "extensions.worktreeconfig", "extensions.partialclone", "remote.origin.promisor", "remote.origin.partialclonefilter", "user.name", "user.email", "commit.gpgsign", "tag.gpgsign":
 		return true
 	case "remote.origin.url":
 		return value == t.readURL

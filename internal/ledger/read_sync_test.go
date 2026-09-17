@@ -97,7 +97,11 @@ func newReadFixture(t *testing.T, lfsHandler ...http.HandlerFunc) *readFixture {
 	bin := filepath.Join(root, "bin")
 	require.NoError(t, os.Mkdir(bin, 0700))
 	quote := func(s string) string { return "'" + strings.ReplaceAll(s, "'", "'\\''") + "'" }
-	require.NoError(t, os.WriteFile(filepath.Join(bin, "git"), []byte("#!/bin/sh\nexec "+quote(git)+" -c "+quote("http.sslCAInfo="+cert)+" \"$@\"\n"), 0700))
+	// Git for Windows defaults to the schannel TLS backend, which consults the
+	// Windows certificate store and ignores http.sslCAInfo; pin OpenSSL so the
+	// fixture CA is honored there. A no-op on other platforms.
+	shim := "#!/bin/sh\nexec " + quote(filepath.ToSlash(git)) + " -c http.sslBackend=openssl -c " + quote("http.sslCAInfo="+filepath.ToSlash(cert)) + " \"$@\"\n"
+	testguard.WriteShellExecutable(t, bin, "git", shim)
 	t.Setenv("PATH", bin+string(os.PathListSeparator)+os.Getenv("PATH"))
 	t.Setenv("SAGEOX_ENDPOINT", server.URL)
 	t.Setenv("SAGEOX_TOKEN", readTestToken)

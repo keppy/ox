@@ -1,7 +1,7 @@
 package ledger
 
 import (
-	"path/filepath"
+	"path"
 	"strings"
 	"testing"
 	"time"
@@ -16,22 +16,22 @@ func TestMurmurDateHourDir(t *testing.T) {
 		{
 			name: "afternoon",
 			time: time.Date(2026, 3, 22, 14, 30, 0, 0, time.UTC),
-			want: filepath.Join("data", "murmurs", "2026-03-22", "14"),
+			want: path.Join("data", "murmurs", "2026-03-22", "14"),
 		},
 		{
 			name: "midnight",
 			time: time.Date(2026, 1, 1, 0, 0, 0, 0, time.UTC),
-			want: filepath.Join("data", "murmurs", "2026-01-01", "00"),
+			want: path.Join("data", "murmurs", "2026-01-01", "00"),
 		},
 		{
 			name: "end of day",
 			time: time.Date(2026, 12, 31, 23, 59, 59, 0, time.UTC),
-			want: filepath.Join("data", "murmurs", "2026-12-31", "23"),
+			want: path.Join("data", "murmurs", "2026-12-31", "23"),
 		},
 		{
 			name: "single digit month and day",
 			time: time.Date(2026, 3, 5, 9, 0, 0, 0, time.UTC),
-			want: filepath.Join("data", "murmurs", "2026-03-05", "09"),
+			want: path.Join("data", "murmurs", "2026-03-05", "09"),
 		},
 	}
 
@@ -56,13 +56,13 @@ func TestMurmurFilePath(t *testing.T) {
 			name: "standard path",
 			time: time.Date(2026, 3, 22, 14, 0, 0, 0, time.UTC),
 			id:   "01961234-5678-7abc-def0-123456789abc",
-			want: filepath.Join("data", "murmurs", "2026-03-22", "14", "01961234-5678-7abc-def0-123456789abc.json"),
+			want: path.Join("data", "murmurs", "2026-03-22", "14", "01961234-5678-7abc-def0-123456789abc.json"),
 		},
 		{
 			name: "midnight boundary",
 			time: time.Date(2026, 1, 1, 0, 0, 0, 0, time.UTC),
 			id:   "test-id",
-			want: filepath.Join("data", "murmurs", "2026-01-01", "00", "test-id.json"),
+			want: path.Join("data", "murmurs", "2026-01-01", "00", "test-id.json"),
 		},
 	}
 
@@ -106,7 +106,7 @@ func TestComputeMurmurDataPaths(t *testing.T) {
 
 	t.Run("all paths start with data/murmurs/", func(t *testing.T) {
 		paths := ComputeMurmurDataPaths(6)
-		prefix := filepath.Join("data", "murmurs") + "/"
+		prefix := path.Join("data", "murmurs") + "/"
 		for _, p := range paths {
 			if !strings.HasPrefix(p, prefix) {
 				t.Errorf("path %q does not start with %q", p, prefix)

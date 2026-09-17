@@ -1252,13 +1252,10 @@ func publishReadReceipt(path string, receipt readReceipt, previous *readReceipt)
 	return syncReadDir(dir)
 }
 
+// syncReadDir makes a directory's dirent updates durable. Platforms that
+// cannot flush directory handles (Windows) are tolerated by fileutil.SyncDir.
 func syncReadDir(path string) error {
-	f, err := os.Open(path)
-	if err != nil {
-		return err
-	}
-	defer f.Close()
-	return f.Sync()
+	return fileutil.SyncDir(path)
 }
 
 func safeReadDirectory(path string) bool {

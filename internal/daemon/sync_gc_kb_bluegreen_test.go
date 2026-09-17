@@ -257,7 +257,7 @@ func TestKBGC_TriageFailure_DoesNotBlockReaper(t *testing.T) {
 	// healthy trash with one expired entry
 	trashDir := filepath.Join(root, kbTrashDirName)
 	require.NoError(t, os.MkdirAll(trashDir, 0o755))
-	expiredTS := time.Now().UTC().Add(-(kbTrashGracePeriod + 24*time.Hour)).Format(time.RFC3339)
+	expiredTS := time.Now().UTC().Add(-(kbTrashGracePeriod + 24*time.Hour)).Format(kbTrashTimestampLayout)
 	expired := filepath.Join(trashDir, fmt.Sprintf("kb_x-%s", expiredTS))
 	require.NoError(t, os.MkdirAll(expired, 0o755))
 
