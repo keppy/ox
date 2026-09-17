@@ -15,8 +15,9 @@ import (
 	"strings"
 	"sync"
 	"sync/atomic"
-	"syscall"
 	"time"
+
+	"github.com/sageox/ox/internal/proc"
 
 	"github.com/sageox/ox/internal/homedir"
 
@@ -278,8 +279,7 @@ func (d *Daemon) checkDeadAgentsAndFinalize() {
 			continue // no PID known
 		}
 
-		proc, err := os.FindProcess(pid)
-		if err != nil || proc.Signal(syscall.Signal(0)) != nil {
+		if !proc.IsAlive(pid) {
 			d.logger.Debug("agent PID dead, checking for orphaned sessions",
 				"agent_id", agentID, "pid", pid,
 			)
@@ -599,8 +599,7 @@ func (r *heartbeatAgentResolver) ActiveAgentIDs() []string {
 		// Check PID liveness — a dead PID with a stale-ish heartbeat means exited.
 		pid := r.heartbeat.GetAgentPID(id)
 		if pid > 0 {
-			proc, err := os.FindProcess(pid)
-			if err != nil || proc.Signal(syscall.Signal(0)) != nil {
+			if !proc.IsAlive(pid) {
 				if elapsed > IdleThreshold {
 					continue
 				}
@@ -641,8 +640,7 @@ func (d *Daemon) getAgentInstances() []InstanceInfo {
 		agentPID := d.heartbeat.GetAgentPID(agentID)
 		pidAlive := false
 		if agentPID > 0 {
-			proc, procErr := os.FindProcess(agentPID)
-			pidAlive = procErr == nil && proc.Signal(syscall.Signal(0)) == nil
+			pidAlive = proc.IsAlive(agentPID)
 		}
 
 		// skip stale instances with no known-live PID — likely ended session
@@ -994,8 +992,8 @@ func GetState() DaemonState {
 	// Cross-check with the registry: a stale socket from an ungraceful exit is NOT running.
 	if _, err := os.Stat(socketPath); err == nil {
 		if pid := pidForSocket(socketPath); pid > 0 {
-			if proc, pErr := os.FindProcess(pid); pErr == nil {
-				if proc.Signal(syscall.Signal(0)) == nil {
+			{
+				if proc.IsAlive(pid) {
 					return DaemonStateRunning
 				}
 				// Registry positively identified a dead owner — safe to remove stale socket.
@@ -1015,11 +1013,7 @@ func GetState() DaemonState {
 	if _, err := fmt.Sscanf(string(data), "%d", &pid); err != nil {
 		return DaemonStateStopped
 	}
-	proc, err := os.FindProcess(pid)
-	if err != nil {
-		return DaemonStateStopped
-	}
-	if proc.Signal(syscall.Signal(0)) != nil {
+	if !proc.IsAlive(pid) {
 		return DaemonStateStopped // process is dead
 	}
 

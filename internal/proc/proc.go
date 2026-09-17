@@ -105,6 +105,27 @@ func IsAlive(pid int) bool {
 	return isAliveProc(proc)
 }
 
+// Name returns the executable base name of the process with the given PID,
+// lower-cased and without any platform suffix (".exe"), or "" if the process
+// cannot be found or inspected. Unix uses ps(1); Windows uses a Toolhelp32
+// snapshot. Callers comparing against a known binary name should use this
+// rather than parsing a command line, which is not portably readable.
+func Name(pid int) string {
+	if pid <= 0 {
+		return ""
+	}
+	return processName(pid)
+}
+
+// ParentPID returns the parent process ID of pid, or an error if the process
+// cannot be found.
+func ParentPID(pid int) (int, error) {
+	if pid <= 0 {
+		return 0, fmt.Errorf("parent pid: invalid pid %d", pid)
+	}
+	return parentPID(pid)
+}
+
 // Terminate asks the process with the given PID to shut down.
 //
 // On Unix this is SIGINT, giving the target a chance to close resources and

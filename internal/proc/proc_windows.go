@@ -5,12 +5,22 @@ package proc
 import (
 	"os"
 	"os/exec"
+	"strings"
+	"syscall"
+	"unsafe"
 
 	"golang.org/x/sys/windows"
 )
 
-// Detach is a no-op on Windows, which has no Unix sessions or process groups.
-func Detach(cmd *exec.Cmd) {}
+// Detach starts the child in its own process group and without a console
+// so tool-runner cleanup (which signals ox's own console group) does not
+// take the daemon down with it. This is the closest Windows analog of
+// Setsid: the child no longer shares our console or our Ctrl-C group.
+func Detach(cmd *exec.Cmd) {
+	cmd.SysProcAttr = &syscall.SysProcAttr{
+		CreationFlags: windows.CREATE_NEW_PROCESS_GROUP | windows.DETACHED_PROCESS,
+	}
+}
 
 // stillActive is the exit code GetExitCodeProcess reports for a process that has
 // not exited (STILL_ACTIVE in the Win32 headers, 259). x/sys/windows exposes the
@@ -18,14 +28,49 @@ func Detach(cmd *exec.Cmd) {}
 // out rather than borrowing a constant that means something else.
 const stillActive = 259
 
-// parentPID is not implemented on Windows; returns unsupported.
-func parentPID(_ int) (int, error) {
-	return 0, nil
+// snapshotEntry looks up pid in a Toolhelp32 process snapshot. Toolhelp is the
+// documented, non-privileged way to read another process's name and parent on
+// Windows; /proc and ps(1) have no equivalent here.
+func snapshotEntry(pid int) (windows.ProcessEntry32, bool) {
+	var zero windows.ProcessEntry32
+	if pid <= 0 {
+		return zero, false
+	}
+	snap, err := windows.CreateToolhelp32Snapshot(windows.TH32CS_SNAPPROCESS, 0)
+	if err != nil {
+		return zero, false
+	}
+	defer windows.CloseHandle(snap)
+
+	var entry windows.ProcessEntry32
+	entry.Size = uint32(unsafe.Sizeof(entry))
+	for err = windows.Process32First(snap, &entry); err == nil; err = windows.Process32Next(snap, &entry) {
+		if int(entry.ProcessID) == pid {
+			return entry, true
+		}
+	}
+	return zero, false
 }
 
-// processName is not implemented on Windows.
-func processName(_ int) string {
-	return ""
+// parentPID returns the parent PID of pid via a Toolhelp32 snapshot.
+func parentPID(pid int) (int, error) {
+	entry, ok := snapshotEntry(pid)
+	if !ok {
+		return 0, os.ErrProcessDone
+	}
+	return int(entry.ParentProcessID), nil
+}
+
+// processName returns the executable base name for pid, lower-cased and with
+// the .exe suffix removed so it compares equal to the Unix spelling that
+// knownAgentBinaries and matchesAgent expect ("claude", not "claude.exe").
+func processName(pid int) string {
+	entry, ok := snapshotEntry(pid)
+	if !ok {
+		return ""
+	}
+	name := windows.UTF16ToString(entry.ExeFile[:])
+	return strings.TrimSuffix(strings.ToLower(name), ".exe")
 }
 
 // isAliveProc reports whether a process is still running.

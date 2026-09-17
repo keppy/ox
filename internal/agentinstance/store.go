@@ -10,10 +10,10 @@ import (
 	"path/filepath"
 	"slices"
 	"sync"
-	"syscall"
 	"time"
 
 	"github.com/gofrs/flock"
+	"github.com/sageox/ox/internal/proc"
 )
 
 // ErrInstanceNotFound is returned when an operation targets an agent ID that doesn't exist in the store.
@@ -75,18 +75,13 @@ func (i *Instance) IsExpired() bool {
 }
 
 // IsProcessAlive checks if the parent agent process is still running.
-// Uses kill(pid, 0) which checks existence without sending a signal.
-// Returns false if no PID was recorded or the process is gone.
+// Returns false if no PID was recorded or the process is gone. Delegates to
+// proc.IsAlive, which is kill(pid, 0) on Unix and OpenProcess +
+// GetExitCodeProcess on Windows (where Signal(0) is unsupported and
+// os.FindProcess never fails, so the old implementation reported every PID
+// as alive there).
 func (i *Instance) IsProcessAlive() bool {
-	if i.ParentPID <= 0 {
-		return false
-	}
-	proc, err := os.FindProcess(i.ParentPID)
-	if err != nil {
-		return false
-	}
-	// signal 0: test if process exists without actually signaling it
-	return proc.Signal(syscall.Signal(0)) == nil
+	return proc.IsAlive(i.ParentPID)
 }
 
 // IsPrimeExcessive returns true if prime has been called more than the threshold.

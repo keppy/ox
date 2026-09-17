@@ -13,6 +13,8 @@ import (
 	"strings"
 	"syscall"
 	"time"
+
+	"github.com/sageox/ox/internal/proc"
 )
 
 // MinFetchHeadAge is the minimum age of FETCH_HEAD before we'll fetch again.
@@ -95,17 +97,17 @@ func lockOwnerPID(lockName string) (int, bool) {
 // lock a live git still holds, which can corrupt the index and lose uncommitted
 // work. Ambiguity therefore resolves to alive.
 func processAlive(pid int) bool {
-	proc, err := os.FindProcess(pid)
-	if err != nil {
-		return false // Windows: the process does not exist
-	}
 	if runtime.GOOS == "windows" {
-		// FindProcess succeeding is as much as we can cheaply establish here,
-		// and the conservative reading is "still running".
-		return true
+		// OpenProcess + GetExitCodeProcess; os.FindProcess never fails here and
+		// Signal(0) is unsupported, so neither can answer the question.
+		return proc.IsAlive(pid)
+	}
+	p, err := os.FindProcess(pid)
+	if err != nil {
+		return false
 	}
 	// Unix: FindProcess always succeeds, so probe with signal 0.
-	err = proc.Signal(syscall.Signal(0))
+	err = p.Signal(syscall.Signal(0))
 	switch {
 	case err == nil:
 		return true
