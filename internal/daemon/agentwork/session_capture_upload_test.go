@@ -14,6 +14,8 @@ import (
 	"testing"
 	"time"
 
+	"github.com/sageox/ox/internal/testguard"
+
 	"github.com/sageox/ox/internal/gitserver"
 	"github.com/sageox/ox/internal/lfs"
 	"github.com/sageox/ox/internal/session"
@@ -35,7 +37,7 @@ func TestSessionCapture_UploadsNativeEntries(t *testing.T) {
 	require.NoError(t, err)
 	binDir := t.TempDir()
 	for _, name := range []string{"codex", "claude-code"} {
-		cmd := exec.Command("go", "build", "-o", filepath.Join(binDir, "ox-adapter-"+name), "./cmd/ox-adapter-"+name)
+		cmd := exec.Command("go", "build", "-o", filepath.Join(binDir, testguard.ExeName("ox-adapter-"+name)), "./cmd/ox-adapter-"+name)
 		cmd.Dir = repoRoot
 		out, err := cmd.CombinedOutput()
 		require.NoError(t, err, "build %s: %s", name, out)

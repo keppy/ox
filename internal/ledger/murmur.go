@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"os"
+	"path"
 	"path/filepath"
 	"strings"
 	"time"
@@ -35,14 +36,19 @@ type MurmurFile struct {
 
 // MurmurDateHourDir returns the relative directory path for murmurs at a given time.
 // Format: data/murmurs/YYYY-MM-DD/HH/
+//
+// This is a git-relative path (it feeds sparse-checkout patterns and the
+// relPath recorded next to each murmur), so it is always forward-slash, on
+// every OS. Callers that need a filesystem path join it onto a base with
+// filepath.Join, which normalizes the separators.
 func MurmurDateHourDir(t time.Time) string {
-	return filepath.Join("data", "murmurs", t.Format("2006-01-02"), fmt.Sprintf("%02d", t.Hour()))
+	return path.Join("data", "murmurs", t.Format("2006-01-02"), fmt.Sprintf("%02d", t.Hour()))
 }
 
 // MurmurFilePath returns the relative path for a murmur file.
-// Format: data/murmurs/YYYY-MM-DD/HH/<id>.json
+// Format: data/murmurs/YYYY-MM-DD/HH/<id>.json (forward-slash, see MurmurDateHourDir).
 func MurmurFilePath(t time.Time, id string) string {
-	return filepath.Join(MurmurDateHourDir(t), id+".json")
+	return path.Join(MurmurDateHourDir(t), id+".json")
 }
 
 // ComputeMurmurDataPaths generates sparse checkout paths for the last N hours.

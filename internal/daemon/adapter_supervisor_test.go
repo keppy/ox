@@ -27,7 +27,7 @@ func supBuildTestAdapter(t *testing.T) string {
 	}
 
 	dir := t.TempDir()
-	binaryPath := filepath.Join(dir, "ox-adapter-test")
+	binaryPath := filepath.Join(dir, testguard.ExeName("ox-adapter-test"))
 
 	repoRoot := supFindRepoRoot(t)
 	cmd := exec.Command("go", "build", "-o", binaryPath, "./cmd/ox-adapter-test")

@@ -50,3 +50,48 @@ func windowsExecExts() []string {
 	}
 	return out
 }
+
+// StripExecExt returns name without a trailing Windows executable extension
+// (".exe", ".cmd", ...). On Unix it returns name unchanged: a Unix binary
+// called "tool.exe" is legitimately named that. Use it wherever a binary's
+// file name is turned back into a logical name (ox-adapter-<name>).
+func StripExecExt(name string) string {
+	if runtime.GOOS != "windows" {
+		return name
+	}
+	ext := strings.ToLower(filepath.Ext(name))
+	for _, e := range windowsExecExts() {
+		if ext == e {
+			return strings.TrimSuffix(name, name[len(name)-len(ext):])
+		}
+	}
+	return name
+}
+
+// FindExecutable looks for an executable called base inside dir and returns
+// its full path. On Unix that is dir/base with an execute bit. On Windows the
+// same logical name may be spelled base.exe, base.cmd, ... — every PATHEXT
+// extension is tried in order, mirroring what CreateProcess and cmd.exe do
+// for a bare command name — so callers never have to know which one a
+// particular install produced.
+func FindExecutable(dir, base string) (string, bool) {
+	try := func(p string) (string, bool) {
+		fi, err := os.Stat(p)
+		if err != nil || !IsExecutable(fi, p) {
+			return "", false
+		}
+		return p, true
+	}
+	if p, ok := try(filepath.Join(dir, base)); ok {
+		return p, true
+	}
+	if runtime.GOOS != "windows" {
+		return "", false
+	}
+	for _, ext := range windowsExecExts() {
+		if p, ok := try(filepath.Join(dir, base+ext)); ok {
+			return p, true
+		}
+	}
+	return "", false
+}

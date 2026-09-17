@@ -70,7 +70,7 @@ func adapterSiblingsResult(dirs []string) checkResult {
 			if e.IsDir() || !strings.HasPrefix(e.Name(), "ox-adapter-") {
 				continue
 			}
-			name := strings.TrimSuffix(strings.TrimPrefix(e.Name(), "ox-adapter-"), ".exe")
+			name := fileutil.StripExecExt(strings.TrimPrefix(e.Name(), "ox-adapter-"))
 			if name == "" {
 				continue
 			}

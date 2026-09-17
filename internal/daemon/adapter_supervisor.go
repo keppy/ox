@@ -9,7 +9,6 @@ import (
 	"log/slog"
 	"os"
 	"os/exec"
-	"path/filepath"
 	"strings"
 	"sync"
 	"sync/atomic"
@@ -610,15 +609,9 @@ func (s *AdapterSupervisor) handleCrash(adapterType string) (*AdapterProcess, er
 func (s *AdapterSupervisor) findBinary(adapterType string) (string, error) {
 	binaryName := adapterBinaryPrefix + adapterType
 	for _, dir := range s.adapterDirs {
-		path := filepath.Join(dir, binaryName)
-		fi, err := os.Stat(path)
-		if err != nil {
-			continue
+		if path, ok := fileutil.FindExecutable(dir, binaryName); ok {
+			return path, nil
 		}
-		if !fileutil.IsExecutable(fi, path) {
-			continue // not executable
-		}
-		return path, nil
 	}
 	return "", fmt.Errorf("%w: %s (searched: %s)", ErrAdapterNotFound, binaryName, strings.Join(s.adapterDirs, ", "))
 }

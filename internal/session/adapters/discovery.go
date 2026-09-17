@@ -111,10 +111,9 @@ func DiscoverExternalAdapters() []*ExternalAdapter {
 				continue
 			}
 
-			// extract adapter name from binary name
-			adapterName := strings.TrimPrefix(name, adapterBinaryPrefix)
-			// on Windows, strip .exe suffix
-			adapterName = strings.TrimSuffix(adapterName, ".exe")
+			// extract adapter name from binary name; on Windows the file
+			// carries a PATHEXT suffix (.exe, .cmd) that is not part of it
+			adapterName := fileutil.StripExecExt(strings.TrimPrefix(name, adapterBinaryPrefix))
 
 			if adapterName == "" {
 				continue

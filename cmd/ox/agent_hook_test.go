@@ -12,6 +12,8 @@ import (
 	"testing"
 	"time"
 
+	"github.com/sageox/ox/internal/testguard"
+
 	"github.com/sageox/agentx"
 	"github.com/sageox/ox/internal/config"
 	"github.com/sageox/ox/internal/ledger"
@@ -145,7 +147,7 @@ func buildCodexCaptureAdapter(t *testing.T) string {
 	if testing.Short() {
 		t.Skip("short: builds and invokes the real Codex adapter")
 	}
-	adapterBin := filepath.Join(t.TempDir(), "ox-adapter-codex")
+	adapterBin := filepath.Join(t.TempDir(), testguard.ExeName("ox-adapter-codex"))
 	build := exec.Command("go", "build", "-o", adapterBin, "./cmd/ox-adapter-codex")
 	build.Dir = findModuleRoot(t)
 	buildOutput, err := build.CombinedOutput()

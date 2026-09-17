@@ -14,6 +14,8 @@ import (
 	"strings"
 	"testing"
 	"time"
+
+	"github.com/sageox/ox/internal/testguard"
 )
 
 // TestSessionEndToEnd runs a real Claude session and verifies session quality.
@@ -79,7 +81,7 @@ func buildOxCLI(t *testing.T) string {
 
 	// find project root
 	projectRoot := findProjectRoot(t)
-	oxBinary := filepath.Join(t.TempDir(), "ox")
+	oxBinary := filepath.Join(t.TempDir(), testguard.ExeName("ox"))
 
 	cmd := exec.Command("go", "build", "-o", oxBinary, "./cmd/ox")
 	cmd.Dir = projectRoot

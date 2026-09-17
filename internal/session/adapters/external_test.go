@@ -9,6 +9,8 @@ import (
 	"testing"
 	"time"
 
+	"github.com/sageox/ox/internal/testguard"
+
 	"github.com/sageox/ox/pkg/adapterprotocol"
 )
 
@@ -23,10 +25,7 @@ func fakeBinary(t *testing.T, responses map[string]string) string {
 		script += "  " + cmd + ") echo '" + resp + "';;\n"
 	}
 	script += "  *) echo '{\"error\":\"unknown subcommand\"}'; exit 1;;\nesac\n"
-	f := filepath.Join(t.TempDir(), "ox-adapter-fake")
-	if err := os.WriteFile(f, []byte(script), 0755); err != nil {
-		t.Fatal(err)
-	}
+	f := testguard.WriteShellExecutable(t, t.TempDir(), "ox-adapter-fake", script)
 	return f
 }
 
@@ -169,10 +168,7 @@ func TestExternalAdapter_BinaryNotExecutable(t *testing.T) {
 }
 
 func TestExternalAdapter_InvalidJSON(t *testing.T) {
-	script := filepath.Join(t.TempDir(), "ox-adapter-badjson")
-	if err := os.WriteFile(script, []byte("#!/bin/sh\necho 'not json'"), 0755); err != nil {
-		t.Fatal(err)
-	}
+	script := testguard.WriteShellExecutable(t, t.TempDir(), "ox-adapter-badjson", "#!/bin/sh\necho 'not json'")
 
 	_, err := NewExternalAdapter(script)
 	if err == nil {
@@ -212,10 +208,7 @@ func TestExternalAdapter_OneShotTimeoutCancelsProcess(t *testing.T) {
 	if testing.Short() {
 		t.Skip("short: drives an external adapter subprocess")
 	}
-	script := filepath.Join(t.TempDir(), "ox-adapter-slow")
-	if err := os.WriteFile(script, []byte("#!/bin/sh\nsleep 2\nprintf '{\"entries\":[]}'\n"), 0o755); err != nil {
-		t.Fatal(err)
-	}
+	script := testguard.WriteShellExecutable(t, t.TempDir(), "ox-adapter-slow", "#!/bin/sh\nsleep 2\nprintf '{\"entries\":[]}'\n")
 	ea := NewExternalAdapterWithInfo(script, &adapterprotocol.InfoResponse{Name: "slow"})
 	ea.oneShotTimeout = 20 * time.Millisecond
 
@@ -233,11 +226,8 @@ func TestExternalAdapter_OneShotOutputIsBounded(t *testing.T) {
 	if testing.Short() {
 		t.Skip("short: drives an external adapter subprocess")
 	}
-	script := filepath.Join(t.TempDir(), "ox-adapter-noisy")
 	output := strings.Repeat("x", 512)
-	if err := os.WriteFile(script, []byte("#!/bin/sh\nwhile :; do printf '%s' '"+output+"'; done\n"), 0o755); err != nil {
-		t.Fatal(err)
-	}
+	script := testguard.WriteShellExecutable(t, t.TempDir(), "ox-adapter-noisy", "#!/bin/sh\nwhile :; do printf '%s' '"+output+"'; done\n")
 	ea := NewExternalAdapterWithInfo(script, &adapterprotocol.InfoResponse{Name: "noisy"})
 	ea.oneShotOutputLimit = 64
 	ea.oneShotTimeout = 5 * time.Second
