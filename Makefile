@@ -37,7 +37,7 @@ GOTESTSUM_LEAN = $(if $(filter 1,$(V)),,--hide-summary skipped --format-hide-emp
 TIME_CMD = $(if $(filter 1,$(V)),time,)
 
 # Bundled adapters (shipped in release tarballs alongside ox)
-ADAPTERS := ox-adapter-claude-code ox-adapter-gemini ox-adapter-codex ox-adapter-amp ox-adapter-opencode ox-adapter-pi ox-adapter-omp ox-adapter-aider ox-adapter-droid ox-adapter-goose
+ADAPTERS := ox-adapter-claude-code ox-adapter-gemini ox-adapter-codex ox-adapter-amp ox-adapter-opencode ox-adapter-pi ox-adapter-omp ox-adapter-aider ox-adapter-droid ox-adapter-goose ox-adapter-hermes
 empty :=
 space := $(empty) $(empty)
 comma := ,

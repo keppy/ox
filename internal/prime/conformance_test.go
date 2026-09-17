@@ -91,6 +91,16 @@ var adapterCaps = map[string][]string{
 		adapterprotocol.CapSessionImporter,
 		adapterprotocol.CapCapturePrior,
 	},
+	// No CapFileWatcher: Hermes sessions are SQLite rows behind a virtual
+	// "hermes:<id>" handle.
+	"hermes": {
+		adapterprotocol.CapSessionReader,
+		adapterprotocol.CapHookInstaller,
+		adapterprotocol.CapIncrementalReader,
+		adapterprotocol.CapServeMode,
+		adapterprotocol.CapSessionImporter,
+		adapterprotocol.CapCapturePrior,
+	},
 }
 
 // hasCap reports whether the adapter declares the given capability.

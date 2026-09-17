@@ -22,10 +22,24 @@ import (
 )
 
 // allowlistedEnvVars are exact-match variable names always passed to child processes.
+//
+// The Windows entries are the minimum a native process needs to start and to
+// resolve per-user paths: SystemRoot/SYSTEMROOT for system DLLs and cmd.exe,
+// PATHEXT for bare-name lookups, USERPROFILE/LOCALAPPDATA/APPDATA for the
+// per-user directories that Go's os.UserHomeDir and every agent's config
+// resolver read (Hermes: %LOCALAPPDATA%\hermes). None can carry a secret.
 var allowlistedEnvVars = map[string]bool{
-	"HOME":   true,
-	"PATH":   true,
-	"TMPDIR": true,
+	"HOME":         true,
+	"PATH":         true,
+	"TMPDIR":       true,
+	"TMP":          true,
+	"TEMP":         true,
+	"SystemRoot":   true,
+	"SYSTEMROOT":   true,
+	"PATHEXT":      true,
+	"USERPROFILE":  true,
+	"LOCALAPPDATA": true,
+	"APPDATA":      true,
 }
 
 // allowlistedEnvPrefixes are prefix patterns; any variable starting with these is passed through.

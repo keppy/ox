@@ -42,7 +42,7 @@ func TestAdapterSiblingsResult_MissingSome(t *testing.T) {
 	if result.message != "2/10 present" {
 		t.Errorf("message = %q, want %q", result.message, "2/10 present")
 	}
-	for _, want := range []string{"aider", "amp", "claude-code", "droid", "goose", "omp", "opencode", "pi"} {
+	for _, want := range []string{"aider", "amp", "claude-code", "droid", "goose", "hermes", "omp", "opencode", "pi"} {
 		if !strings.Contains(result.detail, want) {
 			t.Errorf("detail missing %q: %s", want, result.detail)
 		}

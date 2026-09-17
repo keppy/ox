@@ -281,6 +281,26 @@ builds:
       - -s -w
 
 archives:
+  - id: ox-adapter-hermes
+    main: ./cmd/ox-adapter-hermes
+    binary: ox-adapter-hermes
+    env:
+      - CGO_ENABLED=0
+    goos:
+      - linux
+      - darwin
+      - freebsd
+    goarch:
+      - amd64
+      - arm64
+    ignore:
+      - goos: freebsd
+        goarch: arm64
+    ldflags:
+      - -s -w
+
+archives:
+
   - id: ox-archive
     formats:
       - tar.gz
@@ -353,6 +373,7 @@ brews:
       bin.install "ox-adapter-aider"
       bin.install "ox-adapter-droid"
       bin.install "ox-adapter-goose"
+      bin.install "ox-adapter-hermes"
 
 announce:
   skip: true

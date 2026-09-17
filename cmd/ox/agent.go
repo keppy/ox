@@ -185,6 +185,9 @@ func init() {
 	agentCmd.PersistentFlags().String("adapter", "",
 		"explicit adapter name, overrides auto-detection (session capture-prior)")
 	_ = agentCmd.PersistentFlags().MarkHidden("adapter")
+	agentCmd.PersistentFlags().String("agent", "",
+		"agent type for `ox agent hook` when the host cannot set AGENT_ENV (Hermes execs hooks without a shell)")
+	_ = agentCmd.PersistentFlags().MarkHidden("agent")
 
 	// Same reinjection mechanism, for parseTaskIDAndNote's manual parser
 	// (tasks done, tasks cancel). Without these registered here, cobra
@@ -260,7 +263,8 @@ func runAgentDispatcher(cmd *cobra.Command, args []string) error {
 		} else {
 			renameDispatcherSpan("hook")
 		}
-		return runAgentHook(args[1:])
+		agentFlag, _ := cmd.Flags().GetString("agent")
+		return runAgentHook(args[1:], agentFlag)
 	}
 
 	// check if first arg looks like an agent_id (Ox<4-char>)
@@ -640,7 +644,8 @@ func runWithAgentID(cmd *cobra.Command, agentID string, args []string) error {
 		}
 		return runAgentWhisper(cmd.OutOrStdout(), inst)
 	case "hook":
-		return runAgentHook(subargs)
+		agentFlag, _ := cmd.Flags().GetString("agent")
+		return runAgentHook(subargs, agentFlag)
 	default:
 		available := "doctor, heartbeat, hook, query, session, tasks, whisper"
 		if auth.IsMemoryEnabled() {

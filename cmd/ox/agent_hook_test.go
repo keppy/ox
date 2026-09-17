@@ -90,7 +90,7 @@ func TestDispatchPhase_NoopPhases(t *testing.T) {
 }
 
 func TestRunAgentHook_NoArgs(t *testing.T) {
-	err := runAgentHook([]string{})
+	err := runAgentHook([]string{}, "")
 	assert.Error(t, err)
 	assert.Contains(t, err.Error(), "usage")
 }

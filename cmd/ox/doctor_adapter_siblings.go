@@ -21,7 +21,7 @@ const adapterSiblingsCheckName = "Adapter binaries"
 // excluded: it exists only for development/testing and is never shipped.
 var expectedAdapterSiblings = []string{
 	"aider", "amp", "claude-code", "codex", "droid",
-	"gemini", "goose", "omp", "opencode", "pi",
+	"gemini", "goose", "hermes", "omp", "opencode", "pi",
 }
 
 func init() {

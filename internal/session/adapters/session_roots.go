@@ -240,6 +240,8 @@ var adapterSessionHandles = map[string]string{
 	"opencode": "opencode:",
 	// stores sessions in ~/.local/share/goose/sessions/sessions.db
 	"goose": "goose:",
+	// stores sessions in $HERMES_HOME/state.db
+	"hermes": "hermes:",
 }
 
 // adapterSessionRoots is the canonical map of adapter name → ~-relative path
@@ -274,6 +276,7 @@ var adapterSessionRoots = map[string][]string{
 	"aider": {".sageox/cache/sessions", ".cache/sageox/sessions"},
 	// Droid writes transcripts to ~/.factory/sessions/<project-slug>/<uuid>.jsonl
 	// and ox tails them in place, same as pi.
-	"droid": {".sageox/cache/sessions", ".cache/sageox/sessions", ".factory/sessions"},
-	"goose": {".sageox/cache/sessions", ".cache/sageox/sessions", ".local/share/goose/sessions"},
+	"droid":  {".sageox/cache/sessions", ".cache/sageox/sessions", ".factory/sessions"},
+	"goose":  {".sageox/cache/sessions", ".cache/sageox/sessions", ".local/share/goose/sessions"},
+	"hermes": {".sageox/cache/sessions", ".cache/sageox/sessions", ".hermes"},
 }
