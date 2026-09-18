@@ -165,7 +165,16 @@ func handleDiagnose(p adapterprotocol.DiagnoseParams) (*adapterprotocol.Diagnose
 
 	// Hooks are user-scoped in Hermes regardless of the scope ox asked for.
 	check, err := handleCheckHooks(adapterprotocol.HookParams{RepoRoot: p.RepoRoot, Scope: scopeUser})
-	if err == nil && !check.Installed {
+	if err != nil {
+		// A failed check is not a clean bill of health: report it as an
+		// issue rather than silently treating it as "hooks fine".
+		issues = append(issues, adapterprotocol.DiagnoseIssue{
+			Slug:     "hooks-check-failed",
+			Severity: "warning",
+			Title:    "Hermes hooks status could not be read",
+			Detail:   fmt.Sprintf("checking %s: %v", configPath(), err),
+		})
+	} else if !check.Installed {
 		issues = append(issues, adapterprotocol.DiagnoseIssue{
 			Slug:     "hooks-missing",
 			Severity: "warning",
@@ -174,7 +183,7 @@ func handleDiagnose(p adapterprotocol.DiagnoseParams) (*adapterprotocol.Diagnose
 			Fix:      "ox-adapter-hermes install-hooks --scope user",
 			FixSafe:  true,
 		})
-	} else if err == nil && !hooksAutoAccepted() {
+	} else if !hooksAutoAccepted() {
 		issues = append(issues, adapterprotocol.DiagnoseIssue{
 			Slug:     "hooks-consent",
 			Severity: "info",

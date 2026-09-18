@@ -50,6 +50,21 @@ func isAliveProc(proc *os.Process) bool {
 	return err == nil
 }
 
+// aliveButDenied reports whether pid exists but cannot be queried for
+// liveness. Unix has no direct probe: EPERM from kill(pid, 0) means the
+// process exists but belongs to another user — exactly the ambiguous case
+// IsAliveOrDenied resolves toward alive.
+func aliveButDenied(pid int) bool {
+	if pid <= 0 {
+		return false
+	}
+	proc, err := os.FindProcess(pid)
+	if err != nil {
+		return false
+	}
+	return proc.Signal(syscall.Signal(0)) == syscall.EPERM
+}
+
 // terminateProc sends SIGINT, letting the target close resources and release any
 // locks it holds before exiting.
 func terminateProc(proc *os.Process) error {

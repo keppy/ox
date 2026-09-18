@@ -94,6 +94,8 @@ func matchesAgent(name, hint string, known []string) bool {
 }
 
 // IsAlive returns true if the process with the given PID is still running.
+// A process that exists but cannot be queried is reported as not running —
+// use IsAliveOrDenied when a false "dead" would be destructive.
 func IsAlive(pid int) bool {
 	if pid <= 0 {
 		return false
@@ -103,6 +105,20 @@ func IsAlive(pid int) bool {
 		return false
 	}
 	return isAliveProc(proc)
+}
+
+// IsAliveOrDenied reports whether pid names a live process, resolving
+// ambiguity toward "alive": a process that exists but cannot be queried
+// (another user's process, an elevated shell from a non-elevated caller) is
+// reported as alive. Callers that must not destroy or take over state a
+// possibly-live process holds — stale-lock detection — should use this, not
+// IsAlive: there, a false negative is destructive and a false positive merely
+// retries later.
+func IsAliveOrDenied(pid int) bool {
+	if IsAlive(pid) {
+		return true
+	}
+	return aliveButDenied(pid)
 }
 
 // Name returns the executable base name of the process with the given PID,

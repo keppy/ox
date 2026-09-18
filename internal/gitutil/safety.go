@@ -96,12 +96,15 @@ func lockOwnerPID(lockName string) (int, bool) {
 // Biased toward reporting "alive": a false positive merely leaves a lock in
 // place (recoverable — the next sweep retries), while a false negative deletes a
 // lock a live git still holds, which can corrupt the index and lose uncommitted
-// work. Ambiguity therefore resolves to alive.
+// work. Ambiguity therefore resolves to alive — including a process that
+// exists but cannot be queried (an elevated git, or one owned by another
+// user): IsAliveOrDenied reads OpenProcess ACCESS_DENIED / kill EPERM as
+// "alive but not ours to inspect", where plain IsAlive would read it as dead.
 func processAlive(pid int) bool {
 	if runtime.GOOS == "windows" {
 		// OpenProcess + GetExitCodeProcess; os.FindProcess never fails here and
 		// Signal(0) is unsupported, so neither can answer the question.
-		return proc.IsAlive(pid)
+		return proc.IsAliveOrDenied(pid)
 	}
 	p, err := os.FindProcess(pid)
 	if err != nil {

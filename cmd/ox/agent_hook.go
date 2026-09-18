@@ -76,6 +76,12 @@ type HookContext struct {
 	Marker      *SessionMarker    // nil if not yet primed
 	ProjectRoot string            // git root with .sageox/
 
+	// AgentTypeKnown reports whether AgentType came from a real signal
+	// (--agent flag or AGENT_ENV) rather than the backward-compat
+	// claude-code default. Consumers that have their own detection must not
+	// treat the default as an explicit answer (see runPrimeForHook).
+	AgentTypeKnown bool
+
 	// ClearNotice carries finalized-prior-session info from stopSessionForClear
 	// to the prime subprocess so prime can emit a user-facing notice. See ADR-019.
 	ClearNotice *ClearNoticeInfo
@@ -113,6 +119,12 @@ func runAgentHook(args []string, agentFlag string) error {
 	if agentType == "" {
 		agentType = os.Getenv("AGENT_ENV")
 	}
+	// agentTypeKnown records whether the type came from a real signal
+	// (flag or env) or from the backward-compat default. Passing the default
+	// to prime as an explicit --agent would launder the guess into a fact:
+	// prime's requireDetectedOrExplicitAgent short-circuits on --agent and
+	// skips its own (better) filesystem detection.
+	agentTypeKnown := agentType != ""
 	if agentType == "" {
 		agentType = "claude-code" // default for backward compatibility
 	}
@@ -141,11 +153,12 @@ func runAgentHook(args []string, agentFlag string) error {
 
 	// 7. dispatch to handler
 	ctx := &HookContext{
-		Phase:       phase,
-		AgentType:   agentType,
-		Input:       input,
-		Marker:      marker,
-		ProjectRoot: projectRoot,
+		Phase:          phase,
+		AgentType:      agentType,
+		AgentTypeKnown: agentTypeKnown,
+		Input:          input,
+		Marker:         marker,
+		ProjectRoot:    projectRoot,
 	}
 
 	if agentType == "hermes" {
@@ -938,10 +951,12 @@ func runPrimeForHook(agentID string, ctx *HookContext) error {
 	}
 
 	args := []string{"agent", "prime"}
-	if ctx.AgentType != "" {
-		// The hook already knows which agent fired it (AGENT_ENV or --agent).
-		// Prime must not re-guess from filesystem hints — a stray .codex/ in
-		// the repo would otherwise register a Hermes session as Codex.
+	if ctx.AgentTypeKnown {
+		// The hook knows which agent fired it (--agent or AGENT_ENV). Prime
+		// must not re-guess from filesystem hints — a stray .codex/ in the
+		// repo would otherwise register a Hermes session as Codex. When the
+		// type is the backward-compat default rather than a real signal,
+		// leave it to prime's own detection, which is better than the guess.
 		args = append(args, "--agent", ctx.AgentType)
 	}
 
@@ -949,7 +964,7 @@ func runPrimeForHook(agentID string, ctx *HookContext) error {
 
 	cmd := exec.Command(oxPath, args...)
 	env := buildPrimeEnv(agentID)
-	if ctx.AgentType != "" && os.Getenv("AGENT_ENV") == "" {
+	if ctx.AgentTypeKnown && os.Getenv("AGENT_ENV") == "" {
 		env = append(env, "AGENT_ENV="+ctx.AgentType)
 	}
 	if pair := serializeClearNoticeEnv(ctx.ClearNotice); pair != "" {

@@ -76,10 +76,16 @@ print_path_warning() {
         # Persist to the per-user PATH so every future shell (cmd, PowerShell,
         # Git Bash, and the agents' hook runners) can find ox without a
         # shell rc. HKCU\Environment is user-writable; no elevation needed.
-        local win_dir
+        local win_dir posix_dir
         win_dir=$(cygpath -w "$install_dir" 2>/dev/null || printf '%s' "$install_dir")
+        # The containment check below compares against MSYS's POSIX-style
+        # $PATH; the Windows-form dir would never match it.
+        posix_dir=$(cygpath -u "$win_dir" 2>/dev/null || printf '%s' "$install_dir")
+        if [[ ":$PATH:" == *":$posix_dir:"* ]]; then
+            return 0
+        fi
         if command -v powershell.exe &> /dev/null && powershell.exe -NoProfile -Command \
-            "\$p=[Environment]::GetEnvironmentVariable('Path','User'); if ((';'+\$p+';') -notlike ('*;$win_dir;*')) { [Environment]::SetEnvironmentVariable('Path', (\$p.TrimEnd(';')+';$win_dir'), 'User') }" \
+            "\$p=[Environment]::GetEnvironmentVariable('Path','User'); if (\$null -eq \$p) { \$p='' }; if (-not ((';'+\$p+';').Split(';') -contains '$win_dir')) { [Environment]::SetEnvironmentVariable('Path', (\$p.TrimEnd(';')+';$win_dir'), 'User') }; Add-Type -Namespace Win32 -Name NativeMethods -MemberDefinition '[DllImport(\"user32.dll\", SetLastError = true, CharSet = CharSet.Auto)] public static extern IntPtr SendMessageTimeout(IntPtr hWnd, uint Msg, UIntPtr wParam, string lParam, uint fuFlags, uint uTimeout, out UIntPtr lpdwResult);'; [Win32.NativeMethods]::SendMessageTimeout([IntPtr]0xFFFF, 0x1A, [UIntPtr]::Zero, 'Environment', 2, 5000, [ref]([UIntPtr]::Zero)) | Out-Null" \
             > /dev/null 2>&1; then
             echo ""
             log_warning "$BINARY is installed at $binary_path. Added $win_dir to your user PATH."
@@ -216,13 +222,22 @@ extract_archive() {
     local archive="$1"
     case "$archive" in
         *.zip)
+            # Presence of a tool is not support for zip: Git Bash's tar is GNU
+            # tar (cannot read zip), so `command -v tar` must not be the gate.
+            # Prefer unzip, then bsdtar explicitly (tar --version mentions
+            # libarchive/bsdtar), then PowerShell's Expand-Archive.
             if command -v unzip &> /dev/null; then
                 unzip -oq "$archive"
-            elif command -v tar &> /dev/null; then
+            elif command -v tar &> /dev/null && tar --version 2>/dev/null | grep -qi 'bsdtar\|libarchive'; then
                 # bsdtar (shipped with Windows 10+) reads zip natively
                 tar -xf "$archive"
             elif command -v powershell.exe &> /dev/null; then
-                powershell.exe -NoProfile -Command "Expand-Archive -Force -LiteralPath '$archive' -DestinationPath '.'"
+                # MSYS converts POSIX paths in arguments; hand PowerShell a
+                # Windows-form -LiteralPath and an absolute destination.
+                local win_archive win_dest
+                win_archive=$(cygpath -w "$archive" 2>/dev/null || printf '%s' "$archive")
+                win_dest=$(cygpath -w "$(pwd)" 2>/dev/null || printf '%s' "$(pwd)")
+                powershell.exe -NoProfile -Command "Expand-Archive -Force -LiteralPath '$win_archive' -DestinationPath '$win_dest'"
             else
                 return 1
             fi

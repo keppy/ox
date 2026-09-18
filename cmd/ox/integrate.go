@@ -709,7 +709,8 @@ func uninstallAllIntegrations(force bool) error {
 	}
 
 	// check Hermes Agent (user-level only)
-	if hasHermesHooks() {
+	hermesInstalled := hasHermesHooks()
+	if hermesInstalled {
 		installed = append(installed, "Hermes Agent (user)")
 	}
 
@@ -795,6 +796,16 @@ func uninstallAllIntegrations(force bool) error {
 	if droidUserInstalled {
 		if err := uninstallDroidHooks(true); err != nil {
 			errors = append(errors, fmt.Sprintf("Factory Droid (user): %v", err))
+		}
+	}
+	// Hermes hooks uninstall through the hermes adapter when it is detected;
+	// uninstallHermesHooks errors when the adapter is absent, so gate on
+	// detection like droid above — otherwise "uninstall all" would list
+	// Hermes in its confirmation but leave the hooks installed while still
+	// reporting success.
+	if hermesInstalled {
+		if err := uninstallHermesHooks(); err != nil {
+			errors = append(errors, fmt.Sprintf("Hermes Agent (user): %v", err))
 		}
 	}
 	if err := uninstallAmpHooks(false); err != nil {
