@@ -106,5 +106,8 @@ func HardenedCloneArgs(allowFileTransport bool) []string {
 	if !allowFileTransport {
 		args = append(args, "-c", "protocol.file.allow=never")
 	}
-	return args
+	// core.longpaths has to ride the clone command line: it cannot come from
+	// the repository config, which does not exist until the clone completes,
+	// and the initial checkout is where Git for Windows meets MAX_PATH.
+	return append(args, LongPathsArgs()...)
 }

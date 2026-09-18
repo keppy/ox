@@ -90,19 +90,20 @@ func newReadFixture(t *testing.T, lfsHandler ...http.HandlerFunc) *readFixture {
 	f.server = server
 	cert := filepath.Join(root, "ca.pem")
 	require.NoError(t, os.WriteFile(cert, pem.EncodeToMemory(&pem.Block{Type: "CERTIFICATE", Bytes: server.Certificate().Raw}), 0600))
-	// Add only this fixture CA at Git's invocation boundary; production TLS
+	// Pin only this fixture CA at Git's invocation boundary; production TLS
 	// validation and transport policy still run unchanged.
-	git, err := exec.LookPath("git")
-	require.NoError(t, err)
-	bin := filepath.Join(root, "bin")
-	require.NoError(t, os.Mkdir(bin, 0700))
-	quote := func(s string) string { return "'" + strings.ReplaceAll(s, "'", "'\\''") + "'" }
-	// Git for Windows defaults to the schannel TLS backend, which consults the
-	// Windows certificate store and ignores http.sslCAInfo; pin OpenSSL so the
-	// fixture CA is honored there. A no-op on other platforms.
-	shim := "#!/bin/sh\nexec " + quote(filepath.ToSlash(git)) + " -c http.sslBackend=openssl -c " + quote("http.sslCAInfo="+filepath.ToSlash(cert)) + " \"$@\"\n"
-	testguard.WriteShellExecutable(t, bin, "git", shim)
-	t.Setenv("PATH", bin+string(os.PathListSeparator)+os.Getenv("PATH"))
+	//
+	// This used to shadow `git` on PATH with a script that exec'd the real
+	// binary with -c http.sslCAInfo=... . A shim named `git` is re-entered by
+	// git's own child processes (clone and fetch resolve `git` by name), which
+	// spawned an unbounded launcher -> bash -> git chain: the command never
+	// finished, and a test that should take seconds burned its whole timeout
+	// waiting on a child that could not exit. Handing the same two settings to
+	// the transport's test-only config hook does the job without a process in
+	// the middle — no recursion, and no bash spawn per git call.
+	prevGitConfig := gitserver.TestExtraGitConfig
+	gitserver.TestExtraGitConfig = []string{"http.sslBackend=openssl", "http.sslCAInfo=" + filepath.ToSlash(cert)}
+	t.Cleanup(func() { gitserver.TestExtraGitConfig = prevGitConfig })
 	t.Setenv("SAGEOX_ENDPOINT", server.URL)
 	t.Setenv("SAGEOX_TOKEN", readTestToken)
 	old := gitserver.DefaultHelperCommand()

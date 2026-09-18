@@ -5,6 +5,7 @@ import (
 	"net/url"
 	"os"
 	"os/exec"
+	"path/filepath"
 	"runtime"
 	"strings"
 	"testing"
@@ -310,15 +311,52 @@ func TestWriteAskpassScript(t *testing.T) {
 	require.NoError(t, err)
 	defer os.Remove(path)
 
-	// verify file exists and is executable
+	// verify file exists and is executable. NTFS has no execute bit — os.Chmod
+	// maps only the read-only attribute — so on Windows the property that
+	// makes the script runnable is "a regular, non-empty script Git for
+	// Windows hands to its bundled sh"; the exec bit is asserted only where
+	// the platform has one.
 	info, err := os.Stat(path)
 	require.NoError(t, err)
-	assert.NotZero(t, info.Mode()&0100, "script should be executable")
+	if runtime.GOOS == "windows" {
+		require.True(t, info.Mode().IsRegular())
+		require.NotZero(t, info.Size(), "script must have content to run")
+	} else {
+		assert.NotZero(t, info.Mode()&0100, "script should be executable")
+	}
 
 	// verify content echoes the token
 	content, err := os.ReadFile(path)
 	require.NoError(t, err)
 	assert.Contains(t, string(content), "test-token-123")
+}
+
+// askpassShell returns a POSIX shell able to execute the askpass script
+// writeAskpassScript produces. On Unix that is /bin/sh. Windows has no
+// /bin/sh path, but Git for Windows runs GIT_ASKPASS through the POSIX sh it
+// ships, so resolve that instead — from PATH, else from the install of the
+// git binary these tests are already using. The escaping under test is a
+// POSIX-shell contract with no meaning without such a shell, so the test
+// skips rather than silently passing when none is installed.
+func askpassShell(t *testing.T) string {
+	t.Helper()
+	if runtime.GOOS != "windows" {
+		return "/bin/sh"
+	}
+	if sh, err := exec.LookPath("sh"); err == nil {
+		return sh
+	}
+	// PATH may be cmd/PowerShell-shaped (Git for Windows puts its cmd dir on
+	// PATH but not usr/bin); derive sh from the git that is running the test.
+	if out, err := exec.Command("git", "--exec-path").Output(); err == nil {
+		root := filepath.Clean(filepath.Join(strings.TrimSpace(string(out)), "..", "..", ".."))
+		sh := filepath.Join(root, "usr", "bin", "sh.exe")
+		if _, err := os.Stat(sh); err == nil {
+			return sh
+		}
+	}
+	t.Skip("askpass escaping is a POSIX-shell contract: no sh available (install Git for Windows)")
+	return ""
 }
 
 // TestWriteAskpassScript_EscapesAdversarialTokens verifies the askpass script
@@ -332,6 +370,12 @@ func TestWriteAskpassScript(t *testing.T) {
 // pipes) injecting command execution into the liveness probe, or echo/printf
 // corrupting the token so a valid PAT is read as rejected.
 func TestWriteAskpassScript_EscapesAdversarialTokens(t *testing.T) {
+	// the script is POSIX shell (git's askpass contract): run it under the same
+	// shell git would — /bin/sh on Unix, Git for Windows' bundled sh on
+	// Windows. Resolved once up front so a missing shell skips the test, not
+	// each individual case.
+	sh := askpassShell(t)
+
 	tokens := []struct {
 		name  string
 		token string
@@ -359,7 +403,7 @@ func TestWriteAskpassScript_EscapesAdversarialTokens(t *testing.T) {
 			require.NoError(t, err)
 			defer os.Remove(path)
 
-			cmd := exec.Command("/bin/sh", path)
+			cmd := exec.Command(sh, path)
 			cmd.Dir = dir
 			out, err := cmd.CombinedOutput()
 			require.NoError(t, err, "askpass script must run cleanly; output: %q", string(out))

@@ -276,7 +276,9 @@ func TestDefaultCheckoutPath(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			got := DefaultCheckoutPath(tt.repoName, tt.workDir)
-			assert.Equal(t, tt.want, got)
+			// the function builds the path with filepath, so the
+			// slash-separated expectation is compared in the platform's form
+			assert.Equal(t, filepath.FromSlash(tt.want), got)
 		})
 	}
 }

@@ -11,6 +11,8 @@ import (
 	"strings"
 	"time"
 
+	"github.com/sageox/ox/internal/gitutil"
+
 	"github.com/sageox/ox/internal/repotools"
 )
 
@@ -121,6 +123,19 @@ func (t *ReadTransport) command(ctx context.Context, dir string, network bool, a
 		"-c", "protocol.allow=never", "-c", "protocol.https.allow=always",
 		"-c", "protocol.version=2", "-c", "fetch.recurseSubmodules=false",
 		"-c", "submodule.recurse=false", "-c", "gc.auto=0", "-c", "maintenance.auto=false",
+	}
+	// The read-sync tree is deep by construction (data/... under the endpoint,
+	// with .sageox/cache/... below it); without this Git for Windows refuses
+	// any path past MAX_PATH.
+	gitArgs = append(gitArgs, gitutil.LongPathsArgs()...)
+	// Test-only transport config, appended last so a fixture can pin its own
+	// TLS trust (Git for Windows defaults to the schannel backend, which
+	// consults the Windows certificate store and ignores http.sslCAInfo).
+	// Existing this way so a fixture never has to shadow `git` on PATH: a
+	// shim named `git` is re-entered by git's own child processes, which
+	// spawns an unbounded chain instead of finishing the command.
+	for _, kv := range TestExtraGitConfig {
+		gitArgs = append(gitArgs, "-c", kv)
 	}
 	if !network {
 		gitArgs = append(gitArgs, "-c", "protocol.https.allow=never")
