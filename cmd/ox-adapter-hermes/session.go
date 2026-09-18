@@ -29,6 +29,7 @@ import (
 	"math"
 	"os"
 	"path/filepath"
+	"runtime"
 	"strings"
 	"time"
 
@@ -66,12 +67,29 @@ func openDBAt(dbPath string) (*sql.DB, error) {
 		return nil, fmt.Errorf("hermes state.db not found at %s", dbPath)
 	}
 	// Read-only; Hermes runs state.db in WAL mode so a live session is never
-	// blocked by our reads. filepath.ToSlash: the sqlite URI form wants
+	// blocked by our reads. filepath.ToSlash: the sqliteURI form wants
 	// forward slashes even on Windows.
 	dsn := "file:" + filepath.ToSlash(dbPath) + "?mode=ro&_pragma=busy_timeout(3000)"
 	db, err := sql.Open("sqlite", dsn)
 	if err != nil {
 		return nil, fmt.Errorf("failed to open hermes state.db: %w", err)
+	}
+	// WAL databases need their shared-memory (-shm) file for a read-only
+	// connection. While Hermes is live it exists; after an unclean exit it
+	// may not, and every read then fails at open time even though the file
+	// is intact. immutable=1 is safe for a quiescent database — it tells
+	// SQLite the file cannot change mid-read, which is exactly our read-only
+	// contract — and lets the read proceed without the shm.
+	if err := db.Ping(); err != nil {
+		_ = db.Close()
+		db, err = sql.Open("sqlite", "file:"+filepath.ToSlash(dbPath)+"?mode=ro&immutable=1&_pragma=busy_timeout(3000)")
+		if err != nil {
+			return nil, fmt.Errorf("failed to open hermes state.db: %w", err)
+		}
+		if err := db.Ping(); err != nil {
+			_ = db.Close()
+			return nil, fmt.Errorf("failed to open hermes state.db (WAL without shared-memory file; is another Hermes instance running?): %w", err)
+		}
 	}
 	return db, nil
 }
@@ -121,14 +139,29 @@ func resolveSessionID(db *sql.DB, agentSessionID, repoRoot, since string) (strin
 	if repoRoot != "" {
 		// Hermes stores whatever spelling the OS gave it; on Windows that is
 		// backslashes. Match the native form and the slash form so a repo
-		// root passed in either spelling finds the session. The LIKE prefix
-		// is escaped: `_` and `%` are wildcards and ordinary path characters.
-		native := filepath.FromSlash(repoRoot)
+		// root passed in either spelling finds the session. On Unix the two
+		// spellings are identical — both queries then compare a slash-form
+		// path against the stored value, which is the only form there.
+		// The LIKE prefix is escaped: `_` and `%` are wildcards and ordinary
+		// path characters. ESCAPE must be a single character per the SQLite
+		// grammar; '\\' in a Go raw string is two characters, so build the
+		// clause as a quoted string with one backslash.
 		slashed := filepath.ToSlash(repoRoot)
-		clause := `(git_repo_root = ? OR git_repo_root = ? OR cwd = ? OR cwd = ? OR cwd LIKE ? ESCAPE '\' OR cwd LIKE ? ESCAPE '\')`
+		native := filepath.FromSlash(repoRoot)
+		clause := "(git_repo_root = ? OR git_repo_root = ? OR cwd = ? OR cwd = ?" +
+			" OR cwd LIKE ? ESCAPE '\\' OR cwd LIKE ? ESCAPE '\\')"
+		if runtime.GOOS == "windows" {
+			// Windows paths are case-insensitive and Hermes stores whatever
+			// casing the OS handed it; a different drive-letter casing
+			// would otherwise read as "no sessions found".
+			clause = "(LOWER(git_repo_root) = ? OR LOWER(git_repo_root) = ? OR LOWER(cwd) = ? OR LOWER(cwd) = ?" +
+				" OR LOWER(cwd) LIKE ? ESCAPE '\\' OR LOWER(cwd) LIKE ? ESCAPE '\\')"
+			slashed = strings.ToLower(slashed)
+			native = strings.ToLower(native)
+		}
 		where = append(where, clause)
 		args = append(args, native, slashed, native, slashed,
-			escapeLike(native)+`\`+"%", escapeLike(slashed)+"/%")
+			escapeLike(native)+string(os.PathSeparator)+"%", escapeLike(slashed)+"/%")
 	}
 
 	if since != "" {
@@ -205,11 +238,17 @@ func handleReadMetadata(p adapterprotocol.ReadParams) (*adapterprotocol.ReadMeta
 	}
 	db, err := openDB()
 	if err != nil {
-		return &adapterprotocol.ReadMetadataResult{}, nil
+		// A missing database is normal (Hermes not yet used); anything else
+		// must not read as "no model recorded" — the runtime's model
+		// detection would silently mislabel the session.
+		return nil, fmt.Errorf("reading hermes metadata for %s: %w", sessionID, err)
 	}
 	defer func() { _ = db.Close() }()
 
-	meta, _ := readMetadata(db, sessionID)
+	meta, err := readMetadata(db, sessionID)
+	if err != nil {
+		return nil, fmt.Errorf("reading hermes metadata for %s: %w", sessionID, err)
+	}
 	if meta == nil {
 		return &adapterprotocol.ReadMetadataResult{}, nil
 	}

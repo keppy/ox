@@ -8,7 +8,8 @@
 // developer's real home.
 //
 // The rule here: $HOME wins when it is set to an absolute path for THIS
-// platform; otherwise fall back to os.UserHomeDir. On Windows a Git-Bash
+// platform; otherwise the account database's home, then os.UserHomeDir.
+// On Windows a Git-Bash
 // style HOME=/c/Users/me is not filepath.IsAbs (no volume), so it does not
 // hijack resolution — only a Windows-shaped HOME=C:\Users\me does, which is
 // what tests set and what users who deliberately export HOME expect. This
@@ -19,6 +20,7 @@ package homedir
 
 import (
 	"os"
+	"os/user"
 	"path/filepath"
 )
 
@@ -27,6 +29,13 @@ import (
 func Dir() (string, error) {
 	if home := os.Getenv("HOME"); home != "" && filepath.IsAbs(home) {
 		return home, nil
+	}
+	// os.UserHomeDir is not a fallback here: on Unix it only re-reads $HOME,
+	// so a HOME this function just rejected (relative, or unset when it is the
+	// only source) comes straight back, or errors. The account database is the
+	// platform's own answer, independent of the environment.
+	if u, err := user.Current(); err == nil && u.HomeDir != "" && filepath.IsAbs(u.HomeDir) {
+		return u.HomeDir, nil
 	}
 	return os.UserHomeDir()
 }

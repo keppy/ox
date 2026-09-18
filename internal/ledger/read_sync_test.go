@@ -9,6 +9,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"runtime"
 	"strings"
 	"sync/atomic"
 	"testing"
@@ -102,7 +103,17 @@ func newReadFixture(t *testing.T, lfsHandler ...http.HandlerFunc) *readFixture {
 	// the transport's test-only config hook does the job without a process in
 	// the middle — no recursion, and no bash spawn per git call.
 	prevGitConfig := gitserver.TestExtraGitConfig
-	gitserver.TestExtraGitConfig = []string{"http.sslBackend=openssl", "http.sslCAInfo=" + filepath.ToSlash(cert)}
+	tlsConfig := []string{"http.sslCAInfo=" + filepath.ToSlash(cert)}
+	if runtime.GOOS == "windows" {
+		// Git for Windows defaults to the schannel backend, which consults
+		// the Windows certificate store and ignores http.sslCAInfo — pin the
+		// openssl backend so the fixture CA is honored. Windows-only: on Unix
+		// http.sslBackend is not a usable knob (git there has a single
+		// backend compiled in and fails the operation when asked to switch),
+		// so passing it turns every clone into a fatal error.
+		tlsConfig = append(tlsConfig, "http.sslBackend=openssl")
+	}
+	gitserver.TestExtraGitConfig = tlsConfig
 	t.Cleanup(func() { gitserver.TestExtraGitConfig = prevGitConfig })
 	t.Setenv("SAGEOX_ENDPOINT", server.URL)
 	t.Setenv("SAGEOX_TOKEN", readTestToken)

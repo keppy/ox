@@ -4,6 +4,7 @@ import (
 	"errors"
 	"os"
 	"path/filepath"
+	"syscall"
 )
 
 // StatStrict is os.Stat with one portability fix: when a component of the
@@ -16,7 +17,19 @@ import (
 // report the same class of failure.
 func StatStrict(path string) (os.FileInfo, error) {
 	info, err := os.Stat(path)
-	if err == nil || !errors.Is(err, os.ErrNotExist) {
+	if err == nil {
+		return info, nil
+	}
+	// Unix reports a file in the parent chain directly as ENOTDIR (not
+	// os.ErrNotExist), so map it to the same sentinel the walk below returns
+	// on Windows; otherwise the ErrNotDirectory contract is Windows-only.
+	// The ErrNotExist exclusion matters on Windows, where os.Stat maps a
+	// missing parent (ERROR_PATH_NOT_FOUND) to an ENOTDIR that still Is
+	// ErrNotExist — that case is genuinely absent and must keep walking.
+	if errors.Is(err, syscall.ENOTDIR) && !errors.Is(err, os.ErrNotExist) {
+		return nil, &os.PathError{Op: "stat", Path: path, Err: ErrNotDirectory}
+	}
+	if !errors.Is(err, os.ErrNotExist) {
 		return info, err
 	}
 	for dir := filepath.Dir(path); ; dir = filepath.Dir(dir) {

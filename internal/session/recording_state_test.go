@@ -554,7 +554,7 @@ func TestRecordingState_WorkspacePath_EmptyForLegacy(t *testing.T) {
 	require.NoError(t, os.MkdirAll(sessionPath, 0o755))
 
 	// simulate old recording state JSON without workspace_path field
-	// Marshalled, not hand-rolled: a Windows session path contains
+	// Marshaled, not hand-rolled: a Windows session path contains
 	// backslashes, which are not valid JSON escapes inside a raw string.
 	legacyJSON, err := json.Marshal(map[string]string{
 		"agent_id":     "OxLgcy",

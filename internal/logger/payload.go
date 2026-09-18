@@ -72,7 +72,7 @@ func payloadQuietHandler(logPath string) slog.Handler {
 // outgrown payloadLogMaxBytes. Returns nil on any failure — callers fall
 // back to discarding, never to stderr.
 // payloadLog is the currently open diagnostics file, if any. It is process
-// global like the slog default it feeds; re-initialising closes the previous
+// global like the slog default it feeds; re-initializing closes the previous
 // one so the file is released (on Windows an open handle blocks deletion of
 // the directory, which is how test TempDir cleanup surfaced the leak).
 var (

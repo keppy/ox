@@ -134,7 +134,7 @@ func TestRecordingState_LegacyJSONWithoutSessionID(t *testing.T) {
 
 	sessionsDir := filepath.Join(projectRoot, "sessions", "2026-01-01T00-00-user-OxLEG1")
 	require.NoError(t, os.MkdirAll(sessionsDir, 0o755))
-	// Marshalled, not hand-rolled: Windows paths contain backslashes, which
+	// Marshaled, not hand-rolled: Windows paths contain backslashes, which
 	// are not valid JSON escapes inside a raw string.
 	legacy, err := json.Marshal(map[string]string{
 		"agent_id":       "OxLEG1",
