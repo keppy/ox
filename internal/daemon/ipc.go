@@ -9,7 +9,6 @@ import (
 	"io"
 	"log/slog"
 	"net"
-	"os"
 	"slices"
 	"strings"
 	"sync"
@@ -1839,7 +1838,7 @@ func IsHealthy() error {
 		if socketPath == "" {
 			socketPath = SocketPath()
 		}
-		if _, statErr := os.Stat(socketPath); os.IsNotExist(statErr) {
+		if !endpointExists(socketPath) {
 			return errors.New("daemon not running")
 		}
 		return fmt.Errorf("daemon not responsive: %w", err)

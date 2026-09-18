@@ -521,6 +521,10 @@ func TestFilterGitIgnored_EmptyInput(t *testing.T) {
 // crashing the daemon's publish loop.
 func TestFilterGitIgnored_NonGitDir(t *testing.T) {
 	dir := t.TempDir() // no `git init`
+	// t.TempDir may itself sit inside a repository (a developer whose home
+	// directory is under git, macOS CI runners); stop git's upward discovery
+	// at the temp root so this dir is a non-repo everywhere.
+	t.Setenv("GIT_CEILING_DIRECTORIES", filepath.Dir(dir))
 	changes := []FileChange{
 		{Path: "main.go", ChangeType: ChangeModified},
 		{Path: "cache.pyc", ChangeType: ChangeCreated},

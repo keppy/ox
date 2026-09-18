@@ -30,6 +30,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"runtime"
 	"sort"
 	"strings"
 	"sync"
@@ -1193,10 +1194,33 @@ func pathIsGitRepo(path string) bool {
 // isValidGitRepo runs git rev-parse --git-dir to verify the repo is functional,
 // not just that .git directory exists. Catches partial/corrupt clones from interrupted operations.
 func isValidGitRepo(path string) bool {
-	cmd := exec.Command("git", "-C", path, "rev-parse", "--git-dir")
-	cmd.Stdout = nil
+	// --show-toplevel rather than --git-dir: a damaged checkout (empty .git/,
+	// deleted .git) makes git walk *up* and answer for whichever repository
+	// encloses path — the user's home checkout, a temp dir under a repo —
+	// so a bare success would report a corrupt bubble as healthy. Require
+	// the discovered work tree to be path itself.
+	cmd := exec.Command("git", "-C", path, "rev-parse", "--show-toplevel")
 	cmd.Stderr = nil
-	return cmd.Run() == nil
+	out, err := cmd.Output()
+	if err != nil {
+		return false
+	}
+	return samePath(strings.TrimSpace(string(out)), path)
+}
+
+// samePath reports whether two directory paths name the same location,
+// tolerating symlinks and the slash/case differences between git's output
+// and filepath on Windows.
+func samePath(a, b string) bool {
+	ra, errA := filepath.EvalSymlinks(a)
+	rb, errB := filepath.EvalSymlinks(b)
+	if errA != nil || errB != nil {
+		return false
+	}
+	if runtime.GOOS == "windows" {
+		return strings.EqualFold(filepath.Clean(ra), filepath.Clean(rb))
+	}
+	return filepath.Clean(ra) == filepath.Clean(rb)
 }
 
 // doPull fetches and pulls from remote with optional progress updates.

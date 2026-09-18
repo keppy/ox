@@ -990,7 +990,7 @@ func GetState() DaemonState {
 	// the daemon is running but temporarily unable to respond (busy with GC, large sync).
 	// Don't classify as stuck based on a timeout alone.
 	// Cross-check with the registry: a stale socket from an ungraceful exit is NOT running.
-	if _, err := os.Stat(socketPath); err == nil {
+	if endpointExists(socketPath) {
 		if pid := pidForSocket(socketPath); pid > 0 {
 			{
 				if proc.IsAlive(pid) {

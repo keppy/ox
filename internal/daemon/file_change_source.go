@@ -8,6 +8,7 @@ import (
 	"fmt"
 	"log/slog"
 	"os/exec"
+	"path"
 	"path/filepath"
 	"sort"
 	"strings"
@@ -393,7 +394,7 @@ func formatMediumChanges(changes []FileChange) string {
 	dirs := make(map[string]*dirSummary)
 
 	for _, c := range changes {
-		dir := filepath.Dir(c.Path)
+		dir := path.Dir(c.Path) // repo-relative, always slash-separated
 		if dir == "." {
 			dir = "./"
 		} else {
@@ -446,7 +447,7 @@ func formatLargeChanges(changes []FileChange) string {
 	dirs := make(map[string]*dirSummary)
 
 	for _, c := range changes {
-		dir := filepath.Dir(c.Path)
+		dir := path.Dir(c.Path) // repo-relative, always slash-separated
 		if dir == "." {
 			dir = "./"
 		} else {

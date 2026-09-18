@@ -266,8 +266,7 @@ func TestDaemon_Cleanup(t *testing.T) {
 	_, err = os.Stat(PidPath())
 	assert.True(t, os.IsNotExist(err))
 
-	_, err = os.Stat(socketPath)
-	assert.True(t, os.IsNotExist(err))
+	assert.False(t, endpointExists(socketPath))
 }
 
 func TestDaemon_Stop_NotRunning(t *testing.T) {
