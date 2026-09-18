@@ -102,8 +102,9 @@ func TestXDGPartialConfiguration(t *testing.T) {
 
 		// config should use custom path
 		configDir := filepath.ToSlash(ConfigDir())
-		if configDir != "/custom/config/sageox" {
-			t.Errorf("ConfigDir() = %q, want /custom/config/sageox", configDir)
+		wantConfig := filepath.ToSlash(testguard.FakePath("/custom/config/sageox"))
+		if configDir != wantConfig {
+			t.Errorf("ConfigDir() = %q, want %q", configDir, wantConfig)
 		}
 
 		// data should use default XDG path
@@ -126,14 +127,14 @@ func TestXDGPartialConfiguration(t *testing.T) {
 		os.Setenv("XDG_DATA_HOME", testguard.FakePath("/b/data"))
 		// leave cache and runtime unset
 
-		if got := ConfigDir(); got != "/a/config/sageox" {
-			t.Errorf("ConfigDir() = %q, want /a/config/sageox", got)
+		if got, want := ConfigDir(), testguard.FakePath("/a/config/sageox"); got != want {
+			t.Errorf("ConfigDir() = %q, want %q", got, want)
 		}
-		if got := DataDir(); got != "/b/data/sageox" {
-			t.Errorf("DataDir() = %q, want /b/data/sageox", got)
+		if got, want := DataDir(), testguard.FakePath("/b/data/sageox"); got != want {
+			t.Errorf("DataDir() = %q, want %q", got, want)
 		}
 		// cache uses default
-		if got := CacheDir(); !strings.Contains(got, ".cache/sageox") {
+		if got := filepath.ToSlash(CacheDir()); !strings.Contains(got, ".cache/sageox") {
 			t.Errorf("CacheDir() = %q, want to contain .cache/sageox", got)
 		}
 	})
@@ -144,8 +145,9 @@ func TestXDGPartialConfiguration(t *testing.T) {
 		os.Setenv("XDG_RUNTIME_DIR", testguard.FakePath("/run/user/1000"))
 
 		stateDir := filepath.ToSlash(StateDir())
-		if stateDir != "/run/user/1000/sageox" {
-			t.Errorf("StateDir() = %q, want /run/user/1000/sageox", stateDir)
+		want := filepath.ToSlash(testguard.FakePath("/run/user/1000/sageox"))
+		if stateDir != want {
+			t.Errorf("StateDir() = %q, want %q", stateDir, want)
 		}
 	})
 
@@ -340,8 +342,9 @@ func TestXDGStateHome(t *testing.T) {
 		// Actually xdgStateHome is used nowhere in production currently...
 		// Let's test it directly since we're in the same package
 		result := xdgStateHome()
-		if result != "/custom/state" {
-			t.Errorf("xdgStateHome() = %q, want /custom/state", result)
+		want := testguard.FakePath("/custom/state")
+		if result != want {
+			t.Errorf("xdgStateHome() = %q, want %q", result, want)
 		}
 	})
 

@@ -140,6 +140,9 @@ func TestCheckProjectSymlinks_WrongTargetIsRepaired(t *testing.T) {
 // regression in the classification refactor cannot silently downgrade "missing"
 // into an unfixable state.
 func TestCheckProjectSymlinks_MissingLinkIsCreated(t *testing.T) {
+	// the --fix step creates the symlink itself, so this test needs a host
+	// that can create symlinks (Windows without Developer Mode cannot).
+	testguard.SymlinksAvailable(t)
 	repoRoot, ledgerTarget := newSymlinkCheckProject(t)
 	if err := os.MkdirAll(ledgerTarget, 0o755); err != nil {
 		t.Fatalf("create ledger target: %v", err)

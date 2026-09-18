@@ -14,6 +14,7 @@ import (
 	"github.com/sageox/ox/internal/endpoint"
 	"github.com/sageox/ox/internal/gitserver"
 	"github.com/sageox/ox/internal/gitutil"
+	"github.com/sageox/ox/internal/testguard"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -574,13 +575,17 @@ func TestRepairInvalidHead_CommitFailureSurfacesButKeepsRepair(t *testing.T) {
 // inside repairInvalidHead itself: moving the corrupted clone aside can fail
 // (e.g. a read-only parent directory) before any network call is made. Must
 // fail cleanly with no clone attempted and nothing renamed.
+//
+// POSIX-only: the injection is "the parent directory refuses new entries",
+// which only exists where directory mode bits are enforced. No portable shape
+// produces it — making the backup destination unusable would need to guess
+// the timestamped name repairInvalidHead picks, and the destination parent is
+// the same directory the clone already lives in.
 func TestRepairInvalidHead_RenameAsideFails(t *testing.T) {
 	if testing.Short() {
 		t.Skip("short: git operations")
 	}
-	if os.Geteuid() == 0 {
-		t.Skip("running as root: permission-denied fixtures don't apply")
-	}
+	testguard.RequirePOSIXPerms(t)
 	_, cloneDir := setupHealthyLedgerClone(t)
 	corruptHEADToInvalidRef(t, cloneDir)
 

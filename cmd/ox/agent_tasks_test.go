@@ -91,6 +91,9 @@ func TestRunAgentTasks_ClaimAndComplete(t *testing.T) {
 
 	// find the claimed id and complete it
 	store, _ := agenttask.NewStore(root)
+	// release the SQLite handle before t.TempDir cleanup: an open DB file
+	// cannot be deleted on Windows ("being used by another process").
+	t.Cleanup(func() { _ = store.Close() })
 	tasks, _ := store.List(false)
 	var claimedID string
 	for _, tk := range tasks {
@@ -116,6 +119,9 @@ func TestRunAgentTasks_Cancel(t *testing.T) {
 	root := setupTaskProject(t)
 	_, _ = agenttask.Enqueue(root, &agenttask.Task{Title: "obsolete"})
 	store, _ := agenttask.NewStore(root)
+	// release the SQLite handle before t.TempDir cleanup: an open DB file
+	// cannot be deleted on Windows ("being used by another process").
+	t.Cleanup(func() { _ = store.Close() })
 	tasks, _ := store.List(false)
 	id := tasks[0].ID
 
@@ -222,6 +228,9 @@ func TestEmitAgentTasks_NoTasksSilent(t *testing.T) {
 func TestEmitAgentTasks_BusyAgentSilent(t *testing.T) {
 	root := setupTaskProject(t)
 	store, _ := agenttask.NewStore(root)
+	// release the SQLite handle before t.TempDir cleanup: an open DB file
+	// cannot be deleted on Windows ("being used by another process").
+	t.Cleanup(func() { _ = store.Close() })
 	_, _ = store.Add(&agenttask.Task{Title: "being-worked"})
 	_, _ = store.Add(&agenttask.Task{Title: "also-ready"})
 	// Oxbusy claims one task
@@ -283,6 +292,9 @@ func TestCountAgentTasks(t *testing.T) {
 	}
 
 	store, _ := agenttask.NewStore(root)
+	// release the SQLite handle before t.TempDir cleanup: an open DB file
+	// cannot be deleted on Windows ("being used by another process").
+	t.Cleanup(func() { _ = store.Close() })
 	_, _ = store.Add(&agenttask.Task{Title: "a"})
 	_, _ = store.Add(&agenttask.Task{Title: "b"})
 	_, _ = store.Claim(agenttask.ClaimOptions{AgentID: "Oxx", PID: os.Getpid()})

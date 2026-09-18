@@ -6,10 +6,12 @@ import (
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+
+	"github.com/sageox/ox/internal/testguard"
 )
 
 func TestRepoRelativePaths(t *testing.T) {
-	repo := filepath.FromSlash("/tmp/repo")
+	repo := testguard.FakePath("/tmp/repo")
 
 	tests := []struct {
 		name    string
@@ -73,8 +75,8 @@ func TestRepoRelativePaths(t *testing.T) {
 // absolute form is unambiguous from any working directory, while a
 // traversal only means the right thing relative to repoRoot.
 func TestRepoRelativePaths_OutsideRepoStaysAbsolute(t *testing.T) {
-	repo := filepath.FromSlash("/tmp/repo")
-	outside := filepath.FromSlash("/home/someone/.codex/hooks.json")
+	repo := testguard.FakePath("/tmp/repo")
+	outside := testguard.FakePath("/home/someone/.codex/hooks.json")
 
 	got := RepoRelativePaths(repo, filepath.Join(repo, ".codex"), []string{outside})
 
@@ -87,8 +89,8 @@ func TestRepoRelativePaths_OutsideRepoStaysAbsolute(t *testing.T) {
 // a path that shares a parent with the repo resolves to a short `../x`
 // traversal, which is exactly the case a naive filepath.Rel accepts.
 func TestRepoRelativePaths_SiblingOfRepoStaysAbsolute(t *testing.T) {
-	repo := filepath.FromSlash("/tmp/repo")
-	sibling := filepath.FromSlash("/tmp/other/hooks.json")
+	repo := testguard.FakePath("/tmp/repo")
+	sibling := testguard.FakePath("/tmp/other/hooks.json")
 
 	got := RepoRelativePaths(repo, repo, []string{sibling})
 

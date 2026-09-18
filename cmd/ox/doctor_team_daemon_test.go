@@ -1,10 +1,9 @@
 package main
 
 import (
-	"bufio"
-	"encoding/json"
-	"fmt"
-	"net"
+	"context"
+	"io"
+	"log/slog"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -116,34 +115,58 @@ func TestDaemonSyncedTeamContexts_NilClient(t *testing.T) {
 }
 
 // TestDaemonSyncedTeamContexts_Success drives daemonSyncedTeamContextsVia
-// through a real (fake) IPC round trip — ping, then status — against a
-// minimal Unix-socket server speaking the daemon's actual newline-delimited
-// JSON protocol. This is the path TestDaemonSyncedTeamContexts_NoDaemon
-// can't reach: a daemon that responds and reports a real extra context.
+// through a real (fake) IPC round trip — ping, then status — against a real
+// daemon.Server bound at daemon.SocketPath(). This is the path
+// TestDaemonSyncedTeamContexts_NoDaemon can't reach: a daemon that responds
+// and reports a real extra context.
+//
+// The round trip goes through the production listen/dial pair on purpose:
+// the daemon transport is a Unix socket on POSIX and a Windows named pipe on
+// Windows, so a hand-rolled net.Listen("unix", …) fake is reachable on one
+// platform only — the client would dial a pipe that was never bound and the
+// test would silently assert on an empty result.
 func TestDaemonSyncedTeamContexts_Success(t *testing.T) {
-	sock := startFakeDaemon(t, func(msg daemon.Message) daemon.Response {
-		switch msg.Type {
-		case daemon.MsgTypePing:
-			return daemon.Response{Success: true}
-		case daemon.MsgTypeStatus:
-			status := daemon.StatusData{
-				Workspaces: map[string][]daemon.WorkspaceSyncStatus{
-					"team-context": {
-						{Path: "/other/path", Exists: true, TeamID: "t2", TeamName: "Other Team"},
-					},
-				},
-			}
-			data, err := json.Marshal(status)
-			require.NoError(t, err)
-			return daemon.Response{Success: true, Data: data}
-		default:
-			return daemon.Response{Success: false, Error: "unexpected message type in test fake: " + msg.Type}
-		}
+	// isolate the daemon socket path to a temp runtime dir so the server
+	// binds a socket/pipe no real daemon owns.
+	t.Setenv("XDG_RUNTIME_DIR", t.TempDir())
+	t.Setenv("OX_XDG_ENABLE", "1")
+
+	status := daemon.StatusData{
+		Workspaces: map[string][]daemon.WorkspaceSyncStatus{
+			"team-context": {
+				{Path: "/other/path", Exists: true, TeamID: "t2", TeamName: "Other Team"},
+			},
+		},
+	}
+
+	server := daemon.NewServer(slog.New(slog.NewTextHandler(io.Discard, nil)))
+	server.SetHandlers(func() error { return nil }, func() {}, func() *daemon.StatusData { return &status })
+
+	ctx, cancel := context.WithCancel(context.Background())
+	serverDone := make(chan error, 1)
+	go func() { serverDone <- server.Start(ctx) }()
+	t.Cleanup(func() {
+		cancel()
+		<-serverDone
 	})
 
-	got := daemonSyncedTeamContextsVia(daemon.NewClientWithSocket(sock), nil)
+	client := daemon.NewClientWithSocket(daemon.SocketPath())
 
-	assert.Len(t, got, 1)
+	// the listener is bound asynchronously by Start; ping until the fake
+	// daemon answers so the round trip below tests the response, not the
+	// startup race. Bounded so a genuine failure fails fast instead of
+	// hanging the package.
+	deadline := time.Now().Add(10 * time.Second)
+	for client.Ping() != nil {
+		if time.Now().After(deadline) {
+			t.Fatal("fake daemon never became reachable")
+		}
+		time.Sleep(10 * time.Millisecond)
+	}
+
+	got := daemonSyncedTeamContextsVia(client, nil)
+
+	require.Len(t, got, 1)
 	assert.Equal(t, "/other/path", got[0].Path)
 	assert.Equal(t, "Other Team", got[0].TeamName)
 }
@@ -159,52 +182,6 @@ func TestDaemonSyncedTeamContexts_CallsThroughToVia(t *testing.T) {
 	assert.NotPanics(t, func() {
 		daemonSyncedTeamContexts(nil)
 	})
-}
-
-// startFakeDaemon starts a minimal Unix-socket server speaking the daemon
-// IPC wire format (one newline-delimited JSON Message in, one
-// newline-delimited JSON Response out) and returns its socket path. respond
-// computes the reply for each received message; the server handles exactly
-// one message per connection, matching Client.sendMessage's connect-write-
-// read-close pattern.
-func startFakeDaemon(t *testing.T, respond func(daemon.Message) daemon.Response) string {
-	t.Helper()
-	// os.TempDir(), not t.TempDir(): a long test name nests t.TempDir() deep
-	// enough to exceed macOS's ~104-char AF_UNIX path limit ("bind: invalid
-	// argument"). Same workaround as internal/daemon/friction_test.go.
-	sock := filepath.Join(os.TempDir(), fmt.Sprintf("ox-fake-daemon-%d.sock", time.Now().UnixNano()))
-	t.Cleanup(func() { os.Remove(sock) })
-	listener, err := net.Listen("unix", sock)
-	require.NoError(t, err)
-	t.Cleanup(func() { listener.Close() })
-
-	go func() {
-		for {
-			conn, err := listener.Accept()
-			if err != nil {
-				return
-			}
-			go func(c net.Conn) {
-				defer c.Close()
-				line, err := bufio.NewReader(c).ReadBytes('\n')
-				if err != nil {
-					return
-				}
-				var msg daemon.Message
-				if err := json.Unmarshal(line, &msg); err != nil {
-					return
-				}
-				data, err := json.Marshal(respond(msg))
-				if err != nil {
-					return
-				}
-				data = append(data, '\n')
-				_, _ = c.Write(data)
-			}(conn)
-		}
-	}()
-
-	return sock
 }
 
 // TestScanExtraTeamContexts covers the actual scan-and-report behavior

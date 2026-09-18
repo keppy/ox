@@ -7,6 +7,8 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
+
+	"github.com/sageox/ox/internal/testguard"
 )
 
 // TestCheckReadmeFile_FixCreates verifies that when fix=true and README.md is missing,
@@ -175,8 +177,17 @@ discovered.jsonl
 	}
 }
 
-// TestCheckReadmeFile_PermissionError verifies handling of permission errors
+// TestCheckReadmeFile_PermissionError verifies a README that cannot be
+// written is reported as a failed check, never a silent success.
+//
+// POSIX-only: the failure is "cannot create a file inside .sageox", which
+// os.Chmod expresses on POSIX but not on Windows (chmod there is only the
+// read-only attribute, so the write keeps succeeding). The nearest portable
+// shape — a directory where README.md is expected — reaches a different
+// branch per platform (a directory has size 0 on Windows, non-zero on
+// Linux), so it cannot stand in without weakening the Unix assertion.
 func TestCheckReadmeFile_PermissionError(t *testing.T) {
+	testguard.RequirePOSIXPerms(t)
 	gitRoot := testGitRepo(t)
 	sageoxDir := filepath.Join(gitRoot, ".sageox")
 	if err := os.MkdirAll(sageoxDir, 0755); err != nil {

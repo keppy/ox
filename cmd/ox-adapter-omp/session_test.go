@@ -4,9 +4,11 @@ import (
 	"encoding/json"
 	"os"
 	"path/filepath"
+	"runtime"
 	"strings"
 	"testing"
 
+	"github.com/sageox/ox/internal/testguard"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -127,15 +129,41 @@ func TestOMPSessionRootsProfilesAndXDG(t *testing.T) {
 	t.Setenv("XDG_DATA_HOME", xdg)
 	roots, err = ompSessionRoots()
 	require.NoError(t, err)
+	if runtime.GOOS == "windows" {
+		// OMP's own resolver redirects under $XDG_DATA_HOME/omp only on
+		// linux/darwin (the process.platform gate in @oh-my-pi/pi-utils/dirs).
+		// Honoring the variable on Windows would advertise a session root OMP
+		// never writes to, so the override must stay ignored there.
+		assert.False(t, hasOMPRoot(roots, filepath.Join(xdg, "omp", "sessions")),
+			"XDG_DATA_HOME must be ignored on Windows; OMP gates the XDG redirect to linux/darwin")
+		return
+	}
 	assert.True(t, hasOMPRoot(roots, filepath.Join(xdg, "omp", "sessions")))
 }
 
 func TestOMPSessionDirNamesMatchDocumentedHomeEncoding(t *testing.T) {
-	t.Setenv("HOME", "/Users/tester")
-	names := ompSessionDirNames("/Users/tester/projects/ox")
+	// The documented encoding is written with POSIX literals, but
+	// /Users/tester is not an absolute path on Windows (no volume), so
+	// homedir.Dir() ignores it there by design and the cwd would classify as
+	// outside home. Build the same fixture in platform form — on Windows that
+	// is C:\Users	ester, the shape an OMP user's home actually has.
+	home := testguard.FakeHome("/Users/tester")
+	cwd := testguard.FakePath("/Users/tester/projects/ox")
+	t.Setenv("HOME", home)
+
+	names := ompSessionDirNames(cwd)
 	require.NotEmpty(t, names)
+	// Current encoding: the path under home with separators replaced by '-'.
 	assert.Equal(t, "-projects-ox", names[0])
-	assert.Contains(t, names, "--Users-tester-projects-ox--")
+	// Legacy absolute encoding: the full path with separators replaced by '-',
+	// wrapped in '--'. On Windows the drive letter is part of the name and its
+	// ':' is encoded like a separator (OMP's encoder maps '/', '\' and ':'
+	// alike), so the Windows form carries the extra 'C--'.
+	legacy := "--Users-tester-projects-ox--"
+	if runtime.GOOS == "windows" {
+		legacy = "--C--Users-tester-projects-ox--"
+	}
+	assert.Contains(t, names, legacy)
 }
 
 func TestFindOMPSessionUsesTimestampPrefixedSessionID(t *testing.T) {
