@@ -94,7 +94,7 @@ func TestReplaceRunningBinary_WindowsZip(t *testing.T) {
 	}
 }
 
-// A tar.gz that happens to carry .exe names is still recognised, so a single
+// A tar.gz that happens to carry .exe names is still recognized, so a single
 // canonicalisation path serves both archive kinds.
 func TestReadArchiveBinaries_CanonicalisesExe(t *testing.T) {
 	tarball := makeTarball(t, map[string]string{"ox.exe": "x", "ox-adapter-a.exe": "y", "LICENSE": "z"})

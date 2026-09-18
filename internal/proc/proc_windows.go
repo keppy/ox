@@ -40,7 +40,7 @@ func snapshotEntry(pid int) (windows.ProcessEntry32, bool) {
 	if err != nil {
 		return zero, false
 	}
-	defer windows.CloseHandle(snap)
+	defer func() { _ = windows.CloseHandle(snap) }()
 
 	var entry windows.ProcessEntry32
 	entry.Size = uint32(unsafe.Sizeof(entry))
@@ -94,7 +94,7 @@ func isAliveProc(proc *os.Process) bool {
 		// a process we cannot query is one we cannot manage either.
 		return false
 	}
-	defer windows.CloseHandle(h)
+	defer func() { _ = windows.CloseHandle(h) }()
 
 	var code uint32
 	if err := windows.GetExitCodeProcess(h, &code); err != nil {

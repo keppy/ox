@@ -290,7 +290,7 @@ func TestSessionWatchStart_RejectsArbitrarySessionFile(t *testing.T) {
 	// syntax — is what the cases exercise.
 	home := filepath.FromSlash("/home/victim")
 	if runtime.GOOS == "windows" {
-		home = `C:\homeictim`
+		home = `C:\home\victim`
 	}
 	abs := func(p string) string {
 		if p == "" || !strings.HasPrefix(p, "/") {

@@ -282,7 +282,7 @@ const kbTrashTimestampLayout = "2006-01-02T15.04.05Z07:00"
 // parseKBTrashTimestamp pulls the trailing timestamp out of a trash entry
 // name of the form "<kb_id>-<timestamp>". The timestamp is
 // kbTrashTimestampLayout; entries written by older builds with plain
-// RFC3339 (':' separators, POSIX only) are still recognised so an
+// RFC3339 (':' separators, POSIX only) are still recognized so an
 // upgrade never orphans existing trash. The date part contains internal
 // '-' characters so we split on the LAST boundary that begins a valid
 // timestamp rather than the first '-'.

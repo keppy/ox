@@ -72,7 +72,7 @@ import (
 
 // MSYS bash re-parses its Windows command line with its own quoting and
 // glob rules ("HEAD^{tree}" loses its braces, an empty argument merges into
-// its neighbour), so argv is not handed to bash as arguments. Each one is
+// its neighbor), so argv is not handed to bash as arguments. Each one is
 // base64-encoded and NUL-joined into OX_FIXTURE_ARGS; a fixed prologue
 // decodes them and re-execs the fixture script with a faithful "$@".
 func main() {
