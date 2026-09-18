@@ -18,6 +18,7 @@
 package automerge
 
 import (
+	"bytes"
 	"context"
 	"errors"
 	"fmt"
@@ -264,12 +265,24 @@ func hasConflictMarkers(data []byte) bool {
 var _ = time.Second
 
 // listConflictedPaths returns unique paths with unresolved conflicts.
+//
+// The listing is data, so it is read from git's stdout alone. gitutil.RunGit
+// returns stdout and stderr combined — right for classifying a failure by its
+// message, wrong for parsing one: Git for Windows warns on stderr ("LF will be
+// replaced by CRLF the next time Git touches it") while it inspects a
+// conflicted worktree file under the default core.autocrlf=true, and that
+// warning parsed as a path no tier can ever resolve, stranding every real
+// conflict behind it.
 func listConflictedPaths(ctx context.Context, repoPath string) ([]string, error) {
-	out, err := gitutil.RunGit(ctx, repoPath, "diff", "--name-only", "--diff-filter=U")
-	if err != nil {
-		return nil, err
+	cmd := exec.CommandContext(ctx, "git", "-C", repoPath, "diff", "--name-only", "--diff-filter=U")
+	cmd.Dir = repoPath
+	cmd.Env = append(os.Environ(), "GIT_TERMINAL_PROMPT=0", "LC_ALL=C", "LANG=C")
+	var stdout, stderr bytes.Buffer
+	cmd.Stdout, cmd.Stderr = &stdout, &stderr
+	if err := cmd.Run(); err != nil {
+		return nil, fmt.Errorf("git diff --name-only --diff-filter=U: %s: %w", strings.TrimSpace(stderr.String()), err)
 	}
-	out = strings.TrimSpace(out)
+	out := strings.TrimSpace(stdout.String())
 	if out == "" {
 		return nil, nil
 	}

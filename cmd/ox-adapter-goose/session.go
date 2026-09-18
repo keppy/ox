@@ -173,8 +173,15 @@ func resolveSessionID(db *sql.DB, agentSessionID, repoRoot, since string) (strin
 		// are ordinary characters in real paths. Unescaped, `/home/u/my_repo`
 		// also matches `/home/u/myXrepo/...`, which would attribute another
 		// repo's transcript to this Ledger.
+		//
+		// The separator is escaped with the rest of the prefix rather than
+		// appended raw: on Windows the separator IS the ESCAPE character, so a
+		// raw trailing `\%` reads as a literal '%' — the pattern then matches
+		// only a path that literally ends in '%', and no subdirectory ever
+		// matches. Escaping it yields `\\%`, i.e. a literal separator followed
+		// by the wildcard.
 		where = append(where, `(working_dir = ? OR working_dir LIKE ? ESCAPE '\')`)
-		args = append(args, repoRoot, escapeLike(repoRoot)+string(os.PathSeparator)+"%")
+		args = append(args, repoRoot, escapeLike(repoRoot+string(os.PathSeparator))+"%")
 	}
 
 	if since != "" {
