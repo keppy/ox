@@ -1,6 +1,8 @@
 package agentwork
 
 import (
+	"github.com/sageox/ox/internal/testguard"
+
 	"bytes"
 	"context"
 	"log/slog"
@@ -29,7 +31,7 @@ func TestNewClaudeRunner_BinaryNotFound(t *testing.T) {
 func TestClaudeRunner_Available_BinaryExists(t *testing.T) {
 	tmp := t.TempDir()
 	fakeBin := filepath.Join(tmp, "claude")
-	require.NoError(t, os.WriteFile(fakeBin, []byte("#!/bin/sh\n"), 0o755))
+	fakeBin = testguard.WriteShellExecutable(t, filepath.Dir(fakeBin), filepath.Base(fakeBin), "#!/bin/sh\n")
 
 	r := &ClaudeRunner{
 		binaryPath: fakeBin,
@@ -41,7 +43,7 @@ func TestClaudeRunner_Available_BinaryExists(t *testing.T) {
 func TestClaudeRunner_Available_BinaryRemoved(t *testing.T) {
 	tmp := t.TempDir()
 	fakeBin := filepath.Join(tmp, "claude")
-	require.NoError(t, os.WriteFile(fakeBin, []byte("#!/bin/sh\n"), 0o755))
+	fakeBin = testguard.WriteShellExecutable(t, filepath.Dir(fakeBin), filepath.Base(fakeBin), "#!/bin/sh\n")
 
 	r := &ClaudeRunner{
 		binaryPath: fakeBin,
@@ -138,7 +140,7 @@ func TestClaudeRunner_Run_Timeout(t *testing.T) {
 	script := filepath.Join(tmp, "claude")
 	// use exec to replace shell process with sleep so killing the process
 	// closes pipes immediately (no orphaned children keeping pipes open)
-	require.NoError(t, os.WriteFile(script, []byte("#!/bin/sh\nexec sleep 60\n"), 0o755))
+	script = testguard.WriteShellExecutable(t, filepath.Dir(script), filepath.Base(script), "#!/bin/sh\nexec sleep 60\n")
 
 	r := &ClaudeRunner{
 		binaryPath: script,
@@ -164,7 +166,7 @@ func TestClaudeRunner_Run_TimeoutBoundsInheritedOutputPipes(t *testing.T) {
 	// The background child inherits stdout/stderr and outlives the shell when
 	// CommandContext kills it. A runner that waits for EOF before Wait will
 	// block for the full child sleep despite the 100ms timeout.
-	require.NoError(t, os.WriteFile(script, []byte("#!/bin/sh\nsleep 2 &\nwait\n"), 0o755))
+	script = testguard.WriteShellExecutable(t, filepath.Dir(script), filepath.Base(script), "#!/bin/sh\nsleep 2 &\nwait\n")
 	r := &ClaudeRunner{binaryPath: script, logger: slog.Default()}
 
 	start := time.Now()
@@ -188,7 +190,7 @@ func TestProcessCancellationKillsDescendants(t *testing.T) {
 	script := filepath.Join(tmp, "tree")
 	childPIDFile := filepath.Join(tmp, "child.pid")
 	body := "#!/bin/sh\nsleep 60 &\necho $! > " + childPIDFile + "\nwait\n"
-	require.NoError(t, os.WriteFile(script, []byte(body), 0o755))
+	script = testguard.WriteShellExecutable(t, filepath.Dir(script), filepath.Base(script), body)
 
 	ctx, cancel := context.WithCancel(context.Background())
 	cmd := exec.CommandContext(ctx, script)
@@ -252,7 +254,7 @@ func TestTailBufferWithZeroLimitStillDrains(t *testing.T) {
 
 func TestClaudeRunner_Run_DrainsStderr(t *testing.T) {
 	script := filepath.Join(t.TempDir(), "claude")
-	require.NoError(t, os.WriteFile(script, []byte("#!/bin/sh\nprintf '%s\\n' 'diagnostic' >&2\nprintf '%s\\n' '{\"type\":\"result\",\"result\":\"ok\"}'\n"), 0o755))
+	script = testguard.WriteShellExecutable(t, filepath.Dir(script), filepath.Base(script), "#!/bin/sh\nprintf '%s\\n' 'diagnostic' >&2\nprintf '%s\\n' '{\"type\":\"result\",\"result\":\"ok\"}'\n")
 	r := &ClaudeRunner{binaryPath: script, logger: slog.Default()}
 
 	result, err := r.Run(context.Background(), RunRequest{Prompt: "test", TimeoutOverride: 30 * time.Second})
@@ -264,7 +266,7 @@ func TestClaudeRunner_Run_DrainsStderr(t *testing.T) {
 
 func TestClaudeRunner_Run_MissingResultIsError(t *testing.T) {
 	script := filepath.Join(t.TempDir(), "claude")
-	require.NoError(t, os.WriteFile(script, []byte("#!/bin/sh\nprintf '%s\\n' '{\"type\":\"assistant\"}'\n"), 0o755))
+	script = testguard.WriteShellExecutable(t, filepath.Dir(script), filepath.Base(script), "#!/bin/sh\nprintf '%s\\n' '{\"type\":\"assistant\"}'\n")
 	r := &ClaudeRunner{binaryPath: script, logger: slog.Default()}
 
 	// The full race+coverage suite runs eight packages concurrently and can
@@ -280,7 +282,7 @@ func TestClaudeRunner_Run_MissingResultIsError(t *testing.T) {
 
 func TestClaudeRunner_Run_ExitCode(t *testing.T) {
 	script := filepath.Join(t.TempDir(), "claude")
-	require.NoError(t, os.WriteFile(script, []byte("#!/bin/sh\nprintf '%s\\n' '{\"type\":\"result\",\"result\":\"partial\"}'\nexit 7\n"), 0o755))
+	script = testguard.WriteShellExecutable(t, filepath.Dir(script), filepath.Base(script), "#!/bin/sh\nprintf '%s\\n' '{\"type\":\"result\",\"result\":\"partial\"}'\nexit 7\n")
 	r := &ClaudeRunner{binaryPath: script, logger: slog.Default()}
 
 	result, err := r.Run(context.Background(), RunRequest{
@@ -310,7 +312,7 @@ func TestClaudeRunner_Run_ModelFlag(t *testing.T) {
 for a in "$@"; do printf '%s\n' "$a" >> "` + argsFile + `"; done
 printf '%s\n' '{"type":"result","result":"ok","usage":{"input_tokens":1,"output_tokens":1}}'
 `
-	require.NoError(t, os.WriteFile(script, []byte(body), 0o755))
+	script = testguard.WriteShellExecutable(t, filepath.Dir(script), filepath.Base(script), body)
 
 	r := &ClaudeRunner{binaryPath: script, logger: slog.Default()}
 
@@ -376,7 +378,7 @@ for a in "$@"; do printf '%s\n' "$a" >> "` + argsFile + `"; done
 cat > "` + stdinFile + `"
 printf '%s\n' '{"type":"result","result":"ok","usage":{"input_tokens":1,"output_tokens":1}}'
 `
-	require.NoError(t, os.WriteFile(script, []byte(body), 0o755))
+	script = testguard.WriteShellExecutable(t, filepath.Dir(script), filepath.Base(script), body)
 
 	r := &ClaudeRunner{binaryPath: script, logger: slog.Default()}
 
@@ -400,7 +402,7 @@ printf '%s\n' '{"type":"result","result":"ok","usage":{"input_tokens":1,"output_
 func TestClaudeRunner_Run_ContextCancellation(t *testing.T) {
 	tmp := t.TempDir()
 	script := filepath.Join(tmp, "claude")
-	require.NoError(t, os.WriteFile(script, []byte("#!/bin/sh\nexec sleep 60\n"), 0o755))
+	script = testguard.WriteShellExecutable(t, filepath.Dir(script), filepath.Base(script), "#!/bin/sh\nexec sleep 60\n")
 
 	r := &ClaudeRunner{
 		binaryPath: script,
