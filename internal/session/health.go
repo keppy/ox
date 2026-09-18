@@ -362,7 +362,10 @@ func ShortenPath(path string) string {
 		return path
 	}
 	if strings.HasPrefix(path, home) {
-		return "~" + path[len(home):]
+		// Displayed in doctor output and session markdown, and compared
+		// against recorded (portable, slash-form) paths, so keep the
+		// remainder in slash form instead of the platform's separator.
+		return "~" + filepath.ToSlash(path[len(home):])
 	}
 	return path
 }

@@ -8,6 +8,7 @@ import (
 	"time"
 
 	"github.com/sageox/ox/internal/homedir"
+	"github.com/sageox/ox/internal/testguard"
 
 	"github.com/sageox/ox/internal/config"
 	"github.com/stretchr/testify/assert"
@@ -24,6 +25,7 @@ func TestCheckHealth_StorageWritable(t *testing.T) {
 }
 
 func TestCheckHealth_StorageNotWritable(t *testing.T) {
+	testguard.RequirePOSIXPerms(t)
 	// skip if running as root (root can always write)
 	if os.Getuid() == 0 {
 		t.Skip("skipping test when running as root")
