@@ -1,6 +1,8 @@
 package store
 
 import (
+	"runtime"
+
 	"os"
 	"path/filepath"
 	"testing"
@@ -271,6 +273,11 @@ func TestEnforceMaxSize_MissingDB(t *testing.T) {
 	require.NoError(t, err)
 	defer s.Close()
 
+	if runtime.GOOS == "windows" {
+		// an open SQLite file cannot be unlinked on Windows; the "database
+		// file vanished underneath us" scenario is a POSIX-only state.
+		t.Skip("cannot remove an open database file on Windows")
+	}
 	require.NoError(t, os.Remove(dbPath))
 	err = s.EnforceMaxSize(1024)
 	assert.NoError(t, err, "should handle missing file gracefully")
@@ -314,7 +321,11 @@ func TestToNullString_Coverage(t *testing.T) {
 
 func TestOpen_InvalidPath(t *testing.T) {
 	t.Parallel()
-	_, err := Open("/dev/null/impossible/whisper.db")
+	// a regular file where the parent directory should be — portable
+	// equivalent of /dev/null/impossible
+	blocker := filepath.Join(t.TempDir(), "not-a-dir")
+	require.NoError(t, os.WriteFile(blocker, []byte("x"), 0o600))
+	_, err := Open(filepath.Join(blocker, "impossible", "whisper.db"))
 	assert.Error(t, err)
 }
 
