@@ -310,10 +310,9 @@ func (m *MockDaemon) Stop() {
 	if m.cancel != nil {
 		m.cancel()
 	}
-	if m.listener != nil {
-		m.listener.Close()
-	}
-	m.wg.Wait()
+	// Bounded for the same reason as the fault daemon: a pipe listener whose
+	// Close races an in-flight Accept must not hang the test run.
+	daemon.StopEndpoint(m.listener, &m.wg)
 }
 
 // GetCalls returns a copy of all recorded calls.

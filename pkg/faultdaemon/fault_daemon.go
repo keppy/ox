@@ -85,10 +85,10 @@ func (d *FaultDaemon) Stop() {
 	if d.cancel != nil {
 		d.cancel()
 	}
-	if d.listener != nil {
-		d.listener.Close()
-	}
-	d.wg.Wait()
+	// Bounded: go-winio's pipe Close can deadlock against a pending Accept
+	// (see daemon.StopEndpoint), and a test that leaves an accept in flight
+	// must not hang the run.
+	daemon.StopEndpoint(d.listener, &d.wg)
 
 	os.Remove(d.socketPath)
 }
