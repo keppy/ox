@@ -154,7 +154,9 @@ jobs:
   # code in the tree.
   test-windows:
     runs-on: windows-latest
-    timeout-minutes: 90
+    # Windows runners are 2-core and process spawn is expensive there: the
+    # daemon package alone needs >15 minutes locally on a fast machine.
+    timeout-minutes: 120
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
@@ -170,4 +172,4 @@ jobs:
           git config --global user.name "CI"
 
       - name: Windows test suite
-        run: go test ./... -count=1 -timeout 80m
+        run: go test ./... -count=1 -timeout 90m
