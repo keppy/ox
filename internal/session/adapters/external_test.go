@@ -218,7 +218,15 @@ func TestExternalAdapter_OneShotTimeoutCancelsProcess(t *testing.T) {
 	if !errors.Is(err, ErrAdapterTimeout) {
 		t.Fatalf("error = %v, want ErrAdapterTimeout", err)
 	}
-	if elapsed := time.Since(started); elapsed > time.Second {
+	// The bound distinguishes "canceled on the output limit" from "ran to
+	// the 5s timeout". On Windows the fixture runs via MSYS bash, whose
+	// startup alone is ~1s, so the budget is wider there — still well
+	// under the timeout, so the distinction holds.
+	promptly := time.Second
+	if runtime.GOOS == "windows" {
+		promptly = 3 * time.Second
+	}
+	if elapsed := time.Since(started); elapsed > promptly {
 		t.Fatalf("timed-out adapter returned after %v; subprocess was not canceled promptly", elapsed)
 	}
 }
@@ -239,9 +247,9 @@ func TestExternalAdapter_OneShotOutputIsBounded(t *testing.T) {
 		t.Fatalf("error = %v, want ErrAdapterOutputLimit", err)
 	}
 	// The bound distinguishes "canceled on the output limit" from "ran to
-	// the 5s timeout". On Windows, spawning the fixture goes through MSYS
-	// bash (~300ms) and process teardown is slower, so the budget is wider
-	// there; it is still well under the timeout.
+	// the 5s timeout". On Windows the fixture runs via MSYS bash, whose
+	// startup alone is ~1s, so the budget is wider there — still well
+	// under the timeout, so the distinction holds.
 	promptly := time.Second
 	if runtime.GOOS == "windows" {
 		promptly = 3 * time.Second

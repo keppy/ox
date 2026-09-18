@@ -65,15 +65,14 @@ import (
 	"os/exec"
 	"path/filepath"
 	"strings"
+	"syscall"
 	"unsafe"
-
-	"golang.org/x/sys/windows"
 )
 
 // MSYS bash re-parses its Windows command line with its own quoting and
 // glob rules ("HEAD^{tree}" loses its braces, an empty argument merges into
 // its neighbor), so argv is not handed to bash as arguments. Each one is
-// base64-encoded and NUL-joined into OX_FIXTURE_ARGS; a fixed prologue
+// base64-encoded and ':'-terminated into OX_FIXTURE_ARGS; a fixed prologue
 // decodes them and re-execs the fixture script with a faithful "$@".
 func main() {
 	self, err := os.Executable()
@@ -81,34 +80,26 @@ func main() {
 		os.Exit(127)
 	}
 	script := strings.TrimSuffix(self, filepath.Ext(self)) + ".sh"
-	enc := make([]string, 0, len(os.Args)-1)
+	var enc strings.Builder
 	for _, a := range os.Args[1:] {
-		enc = append(enc, base64.StdEncoding.EncodeToString([]byte(a)))
+		enc.WriteString(base64.StdEncoding.EncodeToString([]byte(a)))
+		enc.WriteByte(':')
 	}
-	// Every argument is terminated by ':' (so an empty argument is an empty
-	// field, not a dropped one) and decoded in a read loop rather than by
-	// word-splitting, which would collapse empty fields.
 	prologue := "set -- ; while IFS= read -r -d : e; do set -- \"$@\" \"$(printf %s \"$e\" | base64 -d)\"; done <<EOF\n$OX_FIXTURE_ARGS\nEOF\nexec \"$OX_FIXTURE_SCRIPT\" \"$@\""
 	cmd := exec.Command("bash", "-c", prologue)
 	cmd.Stdin, cmd.Stdout, cmd.Stderr = os.Stdin, os.Stdout, os.Stderr
 	cmd.Env = append(os.Environ(),
-		"OX_FIXTURE_ARGS="+strings.Join(enc, ":")+terminator(len(enc)),
+		"OX_FIXTURE_ARGS="+enc.String(),
 		"OX_FIXTURE_SCRIPT="+filepath.ToSlash(script))
-	// Bind bash (and anything it spawns) to this process: when the test
-	// kills the fixture, Windows tears the whole job down. Without this a
-	// killed launcher leaves bash running and holding the caller's pipes,
-	// so cmd.Wait blocks until WaitDelay — the opposite of what a
-	// "subprocess was canceled promptly" test is checking.
-	job := bindToJob()
+	// Bind bash (and anything it spawns) to a kill-on-close job so that
+	// when the test kills this launcher, Windows tears the tree down too.
+	// Otherwise bash keeps the caller's pipes open and cmd.Wait stalls.
+	job := newKillOnCloseJob()
 	if err := cmd.Start(); err != nil {
 		os.Exit(127)
 	}
 	if job != 0 {
-		h, _ := windows.OpenProcess(windows.PROCESS_SET_QUOTA|windows.PROCESS_TERMINATE, false, uint32(cmd.Process.Pid))
-		if h != 0 {
-			_ = windows.AssignProcessToJobObject(job, h)
-			_ = windows.CloseHandle(h)
-		}
+		assignToJob(job, cmd.Process.Pid)
 	}
 	if err := cmd.Wait(); err != nil {
 		if ee, ok := err.(*exec.ExitError); ok {
@@ -118,28 +109,61 @@ func main() {
 	}
 }
 
-// bindToJob creates a job object that kills every member when its last
-// handle closes — i.e. when this launcher exits or is killed.
-func bindToJob() windows.Handle {
-	job, err := windows.CreateJobObject(nil, nil)
-	if err != nil {
-		return 0
-	}
-	info := windows.JOBOBJECT_EXTENDED_LIMIT_INFORMATION{
-		BasicLimitInformation: windows.JOBOBJECT_BASIC_LIMIT_INFORMATION{
-			LimitFlags: windows.JOB_OBJECT_LIMIT_KILL_ON_JOB_CLOSE,
-		},
-	}
-	_, _ = windows.SetInformationJobObject(job, windows.JobObjectExtendedLimitInformation,
-		uintptr(unsafe.Pointer(&info)), uint32(unsafe.Sizeof(info)))
-	return job
+var (
+	kernel32                    = syscall.NewLazyDLL("kernel32.dll")
+	procCreateJobObjectW        = kernel32.NewProc("CreateJobObjectW")
+	procSetInformationJobObject = kernel32.NewProc("SetInformationJobObject")
+	procAssignProcessToJobObject = kernel32.NewProc("AssignProcessToJobObject")
+)
+
+const (
+	jobObjectExtendedLimitInformationClass = 9
+	jobObjectLimitKillOnJobClose      = 0x2000
+)
+
+type jobObjectBasicLimitInformation struct {
+	PerProcessUserTimeLimit int64
+	PerJobUserTimeLimit     int64
+	LimitFlags              uint32
+	MinimumWorkingSetSize   uintptr
+	MaximumWorkingSetSize   uintptr
+	ActiveProcessLimit      uint32
+	Affinity                uintptr
+	PriorityClass           uint32
+	SchedulingClass         uint32
 }
 
-func terminator(n int) string {
-	if n == 0 {
-		return ""
+type ioCounters struct{ _ [6]uint64 }
+
+type jobObjectExtendedLimitInformation struct {
+	BasicLimitInformation jobObjectBasicLimitInformation
+	IoInfo                ioCounters
+	ProcessMemoryLimit    uintptr
+	JobMemoryLimit        uintptr
+	PeakProcessMemoryUsed uintptr
+	PeakJobMemoryUsed     uintptr
+}
+
+func newKillOnCloseJob() syscall.Handle {
+	h, _, _ := procCreateJobObjectW.Call(0, 0)
+	if h == 0 {
+		return 0
 	}
-	return ":"
+	info := jobObjectExtendedLimitInformation{}
+	info.BasicLimitInformation.LimitFlags = jobObjectLimitKillOnJobClose
+	procSetInformationJobObject.Call(h, jobObjectExtendedLimitInformationClass,
+		uintptr(unsafe.Pointer(&info)), unsafe.Sizeof(info))
+	return syscall.Handle(h)
+}
+
+func assignToJob(job syscall.Handle, pid int) {
+	const processSetQuota, processTerminate = 0x0100, 0x0001
+	ph, err := syscall.OpenProcess(processSetQuota|processTerminate, false, uint32(pid))
+	if err != nil {
+		return
+	}
+	procAssignProcessToJobObject.Call(uintptr(job), uintptr(ph))
+	syscall.CloseHandle(ph)
 }
 `
 
@@ -164,23 +188,15 @@ func shellLauncher(t testing.TB) string {
 			return
 		}
 		// a throwaway module so the build does not depend on the caller's cwd
-		// golang.org/x/sys is already in the ox module graph; pin the
-		// launcher to the same version so the build resolves from the local
-		// module cache and never reaches the network.
-		xsys, err := exec.Command("go", "list", "-m", "-f", "{{.Version}}", "golang.org/x/sys").Output()
-		if err != nil {
-			launcherErr = err
-			return
-		}
-		gomod := "module launcher\n\ngo 1.22\n\nrequire golang.org/x/sys " + strings.TrimSpace(string(xsys)) + "\n"
-		if err := os.WriteFile(filepath.Join(dir, "go.mod"), []byte(gomod), 0o644); err != nil {
+		// stdlib-only program: a bare go.mod resolves offline in any cwd.
+		if err := os.WriteFile(filepath.Join(dir, "go.mod"), []byte("module launcher\n\ngo 1.22\n"), 0o644); err != nil {
 			launcherErr = err
 			return
 		}
 		out := filepath.Join(dir, "launcher.exe")
 		cmd := exec.Command("go", "build", "-o", out, ".")
 		cmd.Dir = dir
-		cmd.Env = append(os.Environ(), "CGO_ENABLED=0", "GOFLAGS=-mod=mod", "GOPROXY=off")
+		cmd.Env = append(os.Environ(), "CGO_ENABLED=0", "GOFLAGS=-mod=mod", "GOPROXY=off", "GOWORK=off")
 		if b, err := cmd.CombinedOutput(); err != nil {
 			launcherErr = &launcherBuildError{out: string(b), err: err}
 			return

@@ -1,6 +1,10 @@
 package main
 
 import (
+	"github.com/sageox/ox/internal/fileutil"
+
+	"github.com/sageox/ox/internal/testguard"
+
 	"crypto/sha256"
 	"encoding/hex"
 	"encoding/json"
@@ -101,12 +105,15 @@ func TestInstallAdapter_ChecksumMatch(t *testing.T) {
 		installDir:   installDir,
 		verify: func(path string) error {
 			verifyCalled = true
-			// by the time verify runs, bytes are on disk and executable
+			// by the time verify runs, bytes are on disk and executable. The
+			// mode-bit half of that only exists on POSIX; Windows has no exec
+			// bit and the temp file gets its .exe name at the rename that
+			// follows verify.
 			fi, err := os.Stat(path)
 			if err != nil {
 				return err
 			}
-			if fi.Mode().Perm()&0o100 == 0 {
+			if runtime.GOOS != "windows" && !fileutil.IsExecutable(fi, path) {
 				t.Errorf("verify reached but binary not executable (perm=%o)", fi.Mode().Perm())
 			}
 			return nil
@@ -120,7 +127,7 @@ func TestInstallAdapter_ChecksumMatch(t *testing.T) {
 		t.Error("verifyAdapterProtocol should run after the checksum gate passes")
 	}
 	// installed file should exist with the trusted bytes
-	got, err := os.ReadFile(filepath.Join(installDir, "ox-adapter-fake"))
+	got, err := os.ReadFile(filepath.Join(installDir, testguard.ExeName("ox-adapter-fake")))
 	if err != nil {
 		t.Fatalf("installed binary missing: %v", err)
 	}
@@ -196,7 +203,7 @@ func TestInstallAdapter_AllowUnverified_SkipsChecksumKeepsVerify(t *testing.T) {
 	if !verifyCalled {
 		t.Error("protocol verification must still run on the allow-unverified path")
 	}
-	if _, err := os.Stat(filepath.Join(installDir, "ox-adapter-fake")); err != nil {
+	if _, err := os.Stat(filepath.Join(installDir, testguard.ExeName("ox-adapter-fake"))); err != nil {
 		t.Errorf("binary should be installed on allow-unverified path: %v", err)
 	}
 }

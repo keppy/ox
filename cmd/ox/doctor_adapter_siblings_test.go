@@ -1,6 +1,10 @@
 package main
 
 import (
+	"github.com/sageox/ox/internal/testguard"
+
+	"fmt"
+
 	"os"
 	"path/filepath"
 	"strings"
@@ -12,7 +16,7 @@ import (
 func TestAdapterSiblingsResult_AllPresent(t *testing.T) {
 	dir := t.TempDir()
 	for _, name := range expectedAdapterSiblings {
-		touchFile(t, filepath.Join(dir, "ox-adapter-"+name))
+		touchFile(t, filepath.Join(dir, testguard.ExeName("ox-adapter-"+name)))
 	}
 
 	result := adapterSiblingsResult([]string{dir})
@@ -20,8 +24,8 @@ func TestAdapterSiblingsResult_AllPresent(t *testing.T) {
 	if !result.passed || result.warning {
 		t.Fatalf("expected a clean pass, got %+v", result)
 	}
-	if result.message != "10/10 present" {
-		t.Errorf("message = %q, want %q", result.message, "10/10 present")
+	if result.message != fmt.Sprintf("%d/%d present", len(expectedAdapterSiblings), len(expectedAdapterSiblings)) {
+		t.Errorf("message = %q, want %q", result.message, fmt.Sprintf("%d/%d present", len(expectedAdapterSiblings), len(expectedAdapterSiblings)))
 	}
 }
 
@@ -30,8 +34,8 @@ func TestAdapterSiblingsResult_AllPresent(t *testing.T) {
 // the check must name exactly which ones plus where it looked.
 func TestAdapterSiblingsResult_MissingSome(t *testing.T) {
 	dir := t.TempDir()
-	touchFile(t, filepath.Join(dir, "ox-adapter-codex"))
-	touchFile(t, filepath.Join(dir, "ox-adapter-gemini"))
+	touchFile(t, filepath.Join(dir, testguard.ExeName("ox-adapter-codex")))
+	touchFile(t, filepath.Join(dir, testguard.ExeName("ox-adapter-gemini")))
 	// every other expected adapter is absent
 
 	result := adapterSiblingsResult([]string{dir})
@@ -39,8 +43,8 @@ func TestAdapterSiblingsResult_MissingSome(t *testing.T) {
 	if !result.warning {
 		t.Fatalf("expected a warning, got %+v", result)
 	}
-	if result.message != "2/10 present" {
-		t.Errorf("message = %q, want %q", result.message, "2/10 present")
+	if result.message != fmt.Sprintf("2/%d present", len(expectedAdapterSiblings)) {
+		t.Errorf("message = %q, want %q", result.message, fmt.Sprintf("2/%d present", len(expectedAdapterSiblings)))
 	}
 	for _, want := range []string{"aider", "amp", "claude-code", "droid", "goose", "hermes", "omp", "opencode", "pi"} {
 		if !strings.Contains(result.detail, want) {
@@ -67,7 +71,7 @@ func TestAdapterSiblingsResult_UnionsAcrossMultipleDirs(t *testing.T) {
 		if i%2 == 1 {
 			dir = dirB
 		}
-		touchFile(t, filepath.Join(dir, "ox-adapter-"+name))
+		touchFile(t, filepath.Join(dir, testguard.ExeName("ox-adapter-"+name)))
 	}
 
 	result := adapterSiblingsResult([]string{dirA, dirB})
@@ -83,13 +87,13 @@ func TestAdapterSiblingsResult_UnionsAcrossMultipleDirs(t *testing.T) {
 func TestAdapterSiblingsResult_IgnoresUnrelatedFiles(t *testing.T) {
 	dir := t.TempDir()
 	touchFile(t, filepath.Join(dir, "ox"))
-	touchFile(t, filepath.Join(dir, "ox-adapter-test")) // dev-only, not in expectedAdapterSiblings
+	touchFile(t, filepath.Join(dir, testguard.ExeName("ox-adapter-test"))) // dev-only, not in expectedAdapterSiblings
 	touchFile(t, filepath.Join(dir, "some-other-tool"))
 
 	result := adapterSiblingsResult([]string{dir})
 
-	if result.message != "0/10 present" {
-		t.Errorf("message = %q, want %q", result.message, "0/10 present")
+	if result.message != fmt.Sprintf("0/%d present", len(expectedAdapterSiblings)) {
+		t.Errorf("message = %q, want %q", result.message, fmt.Sprintf("0/%d present", len(expectedAdapterSiblings)))
 	}
 }
 
@@ -98,14 +102,14 @@ func TestAdapterSiblingsResult_IgnoresUnrelatedFiles(t *testing.T) {
 // "present": internal/session/adapters/discovery.go's own resolver requires
 // the executable bit (fi.Mode()&0111 != 0) before it will run a binary as
 // an adapter, so a check that counted a non-executable file anyway would
-// report "10/10 present" while session hooks silently no-op on that
+// report fmt.Sprintf("%d/%d present", len(expectedAdapterSiblings), len(expectedAdapterSiblings)) while session hooks silently no-op on that
 // adapter -- lying in the same direction as the bug this check exists to
 // catch.
 func TestAdapterSiblingsResult_NonExecutableNotCounted(t *testing.T) {
 	dir := t.TempDir()
 	// codex is executable and must count; gemini is present but not
 	// executable and must NOT count.
-	touchFile(t, filepath.Join(dir, "ox-adapter-codex"))
+	touchFile(t, filepath.Join(dir, testguard.ExeName("ox-adapter-codex")))
 	nonExecPath := filepath.Join(dir, "ox-adapter-gemini")
 	if err := os.WriteFile(nonExecPath, []byte("#!/bin/sh\n"), 0644); err != nil {
 		t.Fatalf("write non-executable adapter: %v", err)
@@ -113,8 +117,8 @@ func TestAdapterSiblingsResult_NonExecutableNotCounted(t *testing.T) {
 
 	result := adapterSiblingsResult([]string{dir})
 
-	if result.message != "1/10 present" {
-		t.Errorf("message = %q, want %q (gemini is present but not executable, must not count)", result.message, "1/10 present")
+	if result.message != fmt.Sprintf("1/%d present", len(expectedAdapterSiblings)) {
+		t.Errorf("message = %q, want %q (gemini is present but not executable, must not count)", result.message, fmt.Sprintf("1/%d present", len(expectedAdapterSiblings)))
 	}
 	if !strings.Contains(result.detail, "gemini") {
 		t.Errorf("detail should list gemini as missing since it isn't executable: %s", result.detail)
@@ -141,8 +145,8 @@ func TestAdapterSiblingsResult_UnreadableDirDoesNotPanic(t *testing.T) {
 	if !result.warning {
 		t.Fatalf("expected a warning (nothing found), got %+v", result)
 	}
-	if result.message != "0/10 present" {
-		t.Errorf("message = %q, want %q", result.message, "0/10 present")
+	if result.message != fmt.Sprintf("0/%d present", len(expectedAdapterSiblings)) {
+		t.Errorf("message = %q, want %q", result.message, fmt.Sprintf("0/%d present", len(expectedAdapterSiblings)))
 	}
 }
 
