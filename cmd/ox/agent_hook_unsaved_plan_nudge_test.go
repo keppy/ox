@@ -363,7 +363,8 @@ func TestArmUnsavedPlanStamp_SameTopicDifferentFileStillNudges(t *testing.T) {
 	if second.Len() == 0 {
 		t.Fatal("second plan with the same title was never reminded about: NudgedAt was carried across two distinct files")
 	}
-	if !strings.Contains(second.String(), "/repo/b/plan.md") {
+	// the nudge quotes the file as a shell path, native separators on Windows
+	if !strings.Contains(second.String(), filepath.FromSlash("/repo/b/plan.md")) {
 		t.Errorf("nudge names the wrong file; got %q", second.String())
 	}
 }
@@ -603,7 +604,7 @@ func TestHandlePrompt_DeliversTheUnsavedPlanNudge(t *testing.T) {
 	if !strings.Contains(out, "never saved to the ledger") {
 		t.Fatalf("the nudge never reached stdout, so nothing delivers it in production; got %q", out)
 	}
-	if !strings.Contains(out, "/repo/plan.md") {
+	if !strings.Contains(out, filepath.FromSlash("/repo/plan.md")) {
 		t.Errorf("nudge reached stdout without naming the plan; got %q", out)
 	}
 

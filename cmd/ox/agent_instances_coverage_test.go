@@ -1,10 +1,11 @@
 package main
 
 import (
-	"os"
 	"strings"
 	"testing"
 	"time"
+
+	"github.com/sageox/ox/internal/homedir"
 
 	"github.com/stretchr/testify/assert"
 )
@@ -14,7 +15,7 @@ import (
 func TestShortenPath(t *testing.T) {
 	t.Parallel()
 
-	home, _ := os.UserHomeDir()
+	home, _ := homedir.Dir()
 
 	tests := []struct {
 		name string

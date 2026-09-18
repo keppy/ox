@@ -8,6 +8,8 @@ import (
 	"path/filepath"
 	"testing"
 
+	"github.com/sageox/ox/internal/homedir"
+
 	"github.com/sageox/ox/internal/codedb/store"
 )
 
@@ -17,7 +19,7 @@ import (
 func BenchmarkIndexMonoRepo(b *testing.B) {
 	repoPath := os.Getenv("MONO_REPO_PATH")
 	if repoPath == "" {
-		home, _ := os.UserHomeDir()
+		home, _ := homedir.Dir()
 		repoPath = filepath.Join(home, "Code", "sageox", "sageox-mono")
 	}
 	if _, err := os.Stat(repoPath); err != nil {

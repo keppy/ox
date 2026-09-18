@@ -7,6 +7,8 @@ import (
 	"testing"
 	"time"
 
+	"github.com/sageox/ox/internal/homedir"
+
 	"github.com/sageox/ox/internal/config"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -267,7 +269,7 @@ func TestFormatDuration(t *testing.T) {
 }
 
 func TestShortenPath(t *testing.T) {
-	home, _ := os.UserHomeDir()
+	home, _ := homedir.Dir()
 
 	tests := []struct {
 		name string

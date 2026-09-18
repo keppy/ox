@@ -37,9 +37,9 @@ func TestGetSessionName(t *testing.T) {
 // XDG_CACHE_HOME) creates recording state in ~/.cache/..., but terminal hooks
 // (XDG_CACHE_HOME=~/Library/Caches) couldn't find it.
 //
-// Derives the effective home from paths.CacheDir() rather than os.UserHomeDir()
+// Derives the effective home from paths.CacheDir() rather than homedir.Dir()
 // because paths.getHomeDir() is cached via sync.Once — other tests that set HOME
-// to temp dirs can cause the cached value to diverge from os.UserHomeDir().
+// to temp dirs can cause the cached value to diverge from homedir.Dir().
 func TestCrossEnvRecordingStateRoundTrip(t *testing.T) {
 	if runtime.GOOS != "darwin" {
 		t.Skip("macOS-specific cache path test")
@@ -49,7 +49,7 @@ func TestCrossEnvRecordingStateRoundTrip(t *testing.T) {
 	agentID := "OxCrossEnv1"
 
 	// derive the effective home that paths package uses (may differ from
-	// os.UserHomeDir() due to sync.Once caching in getHomeDir())
+	// homedir.Dir() due to sync.Once caching in getHomeDir())
 	t.Setenv("XDG_CACHE_HOME", "")
 	cacheDir := paths.CacheDir() // <cachedHome>/.cache/sageox
 	effectiveHome := filepath.Dir(filepath.Dir(cacheDir))

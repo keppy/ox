@@ -10,6 +10,8 @@ import (
 	"testing"
 	"time"
 
+	"github.com/sageox/ox/internal/homedir"
+
 	"github.com/sageox/ox/internal/paths"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -64,7 +66,7 @@ func TestSocketPath_LegacyMode(t *testing.T) {
 	workspaceID := CurrentWorkspaceID()
 	path := SocketPath()
 
-	home, err := os.UserHomeDir()
+	home, err := homedir.Dir()
 	assert.NoError(t, err)
 	expected := filepath.Join(home, ".sageox", "state", "daemon", "daemon-"+workspaceID+".sock")
 	assert.Equal(t, expected, path)
@@ -127,7 +129,7 @@ func TestRegistryPath_LegacyMode(t *testing.T) {
 	t.Setenv("OX_XDG_DISABLE", "1")
 
 	path := RegistryPath()
-	home, err := os.UserHomeDir()
+	home, err := homedir.Dir()
 	assert.NoError(t, err)
 	expected := filepath.Join(home, ".sageox", "state", "daemon", "registry.json")
 	assert.Equal(t, expected, path)
@@ -149,7 +151,7 @@ func TestSocketPathForWorkspace_LegacyMode(t *testing.T) {
 	t.Setenv("OX_XDG_DISABLE", "1")
 
 	path := SocketPathForWorkspace("abc12345")
-	home, err := os.UserHomeDir()
+	home, err := homedir.Dir()
 	assert.NoError(t, err)
 	expected := filepath.Join(home, ".sageox", "state", "daemon", "daemon-abc12345.sock")
 	assert.Equal(t, expected, path)
@@ -171,7 +173,7 @@ func TestPidPathForWorkspace_LegacyMode(t *testing.T) {
 	t.Setenv("OX_XDG_DISABLE", "1")
 
 	path := PidPathForWorkspace("abc12345")
-	home, err := os.UserHomeDir()
+	home, err := homedir.Dir()
 	assert.NoError(t, err)
 	expected := filepath.Join(home, ".sageox", "state", "daemon", "daemon-abc12345.pid")
 	assert.Equal(t, expected, path)

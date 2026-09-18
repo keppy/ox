@@ -2,6 +2,7 @@ package main
 
 import (
 	"bytes"
+	"path/filepath"
 	"strings"
 	"testing"
 
@@ -44,7 +45,8 @@ func TestOutputAgentPrimeXML_DocsCatalogCarriesAbsolutePath(t *testing.T) {
 	require.True(t, start >= 0 && end > start, "expected a <docs> block")
 	docs := xml[start:end]
 
-	assert.Contains(t, docs, `<docs dir="/data/teams/team-1/docs"`, "the catalog must carry the docs directory once")
+	// dir is derived with filepath.Dir, so it carries native separators
+	assert.Contains(t, docs, `<docs dir="`+filepath.FromSlash("/data/teams/team-1/docs")+`"`, "the catalog must carry the docs directory once")
 	assert.Contains(t, docs, "dir/Name", "the hint must tell the agent how to compose the readable path")
 	assert.Contains(t, docs, "| adr-012-config-precedence.md | touching configuration loading |",
 		"each row carries the name the agent joins to dir")

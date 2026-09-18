@@ -3,6 +3,8 @@
 package main
 
 import (
+	"github.com/sageox/ox/internal/testguard"
+
 	"os"
 	"path/filepath"
 	"testing"
@@ -71,6 +73,7 @@ func TestRecordEntriesToSession_RedactsSecrets(t *testing.T) {
 // raw.jsonl holds full conversation content; 0644 would leak it to every
 // local user.
 func TestRecordEntriesToSession_FileModeIsOwnerOnly(t *testing.T) {
+	testguard.RequirePOSIXPerms(t) // asserts owner-only mode bits
 	projectRoot := setupIncrementalTest(t)
 	state := startTestRecording(t, projectRoot, "OxMode", "claude-code")
 
@@ -111,6 +114,7 @@ func TestRecordEntriesToSession_PreservesSeqNumbering(t *testing.T) {
 // produces a 0600 raw.jsonl. writeRawHeader truncates at session start, so
 // it owns the initial file mode.
 func TestWriteRawHeader_FileModeIsOwnerOnly(t *testing.T) {
+	testguard.RequirePOSIXPerms(t) // asserts owner-only mode bits
 	projectRoot := setupIncrementalTest(t)
 	state := startTestRecording(t, projectRoot, "OxHdrMode", "claude-code")
 
