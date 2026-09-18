@@ -39,8 +39,10 @@ func captureStderr(t *testing.T, fn func()) string {
 // model's context and reading as "the payload failed" (eval pilot 2026-09-11,
 // case 04: 0.25 with the plugin vs 1.00 without, purely from one WARN line).
 func TestInitPayloadMode_WarnGoesToFileNotStderr(t *testing.T) {
-	t.Cleanup(func() { Init(false) })
 	logPath := filepath.Join(t.TempDir(), "logs", "agent-payload.log")
+	// registered after TempDir so it runs before the directory is removed
+	// (cleanups are LIFO); the open log handle would otherwise block RemoveAll.
+	t.Cleanup(ResetPayloadMode)
 
 	stderr := captureStderr(t, func() {
 		InitPayloadMode(false, logPath)
@@ -114,9 +116,7 @@ func TestOpenPayloadLog_TruncatesWhenOversized(t *testing.T) {
 	if _, err := io.WriteString(w, "fresh\n"); err != nil {
 		t.Fatal(err)
 	}
-	if f, ok := w.(*os.File); ok {
-		_ = f.Close()
-	}
+	_ = w.Close()
 	got, err := os.ReadFile(logPath)
 	if err != nil {
 		t.Fatal(err)

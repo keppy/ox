@@ -882,8 +882,11 @@ func handleStop(ctx *HookContext) error {
 //   - <ledger>/.sageox/cache/sessions/<name>
 //   - <ledger>/sessions/<name>
 func deriveLedgerPath(sessionPath string) string {
-	// check for .sageox/cache/sessions pattern
-	if idx := strings.Index(sessionPath, "/.sageox/cache/sessions/"); idx >= 0 {
+	// check for .sageox/cache/sessions pattern. Compare on a slash-normalised
+	// copy so a recording.json written on Windows (backslashes) resolves,
+	// but slice the original so the caller gets the path in its own form.
+	slashed := filepath.ToSlash(sessionPath)
+	if idx := strings.Index(slashed, "/.sageox/cache/sessions/"); idx >= 0 {
 		return sessionPath[:idx]
 	}
 	// check for /sessions/ pattern (direct ledger path)

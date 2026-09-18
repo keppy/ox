@@ -2360,11 +2360,16 @@ func recordEntriesToSession(projectRoot string, state *session.RecordingState, e
 
 // readEntriesFromFile reads session entries from a JSONL file.
 func readEntriesFromFile(filePath string) ([]session.Entry, error) {
-	// walk up from filePath to find the sessions directory
+	// walk up from filePath to find the sessions directory. Stop when Dir
+	// stops changing — that is the root on every platform ("/" on Unix,
+	// `C:\` or `\` on Windows), where comparing against "/" alone spins forever.
 	dir := filepath.Dir(filePath)
 	sessionName := ""
-	for dir != "/" && dir != "." {
+	for dir != "." {
 		parent := filepath.Dir(dir)
+		if parent == dir {
+			break
+		}
 		if filepath.Base(parent) == "sessions" {
 			// dir is the session folder, parent's parent is the context dir
 			sessionName = filepath.Base(dir)
