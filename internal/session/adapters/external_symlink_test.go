@@ -207,7 +207,7 @@ func TestSessionLookup_Validate_AgentSessionIDOptional(t *testing.T) {
 
 // TestSessionLookup_Validate_NonexistentPath verifies nonexistent path is rejected.
 func TestSessionLookup_Validate_NonexistentPath(t *testing.T) {
-	lookup := SessionLookup{RepoRoot: "/nonexistent/path/that/does/not/exist", AgentID: "OxTest", Since: time.Now()}
+	lookup := SessionLookup{RepoRoot: testguard.FakePath("/nonexistent/path/that/does/not/exist"), AgentID: "OxTest", Since: time.Now()}
 	err := lookup.Validate()
 	require.Error(t, err)
 	assert.Contains(t, err.Error(), ".sageox/")
