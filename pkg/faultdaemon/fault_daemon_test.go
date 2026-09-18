@@ -3,11 +3,12 @@ package faultdaemon
 import (
 	"bufio"
 	"encoding/json"
-	"net"
 	"os"
 	"path/filepath"
 	"testing"
 	"time"
+
+	"github.com/sageox/ox/internal/daemon"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -67,7 +68,7 @@ func createTestDaemon(t *testing.T, config Config) (*FaultDaemon, string) {
 
 // sendRequest sends a request to the daemon and reads the response.
 func sendRequest(socketPath string, reqType string, timeout time.Duration) (*simpleResponse, error) {
-	conn, err := net.DialTimeout("unix", socketPath, timeout)
+	conn, err := daemon.DialEndpoint(socketPath)
 	if err != nil {
 		return nil, err
 	}
@@ -95,18 +96,19 @@ func sendRequest(socketPath string, reqType string, timeout time.Duration) (*sim
 	return &resp, nil
 }
 
-// awaitSocket polls until a unix socket accepts connections.
+// awaitSocket polls until the daemon's endpoint accepts connections: a unix
+// socket on POSIX platforms, a named pipe on Windows.
 func awaitSocket(t *testing.T, socketPath string) {
 	t.Helper()
 	require.Eventually(t, func() bool {
-		conn, err := net.Dial("unix", socketPath)
+		conn, err := daemon.DialEndpoint(socketPath)
 		if err != nil {
 			return false
 		}
 		conn.Close()
 		return true
 	}, 5*time.Second, 5*time.Millisecond,
-		"unix socket never became ready: %s", socketPath)
+		"daemon endpoint never became ready: %s", socketPath)
 }
 
 // =============================================================================

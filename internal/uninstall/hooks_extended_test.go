@@ -5,6 +5,7 @@ import (
 	"path/filepath"
 	"testing"
 
+	"github.com/sageox/ox/internal/testguard"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -108,6 +109,9 @@ func TestRemoveRepoHooks_DryRunMixed(t *testing.T) {
 }
 
 func TestRemoveSageoxSections_PreservesFilePermissions(t *testing.T) {
+	// The whole test is about a POSIX mode surviving a rewrite; Windows
+	// cannot express one, so there is no premise to assert against.
+	testguard.RequirePOSIXPerms(t)
 	tmpFile := filepath.Join(t.TempDir(), "hook")
 	content := "#!/bin/sh\n# ox pre-commit hook\nmake lint\n\n\n# user section\necho done\n"
 	require.NoError(t, os.WriteFile(tmpFile, []byte(content), 0755))

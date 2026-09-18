@@ -17,7 +17,7 @@ import (
 // SECURITY: Pipe is created with SDDL that restricts access to current user only.
 // This prevents other users on the same machine from connecting to the daemon.
 func listen(path string) (net.Listener, error) {
-	pipePath := `\\.\pipe\` + pipeName(path)
+	pipePath := endpointPath(path)
 
 	// get current user's SID for SDDL
 	sddl, err := currentUserSDDL()
@@ -53,7 +53,7 @@ func currentUserSDDL() (string, error) {
 // dial connects to a Windows named pipe with a timeout.
 // Uses 5 second timeout to prevent indefinite hangs if daemon is stuck.
 func dial(path string) (net.Conn, error) {
-	pipePath := `\\.\pipe\` + pipeName(path)
+	pipePath := endpointPath(path)
 	timeout := 5 * time.Second
 	conn, err := winio.DialPipe(pipePath, &timeout)
 	if err != nil {

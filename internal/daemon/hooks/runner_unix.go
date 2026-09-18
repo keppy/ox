@@ -3,12 +3,15 @@
 package hooks
 
 import (
+	"log/slog"
 	"os/exec"
 	"syscall"
 )
 
 // newHookCmd builds the exec.Cmd used to run a hook's shell command.
-func newHookCmd(command string) *exec.Cmd {
+// The logger is unused on Unix (sh is always present); it exists so the
+// signature matches runner_windows.go, where the shell choice is conditional.
+func newHookCmd(command string, _ *slog.Logger) *exec.Cmd {
 	return exec.Command("sh", "-c", command)
 }
 

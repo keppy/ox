@@ -11,6 +11,7 @@ import (
 	"net"
 	"os"
 	"path/filepath"
+	"runtime"
 	"sync"
 	"testing"
 	"time"
@@ -275,14 +276,20 @@ func (m *MockDaemon) Start(t *testing.T) {
 	m.ctx, m.cancel = context.WithCancel(context.Background())
 
 	socketPath := daemon.SocketPath()
-	if err := os.MkdirAll(filepath.Dir(socketPath), 0755); err != nil {
-		t.Fatalf("failed to create socket dir: %v", err)
+	// A unix socket needs its parent directory to exist and any stale socket
+	// from a previous run removed; the Windows endpoint is a named pipe with
+	// neither to do.
+	if runtime.GOOS != "windows" {
+		if err := os.MkdirAll(filepath.Dir(socketPath), 0o755); err != nil {
+			t.Fatalf("failed to create socket dir: %v", err)
+		}
+		os.Remove(socketPath)
 	}
 
-	// remove existing socket
-	os.Remove(socketPath)
-
-	listener, err := net.Listen("unix", socketPath)
+	// Bind through the daemon's own mapping: on Windows the client dials a
+	// named pipe derived from this path, so a mock that binds the raw path as
+	// a unix socket is unreachable.
+	listener, err := daemon.ListenEndpoint(socketPath)
 	if err != nil {
 		t.Fatalf("failed to create listener: %v", err)
 	}
@@ -295,7 +302,7 @@ func (m *MockDaemon) Start(t *testing.T) {
 	}()
 
 	// wait for listener to be ready
-	AwaitUnixSocket(t, daemon.SocketPath())
+	AwaitDaemonEndpoint(t, daemon.SocketPath())
 }
 
 // Stop stops the mock daemon.

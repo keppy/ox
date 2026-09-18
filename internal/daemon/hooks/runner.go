@@ -84,7 +84,7 @@ func (r *HookRunner) run(ctx context.Context, event Event, hook HookConfig) {
 		return
 	}
 
-	cmd := newHookCmd(hook.Command)
+	cmd := newHookCmd(hook.Command, r.logger)
 	cmd.Stdin = bytes.NewReader(eventJSON)
 	cmd.Stdout = io.Discard
 	cmd.Stderr = io.Discard
