@@ -138,16 +138,16 @@ func resolveSessionID(db *sql.DB, agentSessionID, repoRoot, since string) (strin
 
 	if repoRoot != "" {
 		// Hermes stores whatever spelling the OS gave it; on Windows that is
-		// backslashes. Match the native form and the slash form so a repo
-		// root passed in either spelling finds the session. On Unix the two
-		// spellings are identical — both queries then compare a slash-form
-		// path against the stored value, which is the only form there.
+		// backslashes. Match BOTH spellings on every platform: a database
+		// recorded on Windows (backslash forms) can be read by an adapter
+		// running anywhere, so platform filepath forms — which collapse to
+		// identity on Unix — must not decide what gets compared.
 		// The LIKE prefix is escaped: `_` and `%` are wildcards and ordinary
-		// path characters. ESCAPE must be a single character per the SQLite
-		// grammar; '\\' in a Go raw string is two characters, so build the
-		// clause as a quoted string with one backslash.
-		slashed := filepath.ToSlash(repoRoot)
-		native := filepath.FromSlash(repoRoot)
+		// path characters, and a literal separator backslash must itself be
+		// escaped (escapeLike does that), otherwise it would escape the `%`
+		// wildcard and the prefix would match a literal percent sign.
+		slashForm := strings.ReplaceAll(repoRoot, `\`, "/")
+		backForm := strings.ReplaceAll(slashForm, "/", `\`)
 		clause := "(git_repo_root = ? OR git_repo_root = ? OR cwd = ? OR cwd = ?" +
 			" OR cwd LIKE ? ESCAPE '\\' OR cwd LIKE ? ESCAPE '\\')"
 		if runtime.GOOS == "windows" {
@@ -156,12 +156,12 @@ func resolveSessionID(db *sql.DB, agentSessionID, repoRoot, since string) (strin
 			// would otherwise read as "no sessions found".
 			clause = "(LOWER(git_repo_root) = ? OR LOWER(git_repo_root) = ? OR LOWER(cwd) = ? OR LOWER(cwd) = ?" +
 				" OR LOWER(cwd) LIKE ? ESCAPE '\\' OR LOWER(cwd) LIKE ? ESCAPE '\\')"
-			slashed = strings.ToLower(slashed)
-			native = strings.ToLower(native)
+			slashForm = strings.ToLower(slashForm)
+			backForm = strings.ToLower(backForm)
 		}
 		where = append(where, clause)
-		args = append(args, native, slashed, native, slashed,
-			escapeLike(native)+string(os.PathSeparator)+"%", escapeLike(slashed)+"/%")
+		args = append(args, slashForm, backForm, slashForm, backForm,
+			escapeLike(slashForm)+"/%", escapeLike(backForm+`\`)+"%")
 	}
 
 	if since != "" {

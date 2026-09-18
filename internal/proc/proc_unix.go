@@ -3,6 +3,7 @@
 package proc
 
 import (
+	"errors"
 	"fmt"
 	"os"
 	"os/exec"
@@ -62,7 +63,7 @@ func aliveButDenied(pid int) bool {
 	if err != nil {
 		return false
 	}
-	return proc.Signal(syscall.Signal(0)) == syscall.EPERM
+	return errors.Is(proc.Signal(syscall.Signal(0)), syscall.EPERM)
 }
 
 // terminateProc sends SIGINT, letting the target close resources and release any
