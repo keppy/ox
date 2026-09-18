@@ -136,6 +136,7 @@ func TestTitleRepairConvergesThroughPull(t *testing.T) {
 // Upgrading must repair legacy error summaries without losing session identity,
 // content references, extension fields, diagnostics, or customer-authored text.
 func TestRecoverEmptyTitleMeta_PreservesLegacyData(t *testing.T) {
+	testguard.RequirePOSIXPerms(t) // asserts mode bits
 	const diagnostic = "Summary generation failed: legacy timeout"
 	for _, tc := range []struct {
 		name       string

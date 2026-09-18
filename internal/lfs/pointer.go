@@ -237,7 +237,7 @@ func WritePointerFiles(dir string, files map[string]UploadedRef) (paths []string
 		}
 		p := filepath.Join(dir, name)
 		original := originalFile{path: p, pointer: []byte(FormatPointer(uploaded.ref.OID, uploaded.ref.Size))}
-		info, statErr := os.Lstat(p)
+		info, statErr := fileutil.LstatStrict(p)
 		if statErr != nil && !errors.Is(statErr, os.ErrNotExist) {
 			return paths, fmt.Errorf("inspect pointer destination %s: %w", name, statErr)
 		}

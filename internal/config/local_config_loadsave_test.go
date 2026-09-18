@@ -79,7 +79,9 @@ func TestDefaultSageoxSiblingDir(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			got := DefaultSageoxSiblingDir(tt.repoName, tt.projectRoot)
-			assert.Equal(t, tt.want, got, "DefaultSageoxSiblingDir(%q, %q)", tt.repoName, tt.projectRoot)
+			// inputs are POSIX literals; the function builds with filepath, so
+			// compare in the platform's own separator form
+			assert.Equal(t, filepath.FromSlash(tt.want), got, "DefaultSageoxSiblingDir(%q, %q)", tt.repoName, tt.projectRoot)
 		})
 	}
 }
@@ -118,7 +120,7 @@ func TestSiblingLedgerPath(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			got := SiblingLedgerPath(tt.repoName, tt.projectRoot, tt.endpointURL)
-			assert.Equal(t, tt.want, got, "SiblingLedgerPath(%q, %q, %q)", tt.repoName, tt.projectRoot, tt.endpointURL)
+			assert.Equal(t, filepath.FromSlash(tt.want), got, "SiblingLedgerPath(%q, %q, %q)", tt.repoName, tt.projectRoot, tt.endpointURL)
 		})
 	}
 }
@@ -153,7 +155,7 @@ func TestLegacyLedgerPath(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			got := LegacyLedgerPath(tt.repoName, tt.projectRoot)
-			assert.Equal(t, tt.want, got)
+			assert.Equal(t, filepath.FromSlash(tt.want), got)
 		})
 	}
 }
@@ -418,12 +420,13 @@ func TestSanitizeRepoName(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			got := sanitizeRepoName(tt.input)
-			assert.Equal(t, tt.want, got, "sanitizeRepoName(%q)", tt.input)
+			assert.Equal(t, filepath.FromSlash(tt.want), got, "sanitizeRepoName(%q)", tt.input)
 		})
 	}
 }
 
 func TestLocalConfigFilePermissions(t *testing.T) {
+	testguard.RequirePOSIXPerms(t) // asserts 0600 mode bits
 	tmpDir := CreateInitializedProject(t)
 
 	cfg := &LocalConfig{
@@ -554,7 +557,7 @@ func TestDefaultTeamSymlinkPath(t *testing.T) {
 				return
 			}
 
-			assert.Equal(t, tt.want, got)
+			assert.Equal(t, filepath.FromSlash(tt.want), got)
 		})
 	}
 }

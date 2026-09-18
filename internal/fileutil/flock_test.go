@@ -376,7 +376,10 @@ func TestWithFileLockTimeout_CrossProcessGenuineTimeout(t *testing.T) {
 func TestWithFileLockTimeout_OpenFileFails(t *testing.T) {
 	notADir := filepath.Join(t.TempDir(), "not-a-directory")
 	require.NoError(t, os.WriteFile(notADir, []byte("x"), 0o644))
+	// os.TempDir reads TMPDIR on Unix and TMP/TEMP on Windows
 	t.Setenv("TMPDIR", notADir)
+	t.Setenv("TMP", notADir)
+	t.Setenv("TEMP", notADir)
 
 	err := WithFileLockTimeout(context.Background(), "/some/target", LockTimeout, func() error {
 		return errors.New("must not run — the lock could not have been acquired")

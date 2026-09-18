@@ -1,6 +1,8 @@
 package fileutil
 
 import (
+	"github.com/sageox/ox/internal/testguard"
+
 	"encoding/json"
 	"os"
 	"path/filepath"
@@ -90,6 +92,7 @@ func TestAtomicWriteJSON_ComplexTypes(t *testing.T) {
 }
 
 func TestAtomicWriteJSON_DifferentPermissions(t *testing.T) {
+	testguard.RequirePOSIXPerms(t) // asserts mode bits
 	t.Parallel()
 	dir := t.TempDir()
 
