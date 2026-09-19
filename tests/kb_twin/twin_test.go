@@ -21,6 +21,7 @@ import (
 	"errors"
 	"fmt"
 	"log/slog"
+	"net/url"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -190,7 +191,7 @@ func runScenario(t *testing.T, scenario ScenarioSpec) {
 		if b.SeedFile == "" || b.BadRepoURL || !b.ProvideRepoURL {
 			continue
 		}
-		bareByKBID[b.KBID] = stripFilePrefix(bubbles[i].RepoURL)
+		bareByKBID[b.KBID] = fileURLPath(bubbles[i].RepoURL)
 	}
 
 	projects := map[string]string{"primary": primary}
@@ -314,12 +315,18 @@ func buildListFn(bubbles []api.KB, simulatedErr error) daemon.KBAPIListFnForTest
 	}
 }
 
-func stripFilePrefix(url string) string {
-	const p = "file://"
-	if len(url) > len(p) && url[:len(p)] == p {
-		return url[len(p):]
+// fileURLPath is the inverse of fileutil.FileURL: it turns a file:// URL back
+// into a filesystem path. It cannot trim a fixed prefix: on Windows the drive
+// letter is the URL *host* (`file://C:/x`), while the POSIX form is
+// `file:///tmp/x` with an empty host, so Host+Path covers both.
+func fileURLPath(u string) string {
+	parsed, err := url.Parse(u)
+	if err != nil {
+		return ""
 	}
-	return url
+	// Windows form is file://C:/x — the drive letter lands in the URL host — and
+	// the POSIX form is file:///tmp/x with an empty host, so Host+Path covers both.
+	return filepath.FromSlash(parsed.Host + parsed.Path)
 }
 
 // TestKBTwin_MultiEndpoint drives the multi-endpoint isolation

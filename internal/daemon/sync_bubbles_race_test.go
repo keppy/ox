@@ -25,6 +25,7 @@ import (
 
 	"github.com/sageox/ox/internal/api"
 	"github.com/sageox/ox/internal/endpoint"
+	"github.com/sageox/ox/internal/fileutil"
 	"github.com/sageox/ox/internal/paths"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -53,7 +54,7 @@ func TestSyncBubbles_ConcurrentPasses_NoPanic(t *testing.T) {
 		KBID:    "kb_race",
 		KBType:  api.KBTypeTeam,
 		Slug:    "race-bubble",
-		RepoURL: "file://" + bareDir,
+		RepoURL: fileutil.FileURL(bareDir),
 	}
 	s.SetKBBubbleListerFactory(func(_, _ string) KBBubbleLister {
 		return &fakeKBLister{bubbles: []api.KB{bubble}}
@@ -127,7 +128,7 @@ func TestSyncBubbles_RapidSequentialPasses(t *testing.T) {
 		KBID:    "kb_rapid",
 		KBType:  api.KBTypePersonal,
 		Slug:    "rapid-bubble",
-		RepoURL: "file://" + bareDir,
+		RepoURL: fileutil.FileURL(bareDir),
 	}
 	s.SetKBBubbleListerFactory(func(_, _ string) KBBubbleLister {
 		return &fakeKBLister{bubbles: []api.KB{bubble}}
@@ -180,7 +181,7 @@ func TestSyncBubbles_TwoSchedulers_SameEndpoint_NoCorruption(t *testing.T) {
 		KBID:    "kb_two_scheds",
 		KBType:  api.KBTypeTeam,
 		Slug:    "two-scheds",
-		RepoURL: "file://" + bareDir,
+		RepoURL: fileutil.FileURL(bareDir),
 	}
 	listerFactory := func(_, _ string) KBBubbleLister {
 		return &fakeKBLister{bubbles: []api.KB{bubble}}

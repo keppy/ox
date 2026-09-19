@@ -9,6 +9,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/sageox/ox/internal/fileutil"
 	"github.com/sageox/ox/internal/gitutil"
 	"github.com/sageox/ox/internal/ledger"
 	"github.com/stretchr/testify/assert"
@@ -178,7 +179,7 @@ func TestGC_CaptureUnpushedOnDiverge_Succeeds(t *testing.T) {
 	isolateCredentials(t)
 
 	bareDir := setupLedgerBareRepo(t)
-	cloneURL := "file://" + bareDir
+	cloneURL := fileutil.FileURL(bareDir)
 	projectDir := setupProjectWithConfig(t, "")
 	s := newTestScheduler(projectDir)
 
@@ -246,7 +247,7 @@ func TestGC_UntrackedRestoreFailure_PreservesBackup(t *testing.T) {
 	isolateCredentials(t)
 
 	bareDir := setupLedgerBareRepo(t)
-	cloneURL := "file://" + bareDir
+	cloneURL := fileutil.FileURL(bareDir)
 	projectDir := setupProjectWithConfig(t, "")
 	s := newTestScheduler(projectDir)
 
@@ -383,7 +384,7 @@ func TestGC_LedgerWedgeRecovery_ClearsSyncBackoff(t *testing.T) {
 	isolateCredentials(t)
 
 	bareDir := setupLedgerBareRepo(t)
-	cloneURL := "file://" + bareDir
+	cloneURL := fileutil.FileURL(bareDir)
 	projectDir := setupProjectWithConfig(t, "")
 	s := newTestScheduler(projectDir)
 
@@ -531,7 +532,7 @@ func TestGC_OrphanedSwapArtifacts_RecoveredNotDiscarded(t *testing.T) {
 		Type:     WorkspaceTypeTeamContext,
 		TeamName: "test-team",
 		Path:     cloneDir,
-		CloneURL: "file://" + bareDir,
+		CloneURL: fileutil.FileURL(bareDir),
 		Exists:   true,
 	}
 
@@ -585,7 +586,7 @@ func TestGC_OrphanedSwapArtifacts_RecoveryFailureBlocksNewCycle(t *testing.T) {
 		Type:     WorkspaceTypeTeamContext,
 		TeamName: "test-team",
 		Path:     cloneDir,
-		CloneURL: "file://" + bareDir,
+		CloneURL: fileutil.FileURL(bareDir),
 		Exists:   true,
 	}
 
@@ -638,7 +639,7 @@ func TestGC_SwapLock_HeldDuringSwapWindow_RemovedAfter(t *testing.T) {
 	require.NoError(t, exec.Command("git", "-C", seedDir, "push", "origin", "HEAD:main").Run())
 
 	cloneDir := filepath.Join(tmp, "ledger")
-	require.NoError(t, exec.Command("git", "clone", "file://"+bareDir, cloneDir).Run())
+	require.NoError(t, exec.Command("git", "clone", fileutil.FileURL(bareDir), cloneDir).Run())
 	gitConfig(t, cloneDir)
 
 	s := gcTestScheduler(t)
@@ -655,7 +656,7 @@ func TestGC_SwapLock_HeldDuringSwapWindow_RemovedAfter(t *testing.T) {
 		ID:       "swap-lock-test",
 		Type:     WorkspaceTypeLedger,
 		Path:     cloneDir,
-		CloneURL: "file://" + bareDir,
+		CloneURL: fileutil.FileURL(bareDir),
 		Exists:   true,
 	}
 
@@ -719,7 +720,7 @@ func TestCheckAndRunGC_WedgeTrigger_ClearsSessionConflictIssueOnPlainSuccess(t *
 	isolateCredentials(t)
 
 	bareDir := setupLedgerBareRepo(t)
-	cloneURL := "file://" + bareDir
+	cloneURL := fileutil.FileURL(bareDir)
 	projectDir := setupProjectWithConfig(t, "")
 	s := newTestScheduler(projectDir)
 	tracker := NewIssueTracker()

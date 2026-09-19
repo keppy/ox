@@ -13,6 +13,8 @@ import (
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+
+	"github.com/sageox/ox/internal/fileutil"
 )
 
 func TestBlueGreenGC_Success(t *testing.T) {
@@ -36,7 +38,7 @@ func TestBlueGreenGC_Success(t *testing.T) {
 		Type:     WorkspaceTypeTeamContext,
 		Path:     teamDir,
 		TeamName: "test-team",
-		CloneURL: "file://" + bareDir,
+		CloneURL: fileutil.FileURL(bareDir),
 		Exists:   true,
 	}
 	registry := scheduler.WorkspaceRegistry()
@@ -85,7 +87,7 @@ func TestBlueGreenGC_PreservesUncommittedTrackedChanges(t *testing.T) {
 		Type:     WorkspaceTypeTeamContext,
 		Path:     teamDir,
 		TeamName: "test-team",
-		CloneURL: "file://" + bareDir,
+		CloneURL: fileutil.FileURL(bareDir),
 		Exists:   true,
 	}
 
@@ -183,7 +185,7 @@ func TestBlueGreenGC_CleansUpLeftoverNewDir(t *testing.T) {
 		Type:     WorkspaceTypeTeamContext,
 		Path:     teamDir,
 		TeamName: "test-team",
-		CloneURL: "file://" + bareDir,
+		CloneURL: fileutil.FileURL(bareDir),
 		Exists:   true,
 	}
 
@@ -233,7 +235,7 @@ func TestBlueGreenGC_OldStyleFullClone(t *testing.T) {
 		Type:     WorkspaceTypeTeamContext,
 		Path:     teamDir,
 		TeamName: "old-team",
-		CloneURL: "file://" + bareDir,
+		CloneURL: fileutil.FileURL(bareDir),
 		Exists:   true,
 	}
 	registry := scheduler.WorkspaceRegistry()
@@ -307,7 +309,7 @@ func TestBlueGreenGC_OldStyleFullClone_PreservesContent(t *testing.T) {
 		Type:     WorkspaceTypeTeamContext,
 		Path:     teamDir,
 		TeamName: "content-team",
-		CloneURL: "file://" + bareDir,
+		CloneURL: fileutil.FileURL(bareDir),
 		Exists:   true,
 	}
 	registry := scheduler.WorkspaceRegistry()
@@ -352,7 +354,7 @@ func TestBlueGreenGC_RepoWithStaleLockFile(t *testing.T) {
 		Type:     WorkspaceTypeTeamContext,
 		Path:     teamDir,
 		TeamName: "lock-team",
-		CloneURL: "file://" + bareDir,
+		CloneURL: fileutil.FileURL(bareDir),
 		Exists:   true,
 	}
 
@@ -386,7 +388,7 @@ func TestBlueGreenGC_RepoInRebaseState(t *testing.T) {
 		Type:     WorkspaceTypeTeamContext,
 		Path:     teamDir,
 		TeamName: "rebase-team",
-		CloneURL: "file://" + bareDir,
+		CloneURL: fileutil.FileURL(bareDir),
 		Exists:   true,
 	}
 
@@ -419,7 +421,7 @@ func TestBlueGreenGC_CorruptGitDir(t *testing.T) {
 		Type:     WorkspaceTypeTeamContext,
 		Path:     teamDir,
 		TeamName: "corrupt-team",
-		CloneURL: "file://" + bareDir,
+		CloneURL: fileutil.FileURL(bareDir),
 		Exists:   true,
 	}
 
@@ -510,7 +512,7 @@ func TestBlueGreenGC_PreExistingOldDir(t *testing.T) {
 		Type:     WorkspaceTypeTeamContext,
 		Path:     teamDir,
 		TeamName: "preold-team",
-		CloneURL: "file://" + bareDir,
+		CloneURL: fileutil.FileURL(bareDir),
 		Exists:   true,
 	}
 	registry := scheduler.WorkspaceRegistry()
@@ -576,7 +578,7 @@ func TestBlueGreenGC_SkipsCloneInFlight(t *testing.T) {
 		Type:           WorkspaceTypeTeamContext,
 		Path:           teamDir,
 		TeamName:       "inflight-team",
-		CloneURL:       "file://" + bareDir,
+		CloneURL:       fileutil.FileURL(bareDir),
 		Exists:         true,
 		GCIntervalDays: 1,
 		LastGCTime:     time.Time{}, // never run = due for GC
@@ -618,7 +620,7 @@ func TestBlueGreenGC_UpdatesManifestConfig(t *testing.T) {
 		Type:     WorkspaceTypeTeamContext,
 		Path:     teamDir,
 		TeamName: "config-team",
-		CloneURL: "file://" + bareDir,
+		CloneURL: fileutil.FileURL(bareDir),
 		Exists:   true,
 	}
 	registry := scheduler.WorkspaceRegistry()
@@ -686,7 +688,7 @@ func TestBlueGreenGC_ValidationFailsKeepsOld(t *testing.T) {
 		Type:     WorkspaceTypeTeamContext,
 		Path:     teamDir,
 		TeamName: "valfail-team",
-		CloneURL: "file://" + bareDir, // points to repo without core files
+		CloneURL: fileutil.FileURL(bareDir), // points to repo without core files
 		Exists:   true,
 	}
 	registry := scheduler.WorkspaceRegistry()
@@ -758,7 +760,7 @@ func TestBlueGreenGC_LeftoverNewRemovalFails(t *testing.T) {
 		Type:     WorkspaceTypeTeamContext,
 		Path:     teamDir,
 		TeamName: "stucknew-team",
-		CloneURL: "file://" + bareDir,
+		CloneURL: fileutil.FileURL(bareDir),
 		Exists:   true,
 	}
 
@@ -796,7 +798,7 @@ func TestBlueGreenGC_PreservesStagedChanges(t *testing.T) {
 		Type:     WorkspaceTypeTeamContext,
 		Path:     teamDir,
 		TeamName: "test-team",
-		CloneURL: "file://" + bareDir,
+		CloneURL: fileutil.FileURL(bareDir),
 		Exists:   true,
 	}
 
@@ -830,7 +832,7 @@ func TestBlueGreenGC_PreservesMixedStagedAndUnstaged(t *testing.T) {
 		Type:     WorkspaceTypeTeamContext,
 		Path:     teamDir,
 		TeamName: "test-team",
-		CloneURL: "file://" + bareDir,
+		CloneURL: fileutil.FileURL(bareDir),
 		Exists:   true,
 	}
 
@@ -863,7 +865,7 @@ func TestBlueGreenGC_PreservesUntrackedFiles(t *testing.T) {
 		Type:     WorkspaceTypeTeamContext,
 		Path:     teamDir,
 		TeamName: "test-team",
-		CloneURL: "file://" + bareDir,
+		CloneURL: fileutil.FileURL(bareDir),
 		Exists:   true,
 	}
 
@@ -897,7 +899,7 @@ func TestBlueGreenGC_PreservesUntrackedInSubdirs(t *testing.T) {
 		Type:     WorkspaceTypeTeamContext,
 		Path:     teamDir,
 		TeamName: "test-team",
-		CloneURL: "file://" + bareDir,
+		CloneURL: fileutil.FileURL(bareDir),
 		Exists:   true,
 	}
 
@@ -940,7 +942,7 @@ func TestBlueGreenGC_PushesUnpushedCommitsBeforeReclone(t *testing.T) {
 		Type:     WorkspaceTypeTeamContext,
 		Path:     teamDir,
 		TeamName: "test-team",
-		CloneURL: "file://" + bareDir,
+		CloneURL: fileutil.FileURL(bareDir),
 		Exists:   true,
 	}
 
@@ -983,7 +985,7 @@ func TestBlueGreenGC_SkipsWhenPushFails(t *testing.T) {
 		Type:     WorkspaceTypeTeamContext,
 		Path:     teamDir,
 		TeamName: "test-team",
-		CloneURL: "file://" + bareDir,
+		CloneURL: fileutil.FileURL(bareDir),
 		Exists:   true,
 	}
 
@@ -1029,7 +1031,7 @@ func TestBlueGreenGC_DiffApplyConflictPreservesDiffFile(t *testing.T) {
 		Type:     WorkspaceTypeTeamContext,
 		Path:     teamDir,
 		TeamName: "test-team",
-		CloneURL: "file://" + bareDir,
+		CloneURL: fileutil.FileURL(bareDir),
 		Exists:   true,
 	}
 
@@ -1068,7 +1070,7 @@ func TestBlueGreenGC_PreservesBinaryUntrackedFile(t *testing.T) {
 		Type:     WorkspaceTypeTeamContext,
 		Path:     teamDir,
 		TeamName: "test-team",
-		CloneURL: "file://" + bareDir,
+		CloneURL: fileutil.FileURL(bareDir),
 		Exists:   true,
 	}
 
@@ -1099,7 +1101,7 @@ func TestBlueGreenGC_StagedDeletePreserved(t *testing.T) {
 		Type:     WorkspaceTypeTeamContext,
 		Path:     teamDir,
 		TeamName: "test-team",
-		CloneURL: "file://" + bareDir,
+		CloneURL: fileutil.FileURL(bareDir),
 		Exists:   true,
 	}
 
@@ -1130,7 +1132,7 @@ func TestBlueGreenGC_CleanTreeStillWorks(t *testing.T) {
 		Type:     WorkspaceTypeTeamContext,
 		Path:     teamDir,
 		TeamName: "test-team",
-		CloneURL: "file://" + bareDir,
+		CloneURL: fileutil.FileURL(bareDir),
 		Exists:   true,
 	}
 
@@ -1155,7 +1157,7 @@ func setupClonedTeamContext(t *testing.T, manifestContent string, extraFiles map
 	isolateCredentials(t) // also opts into TestAllowFileTransport for file:// clones
 
 	bareDir := setupTeamContextBareRepo(t, manifestContent, extraFiles)
-	cloneURL := "file://" + bareDir
+	cloneURL := fileutil.FileURL(bareDir)
 
 	projectDir := setupProjectWithConfig(t, "")
 	scheduler := newTestScheduler(projectDir)

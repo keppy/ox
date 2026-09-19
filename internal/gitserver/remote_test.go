@@ -10,6 +10,8 @@ import (
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+
+	"github.com/sageox/ox/internal/fileutil"
 )
 
 // setupGitRepoWithRemote creates a temp git repo with a remote URL set.
@@ -299,7 +301,7 @@ func TestRefreshRemoteCredentials_LocalRemote_NoOp(t *testing.T) {
 	cmd := exec.Command("git", "init", "--bare", bareDir)
 	require.NoError(t, cmd.Run())
 
-	dir := setupGitRepoWithRemote(t, "file://"+bareDir)
+	dir := setupGitRepoWithRemote(t, fileutil.FileURL(bareDir))
 	setupTestCredentials(t, "https://sageox.ai", "some-token", "https://git.sageox.ai")
 
 	err := RefreshRemoteCredentials(dir, "https://sageox.ai")
@@ -309,7 +311,7 @@ func TestRefreshRemoteCredentials_LocalRemote_NoOp(t *testing.T) {
 	out := exec.Command("git", "-C", dir, "remote", "get-url", "origin")
 	output, err := out.Output()
 	require.NoError(t, err)
-	assert.Equal(t, "file://"+bareDir+"\n", string(output))
+	assert.Equal(t, fileutil.FileURL(bareDir)+"\n", string(output))
 }
 
 // bare local path remotes must never have credentials injected

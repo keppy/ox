@@ -9,6 +9,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/sageox/ox/internal/fileutil"
 	"github.com/sageox/ox/internal/testguard"
 
 	"github.com/stretchr/testify/assert"
@@ -88,7 +89,7 @@ func TestInspectRepo(t *testing.T) {
 				dst := filepath.Join(t.TempDir(), "shallow")
 				// file:// + --no-local forces the dumb-protocol path that
 				// honors --depth. A plain path clone hardlinks instead.
-				runGit(t, t.TempDir(), "clone", "--depth", "1", "--no-local", "file://"+src, dst)
+				runGit(t, t.TempDir(), "clone", "--depth", "1", "--no-local", fileutil.FileURL(src), dst)
 				return dst
 			},
 			wantShall:  true,
@@ -99,7 +100,7 @@ func TestInspectRepo(t *testing.T) {
 			setup: func(t *testing.T) string {
 				src, _ := initRepoWithCommits(t, 3)
 				dst := filepath.Join(t.TempDir(), "partial")
-				runGit(t, t.TempDir(), "clone", "--filter=blob:none", "--no-local", "file://"+src, dst)
+				runGit(t, t.TempDir(), "clone", "--filter=blob:none", "--no-local", fileutil.FileURL(src), dst)
 				return dst
 			},
 			wantPart:   true,
@@ -110,7 +111,7 @@ func TestInspectRepo(t *testing.T) {
 			setup: func(t *testing.T) string {
 				src, _ := initRepoWithCommits(t, 5)
 				dst := filepath.Join(t.TempDir(), "both")
-				runGit(t, t.TempDir(), "clone", "--depth", "1", "--filter=blob:none", "--no-local", "file://"+src, dst)
+				runGit(t, t.TempDir(), "clone", "--depth", "1", "--filter=blob:none", "--no-local", fileutil.FileURL(src), dst)
 				return dst
 			},
 			wantShall:  true,
@@ -122,7 +123,7 @@ func TestInspectRepo(t *testing.T) {
 			setup: func(t *testing.T) string {
 				src, _ := initRepoWithCommits(t, 5)
 				main := filepath.Join(t.TempDir(), "main")
-				runGit(t, t.TempDir(), "clone", "--depth", "1", "--no-local", "file://"+src, main)
+				runGit(t, t.TempDir(), "clone", "--depth", "1", "--no-local", fileutil.FileURL(src), main)
 				wt := filepath.Join(t.TempDir(), "wt")
 				runGit(t, main, "worktree", "add", "-b", "feat", wt)
 				return wt
@@ -243,7 +244,7 @@ func TestDeepenUntilAncestor(t *testing.T) {
 	require.NotEmpty(t, oldSHA)
 
 	dst := filepath.Join(t.TempDir(), "shallow")
-	runGit(t, t.TempDir(), "clone", "--depth", "1", "--no-local", "file://"+src, dst)
+	runGit(t, t.TempDir(), "clone", "--depth", "1", "--no-local", fileutil.FileURL(src), dst)
 
 	state, err := InspectRepo(dst)
 	require.NoError(t, err)

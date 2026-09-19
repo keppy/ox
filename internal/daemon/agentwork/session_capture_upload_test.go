@@ -14,6 +14,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/sageox/ox/internal/fileutil"
 	"github.com/sageox/ox/internal/testguard"
 
 	"github.com/sageox/ox/internal/gitserver"
@@ -175,7 +176,7 @@ func TestSessionCapture_UploadsNativeEntries(t *testing.T) {
 					ExpiresAt: time.Now().Add(time.Hour),
 				}))
 				runGitCmd(t, ledgerPath, "remote", "set-url", "origin", serverURL+"/ledger.git")
-				runGitCmd(t, ledgerPath, "remote", "set-url", "--push", "origin", "file://"+barePath)
+				runGitCmd(t, ledgerPath, "remote", "set-url", "--push", "origin", fileutil.FileURL(barePath))
 
 				projectRoot := t.TempDir()
 				sessionHome := t.TempDir()
@@ -241,7 +242,7 @@ func TestSessionCapture_UploadsNativeEntries(t *testing.T) {
 					}
 				}
 				if mode.rejectPush {
-					runGitCmd(t, ledgerPath, "remote", "set-url", "--push", "origin", "file://"+filepath.Join(t.TempDir(), "missing.git"))
+					runGitCmd(t, ledgerPath, "remote", "set-url", "--push", "origin", fileutil.FileURL(filepath.Join(t.TempDir(), "missing.git")))
 				}
 				handler := NewSessionFinalizeHandler(slog.Default())
 				handler.SetProjectRoot(projectRoot)
@@ -275,7 +276,7 @@ func TestSessionCapture_UploadsNativeEntries(t *testing.T) {
 					require.NoError(t, err, "a failed push must retain the source cache")
 					assert.Equal(t, cachedRaw, retained)
 					assert.Empty(t, gitOutput(t, barePath, "ls-tree", "HEAD", "sessions/"+sessionName), "failed publication must leave the remote unchanged")
-					runGitCmd(t, ledgerPath, "remote", "set-url", "--push", "origin", "file://"+barePath)
+					runGitCmd(t, ledgerPath, "remote", "set-url", "--push", "origin", fileutil.FileURL(barePath))
 					retryItems, err := handler.Detect(ledgerPath)
 					require.NoError(t, err)
 					require.Len(t, retryItems, 1, "retained cache must be rediscovered")
@@ -284,7 +285,7 @@ func TestSessionCapture_UploadsNativeEntries(t *testing.T) {
 				}
 
 				verifyClone := filepath.Join(t.TempDir(), "verify")
-				runGitCmd(t, t.TempDir(), "clone", "file://"+barePath, verifyClone)
+				runGitCmd(t, t.TempDir(), "clone", fileutil.FileURL(barePath), verifyClone)
 				publishedDir := filepath.Join(verifyClone, "sessions", sessionName)
 				meta, err := lfs.ReadSessionMeta(publishedDir)
 				require.NoError(t, err)

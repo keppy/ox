@@ -11,6 +11,8 @@ import (
 	"github.com/go-git/go-git/v6/plumbing/object"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+
+	"github.com/sageox/ox/internal/fileutil"
 )
 
 // TestV6_PlainOpenAcceptsKnownExtensions verifies that go-git v6 natively
@@ -170,7 +172,7 @@ func TestV6_CloneBareAndResolveHead(t *testing.T) {
 	srcDir, tipHash := initGitRepo(t, 3)
 	bareDir := filepath.Join(t.TempDir(), "bare.git")
 
-	repo, err := CloneOrFetch("file://"+srcDir, bareDir)
+	repo, err := CloneOrFetch(fileutil.FileURL(srcDir), bareDir)
 	require.NoError(t, err, "CloneOrFetch should succeed")
 
 	ref, err := resolveDefaultBranch(repo)
@@ -191,7 +193,7 @@ func TestV6_CloneOrFetchUpdatesOnRefetch(t *testing.T) {
 	bareDir := filepath.Join(t.TempDir(), "bare.git")
 
 	// initial clone
-	_, err := CloneOrFetch("file://"+srcDir, bareDir)
+	_, err := CloneOrFetch(fileutil.FileURL(srcDir), bareDir)
 	require.NoError(t, err)
 
 	// add another commit to source
@@ -217,7 +219,7 @@ func TestV6_CloneOrFetchUpdatesOnRefetch(t *testing.T) {
 	newTip := string(newTipOut[:len(newTipOut)-1])
 
 	// re-fetch
-	repo, err := CloneOrFetch("file://"+srcDir, bareDir)
+	repo, err := CloneOrFetch(fileutil.FileURL(srcDir), bareDir)
 	require.NoError(t, err)
 
 	ref, err := resolveDefaultBranch(repo)

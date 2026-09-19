@@ -27,6 +27,7 @@ import (
 
 	"github.com/sageox/ox/internal/api"
 	"github.com/sageox/ox/internal/endpoint"
+	"github.com/sageox/ox/internal/fileutil"
 	"github.com/sageox/ox/internal/gitserver"
 	"github.com/sageox/ox/internal/paths"
 	"github.com/stretchr/testify/assert"
@@ -81,14 +82,14 @@ func TestSyncBubblesIntegration_FullFlow_MultipleBubbles(t *testing.T) {
 		KBType:  api.KBTypeTeam,
 		Slug:    "team-a",
 		Name:    "Team A",
-		RepoURL: "file://" + bareA,
+		RepoURL: fileutil.FileURL(bareA),
 	}
 	b := api.KB{
 		KBID:    "kb_int_personal",
 		KBType:  api.KBTypePersonal,
 		Slug:    "personal-b",
 		Name:    "Personal B",
-		RepoURL: "file://" + bareB,
+		RepoURL: fileutil.FileURL(bareB),
 	}
 	s.SetKBBubbleListerFactory(func(_, _ string) KBBubbleLister {
 		return &fakeKBLister{bubbles: []api.KB{a, b}}
@@ -140,7 +141,7 @@ func TestSyncBubblesIntegration_APIMockToOnDisk(t *testing.T) {
 		KBType:  api.KBTypeTeam,
 		Slug:    "apimock",
 		Name:    "Mock Team",
-		RepoURL: "file://" + bareDir,
+		RepoURL: fileutil.FileURL(bareDir),
 	}
 	srv, calls := kbAPIMockServer(t, []api.KB{row})
 
@@ -197,7 +198,7 @@ func TestSyncBubblesIntegration_EndpointSwitchMidFlight(t *testing.T) {
 		KBID:    "kb_endpoint_switch",
 		KBType:  api.KBTypePersonal,
 		Slug:    "ep-switch",
-		RepoURL: "file://" + bareA,
+		RepoURL: fileutil.FileURL(bareA),
 	}
 	s1.SetKBBubbleListerFactory(func(_, _ string) KBBubbleLister {
 		return &fakeKBLister{bubbles: []api.KB{bubble1}}
@@ -221,7 +222,7 @@ func TestSyncBubblesIntegration_EndpointSwitchMidFlight(t *testing.T) {
 		KBID:    "kb_endpoint_switch", // SAME id as before
 		KBType:  api.KBTypePersonal,
 		Slug:    "ep-switch",
-		RepoURL: "file://" + bareB,
+		RepoURL: fileutil.FileURL(bareB),
 	}
 	s2.SetKBBubbleListerFactory(func(_, _ string) KBBubbleLister {
 		return &fakeKBLister{bubbles: []api.KB{bubble2}}
@@ -267,7 +268,7 @@ func TestSyncBubblesIntegration_RepeatedSyncIsIdempotent(t *testing.T) {
 		KBID:    "kb_repeated",
 		KBType:  api.KBTypeTeam,
 		Slug:    "repeated",
-		RepoURL: "file://" + bareDir,
+		RepoURL: fileutil.FileURL(bareDir),
 	}
 	s.SetKBBubbleListerFactory(func(_, _ string) KBBubbleLister {
 		return &fakeKBLister{bubbles: []api.KB{bubble}}
@@ -322,13 +323,13 @@ func TestSyncBubblesIntegration_BubbleAddedSecondPass(t *testing.T) {
 		KBID:    "kb_added_first",
 		KBType:  api.KBTypeTeam,
 		Slug:    "first",
-		RepoURL: "file://" + bareA,
+		RepoURL: fileutil.FileURL(bareA),
 	}
 	b := api.KB{
 		KBID:    "kb_added_second",
 		KBType:  api.KBTypePersonal,
 		Slug:    "second",
-		RepoURL: "file://" + bareB,
+		RepoURL: fileutil.FileURL(bareB),
 	}
 
 	var pass atomic.Int32

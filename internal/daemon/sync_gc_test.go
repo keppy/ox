@@ -11,6 +11,8 @@ import (
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+
+	"github.com/sageox/ox/internal/fileutil"
 )
 
 // --- helpers ---
@@ -282,7 +284,7 @@ func TestGC_FullCycle_TeamContext(t *testing.T) {
 
 	tmp := t.TempDir()
 	bareDir, cloneDir := gcInitBareAndClone(t, tmp)
-	cloneURL := "file://" + bareDir
+	cloneURL := fileutil.FileURL(bareDir)
 
 	// add team context structure to bare repo via the clone
 	for _, f := range []string{"SOUL.md", ".sageox/config.json"} {
@@ -362,7 +364,7 @@ func TestGC_FullCycle_Ledger(t *testing.T) {
 
 	// clone ledger
 	cloneDir := filepath.Join(tmp, "ledger")
-	require.NoError(t, exec.Command("git", "clone", "file://"+bareDir, cloneDir).Run())
+	require.NoError(t, exec.Command("git", "clone", fileutil.FileURL(bareDir), cloneDir).Run())
 	gitConfig(t, cloneDir)
 
 	// add cache that should survive GC
@@ -381,7 +383,7 @@ func TestGC_FullCycle_Ledger(t *testing.T) {
 		ID:       "ledger-test",
 		Type:     WorkspaceTypeLedger,
 		Path:     cloneDir,
-		CloneURL: "file://" + bareDir,
+		CloneURL: fileutil.FileURL(bareDir),
 		Exists:   true,
 	}
 

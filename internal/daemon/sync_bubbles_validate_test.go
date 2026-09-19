@@ -28,6 +28,7 @@ import (
 
 	"github.com/sageox/ox/internal/api"
 	"github.com/sageox/ox/internal/endpoint"
+	"github.com/sageox/ox/internal/fileutil"
 	"github.com/sageox/ox/internal/paths"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -56,7 +57,7 @@ func TestSyncBubbles_Validate_UnknownKBType_StillSyncs(t *testing.T) {
 		KBID:    "kb_unknown_type",
 		KBType:  api.KBTypeUnknown, // forward-compat fallback bucket
 		Slug:    "unknown-type",
-		RepoURL: "file://" + bareDir,
+		RepoURL: fileutil.FileURL(bareDir),
 	}
 	s.SetKBBubbleListerFactory(func(_, _ string) KBBubbleLister {
 		return &fakeKBLister{bubbles: []api.KB{unk}}
@@ -107,7 +108,7 @@ func TestSyncBubbles_Validate_MetaJSONIsAtomicWrite(t *testing.T) {
 		Slug:        "atomic",
 		OwnerUserID: "user_atom",
 		ViewerRole:  "owner",
-		RepoURL:     "file://" + bareDir,
+		RepoURL:     fileutil.FileURL(bareDir),
 	}
 	s.SetKBBubbleListerFactory(func(_, _ string) KBBubbleLister {
 		return &fakeKBLister{bubbles: []api.KB{bubble}}
@@ -161,7 +162,7 @@ func TestSyncBubbles_Validate_PreExistingCorruptMeta_Recovered(t *testing.T) {
 		KBID:    "kb_corrupt_meta",
 		KBType:  api.KBTypeTeam,
 		Slug:    "corrupt-meta",
-		RepoURL: "file://" + bareDir,
+		RepoURL: fileutil.FileURL(bareDir),
 	}
 	s.SetKBBubbleListerFactory(func(_, _ string) KBBubbleLister {
 		return &fakeKBLister{bubbles: []api.KB{bubble}}
@@ -214,7 +215,7 @@ func TestSyncBubbles_Validate_ListErrorLeavesDiskUntouched(t *testing.T) {
 		KBID:    "kb_stable",
 		KBType:  api.KBTypeTeam,
 		Slug:    "stable",
-		RepoURL: "file://" + bareDir,
+		RepoURL: fileutil.FileURL(bareDir),
 	}
 	s.SetKBBubbleListerFactory(func(_, _ string) KBBubbleLister {
 		return &fakeKBLister{bubbles: []api.KB{bubble}}

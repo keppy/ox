@@ -9,6 +9,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/sageox/ox/internal/fileutil"
 	"github.com/sageox/ox/internal/gitserver"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -49,7 +50,7 @@ func TestTeamContextDiscovery_NewTeamAppears(t *testing.T) {
 			"team_new123": {
 				Name:   "new-team",
 				Type:   "team-context",
-				URL:    "file://" + teamDir + ".bare", // bare repo created by setupGitRepo
+				URL:    fileutil.FileURL(teamDir) + ".bare", // bare repo created by setupGitRepo
 				TeamID: "team_new123",
 			},
 		},
