@@ -32,7 +32,9 @@ import (
 // for user-owned ledger repos that may live on github.com, gitlab.com, or a
 // self-hosted forge).
 //
-// allowLocal permits `file://` URLs and scheme-less local filesystem paths. In
+// allowLocal permits `file://` URLs and scheme-less local filesystem paths. A
+// Windows drive-letter path counts as scheme-less — url.Parse reads its `C:` as a
+// URL scheme, so the shape is recognised explicitly (see isWindowsDrivePath). In
 // production this is false (a ledger/team-context clone is always a remote https
 // repo, never a local path). Tests that clone from a local bare repo wire this to
 // the test-only override (gitserver.TestAllowFileTransport) — the same flag that
@@ -56,7 +58,7 @@ func ValidateCloneURL(cloneURL string, trustedHosts []string, allowLocal bool) e
 
 	// Local filesystem paths (no scheme) and file:// URLs: only when explicitly
 	// allowed. ext::/git:// etc. fall through to the scheme switch and are rejected.
-	if parsed.Scheme == "" || parsed.Scheme == "file" {
+	if parsed.Scheme == "" || parsed.Scheme == "file" || isWindowsDrivePath(cloneURL) {
 		if allowLocal {
 			return nil
 		}
@@ -91,6 +93,26 @@ func ValidateCloneURL(cloneURL string, trustedHosts []string, allowLocal bool) e
 		}
 	}
 	return fmt.Errorf("untrusted git host: %s (allowed: %v)", parsed.Host, trustedHosts)
+}
+
+// isWindowsDrivePath reports whether s is a Windows drive-letter path (`C:\repo`
+// or `C:/repo`). url.Parse reads the `C:` of such a path as a URL scheme, so the
+// scheme-less branch above cannot recognise it: a bare Windows path was rejected
+// as "clone URL has no host" while the same path in POSIX form was accepted,
+// which made every local-clone fixture fail on Windows and only on Windows.
+//
+// The shape is recognised lexically rather than behind a GOOS check, so the
+// behaviour is the same wherever the binary runs and the case is testable on the
+// Linux CI that runs this package. A drive-relative path (`C:repo`) is
+// deliberately not matched — it is not a local path in the sense allowLocal
+// means. This only widens what allowLocal accepts; production (allowLocal=false)
+// still rejects every local path.
+func isWindowsDrivePath(s string) bool {
+	if len(s) < 3 || s[1] != ':' {
+		return false
+	}
+	isLetter := (s[0] >= 'A' && s[0] <= 'Z') || (s[0] >= 'a' && s[0] <= 'z')
+	return isLetter && (s[2] == '\\' || s[2] == '/')
 }
 
 // HardenedCloneArgs returns the `-c` flags that disable git's dangerous
