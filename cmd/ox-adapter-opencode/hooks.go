@@ -6,6 +6,8 @@ import (
 	"os"
 	"path/filepath"
 
+	"github.com/sageox/ox/internal/homedir"
+
 	"github.com/sageox/ox/pkg/adapterprotocol"
 )
 
@@ -90,7 +92,7 @@ func handleUninstallHooks(p adapterprotocol.HookParams) (*adapterprotocol.Uninst
 
 func resolvePluginPath(repoRoot, scope string) string {
 	if scope == "user" {
-		home, _ := os.UserHomeDir()
+		home, _ := homedir.Dir()
 		return filepath.Join(home, openCodeUserPath, openCodePluginFileName)
 	}
 	if repoRoot == "" {

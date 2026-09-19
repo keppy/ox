@@ -7,6 +7,7 @@ import (
 	"sort"
 	"strings"
 
+	"github.com/sageox/ox/internal/fileutil"
 	"github.com/sageox/ox/internal/session/adapters"
 )
 
@@ -20,7 +21,7 @@ const adapterSiblingsCheckName = "Adapter binaries"
 // excluded: it exists only for development/testing and is never shipped.
 var expectedAdapterSiblings = []string{
 	"aider", "amp", "claude-code", "codex", "droid",
-	"gemini", "goose", "omp", "opencode", "pi",
+	"gemini", "goose", "hermes", "omp", "opencode", "pi",
 }
 
 func init() {
@@ -69,7 +70,7 @@ func adapterSiblingsResult(dirs []string) checkResult {
 			if e.IsDir() || !strings.HasPrefix(e.Name(), "ox-adapter-") {
 				continue
 			}
-			name := strings.TrimSuffix(strings.TrimPrefix(e.Name(), "ox-adapter-"), ".exe")
+			name := fileutil.StripExecExt(strings.TrimPrefix(e.Name(), "ox-adapter-"))
 			if name == "" {
 				continue
 			}
@@ -79,7 +80,7 @@ func adapterSiblingsResult(dirs []string) checkResult {
 			// report "present" for a binary session hooks would skip.
 			path := filepath.Join(dir, e.Name())
 			fi, err := os.Stat(path)
-			if err != nil || fi.Mode()&0111 == 0 {
+			if err != nil || !fileutil.IsExecutable(fi, path) {
 				continue
 			}
 			found[name] = true

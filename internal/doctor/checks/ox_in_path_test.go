@@ -177,17 +177,34 @@ func TestProbeShellPath_EmptyShellPath_IsInconclusive(t *testing.T) {
 	assert.ErrorIs(t, err, ErrShellProbeInconclusive)
 }
 
+// posixShellForProbe returns a POSIX shell for probeShellPath to run. On Unix
+// that is /bin/sh. Windows has no /bin/sh path, but Git for Windows ships a
+// POSIX sh (the same shell it runs hooks and askpass scripts with), so probe
+// that instead; the probe contract itself is POSIX-shell-only and skips when
+// no such shell is installed.
+func posixShellForProbe(t *testing.T) string {
+	t.Helper()
+	if runtime.GOOS != "windows" {
+		return "/bin/sh"
+	}
+	sh, err := exec.LookPath("sh")
+	if err != nil {
+		t.Skip("POSIX shell probe needs sh on PATH (install Git for Windows)")
+	}
+	return sh
+}
+
 func TestProbeShellPath_ResolvesARealBinaryViaScrubbedEnv(t *testing.T) {
 	// "command -v sh" should resolve even under the scrubbed PATH
 	// (/usr/bin:/bin:/usr/sbin:/sbin), proving the scrub doesn't zero PATH
 	// outright.
-	resolved, err := probeShellPath(context.Background(), "/bin/sh", "sh")
+	resolved, err := probeShellPath(context.Background(), posixShellForProbe(t), "sh")
 	require.NoError(t, err)
 	assert.NotEmpty(t, resolved)
 }
 
 func TestProbeShellPath_BinaryNotFound_ReturnsErrNotFoundInShell(t *testing.T) {
-	_, err := probeShellPath(context.Background(), "/bin/sh", "definitely-not-a-real-binary-xyz")
+	_, err := probeShellPath(context.Background(), posixShellForProbe(t), "definitely-not-a-real-binary-xyz")
 	assert.ErrorIs(t, err, ErrNotFoundInShell)
 }
 

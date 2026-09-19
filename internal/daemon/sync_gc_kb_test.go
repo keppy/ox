@@ -166,7 +166,7 @@ func TestKBGC_Reap_ExpiredEntryRemoved(t *testing.T) {
 	trashDir := filepath.Join(root, kbTrashDirName)
 	require.NoError(t, os.MkdirAll(trashDir, 0o755))
 
-	expiredTS := time.Now().UTC().Add(-(kbTrashGracePeriod + 24*time.Hour)).Format(time.RFC3339)
+	expiredTS := time.Now().UTC().Add(-(kbTrashGracePeriod + 24*time.Hour)).Format(kbTrashTimestampLayout)
 	expired := filepath.Join(trashDir, fmt.Sprintf("kb_old-%s", expiredTS))
 	require.NoError(t, os.MkdirAll(expired, 0o755))
 	require.NoError(t, os.WriteFile(filepath.Join(expired, "x"), []byte("x"), 0o644))
@@ -193,7 +193,7 @@ func TestKBGC_Reap_RecentEntryKept(t *testing.T) {
 	trashDir := filepath.Join(root, kbTrashDirName)
 	require.NoError(t, os.MkdirAll(trashDir, 0o755))
 
-	recentTS := time.Now().UTC().Add(-1 * time.Hour).Format(time.RFC3339)
+	recentTS := time.Now().UTC().Add(-1 * time.Hour).Format(kbTrashTimestampLayout)
 	recent := filepath.Join(trashDir, fmt.Sprintf("kb_recent-%s", recentTS))
 	require.NoError(t, os.MkdirAll(recent, 0o755))
 
@@ -253,7 +253,7 @@ func TestKBGC_ErrKBAPIUnavailable_FullSkip(t *testing.T) {
 	root := filepath.Dir(keep)
 	trashDir := filepath.Join(root, kbTrashDirName)
 	require.NoError(t, os.MkdirAll(trashDir, 0o755))
-	expiredTS := time.Now().UTC().Add(-(kbTrashGracePeriod + 24*time.Hour)).Format(time.RFC3339)
+	expiredTS := time.Now().UTC().Add(-(kbTrashGracePeriod + 24*time.Hour)).Format(kbTrashTimestampLayout)
 	expired := filepath.Join(trashDir, fmt.Sprintf("kb_x-%s", expiredTS))
 	require.NoError(t, os.MkdirAll(expired, 0o755))
 
@@ -394,10 +394,16 @@ func TestKBGC_ParseTrashTimestamp_RoundTrip(t *testing.T) {
 		comment string
 	}{
 		{
+			name:    fmt.Sprintf("kb_xyz-%s", now.Format(kbTrashTimestampLayout)),
+			ok:      true,
+			wantTS:  now,
+			comment: "canonical form (portable layout, '.' time separators)",
+		},
+		{
 			name:    fmt.Sprintf("kb_xyz-%s", now.Format(time.RFC3339)),
 			ok:      true,
 			wantTS:  now,
-			comment: "canonical form",
+			comment: "legacy RFC3339 form written by pre-Windows builds",
 		},
 		{
 			name:    fmt.Sprintf("kb-with-dashes-%s", now.Format(time.RFC3339)),

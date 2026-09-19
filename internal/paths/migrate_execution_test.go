@@ -1,6 +1,8 @@
 package paths
 
 import (
+	"github.com/sageox/ox/internal/testguard"
+
 	"os"
 	"path/filepath"
 	"testing"
@@ -108,6 +110,7 @@ func TestMigrateDirectory_EmptySource(t *testing.T) {
 }
 
 func TestMigrateDirectory_PreservesPermissions(t *testing.T) {
+	testguard.RequirePOSIXPerms(t) // asserts mode bits
 	tempDir := t.TempDir()
 	srcDir := filepath.Join(tempDir, "src")
 	dstDir := filepath.Join(tempDir, "dst")

@@ -19,6 +19,8 @@ import (
 	"path/filepath"
 	"strings"
 
+	"github.com/sageox/ox/internal/homedir"
+
 	"github.com/sageox/ox/pkg/adapterprotocol"
 )
 
@@ -119,7 +121,7 @@ func shellQuote(s string) string {
 // (including os.RemoveAll) must not proceed with a relative or empty path.
 func scopeRoot(repoRoot, scope string) (string, error) {
 	if scope == scopeUser {
-		home, err := os.UserHomeDir()
+		home, err := homedir.Dir()
 		if err != nil {
 			return "", fmt.Errorf("cannot resolve home directory for user scope: %w", err)
 		}

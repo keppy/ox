@@ -6,42 +6,57 @@ import (
 	"fmt"
 	"os"
 	"syscall"
+
+	"github.com/sageox/ox/internal/proc"
 )
 
-// sigTERM is the signal to send for graceful termination.
-// Windows doesn't have SIGTERM; we use 0xF (15) as a placeholder since
-// signalProcess on Windows ignores the signal value and calls proc.Kill().
+// sigTERM is the "graceful" termination request. Windows has no SIGTERM;
+// signalProcess maps any non-zero signal to TerminateProcess, so the value
+// is only a label for the escalation log lines in KillStaleDaemon.
 const sigTERM = syscall.Signal(0xF)
 
-// sigKILL mirrors sigTERM on Windows: signalProcess ignores the signal value
-// for anything non-zero and calls proc.Kill(), which is already ungraceful.
+// sigKILL mirrors sigTERM: both reach TerminateProcess on Windows.
 const sigKILL = syscall.Signal(0x9)
 
-// isOxDaemonProcess checks if the given PID is an ox daemon process.
-// On Windows, /proc is not available; we optimistically assume it is.
-// TODO: use Windows API (CreateToolhelp32Snapshot) for process identity checks.
+// isOxDaemonProcess reports whether pid is an ox process, as the PID-reuse
+// guard KillStaleDaemon consults before terminating it.
+//
+// Windows exposes a process's executable name cheaply (Toolhelp32) but its
+// full command line only via the target's PEB, which needs PROCESS_VM_READ.
+// So this checks argv[0] — the same first half of the Unix matchesOxDaemon
+// test — and cannot verify the "daemon" subcommand. That is still a real
+// guard: the previous implementation returned true unconditionally, which
+// would TerminateProcess whatever unrelated program had inherited the PID.
+// A false positive now requires the reused PID to belong to another ox
+// invocation, and a stray `ox status` killed by mistake is recoverable in a
+// way that a killed editor is not.
 func isOxDaemonProcess(pid int) bool {
-	return true
+	return oxDaemonExecutables[proc.Name(pid)] || oxDaemonExecutables[proc.Name(pid)+".exe"]
 }
 
-// signalProcess sends a signal to the given PID.
-// On Windows, only signal 0 (liveness check) and termination are supported.
+// oxDaemonExecutables mirrors fallback_unix.go: the argv[0] basenames a real
+// ox daemon can have. "ox.test" is deliberately absent so a test binary is
+// never mistaken for a daemon.
+var oxDaemonExecutables = map[string]bool{"ox": true, "ox.exe": true}
+
+// signalProcess sends a signal to pid. Signal 0 is a liveness probe; any
+// other value terminates the process.
 //
-// TODO: os.FindProcess always succeeds on Windows even for non-existent PIDs,
-// and proc.Signal(0) is unreliable for liveness checks. Consider using the
-// Windows OpenProcess API for accurate liveness detection.
+// os.FindProcess never fails on Windows, even for a PID that names nothing,
+// and os.Process.Signal(0) returns EWINDOWS, so neither can answer "is it
+// alive?". proc.IsAlive opens the process and reads its exit code instead.
 func signalProcess(pid int, sig syscall.Signal) error {
-	proc, err := os.FindProcess(pid)
+	if sig == 0 {
+		if !proc.IsAlive(pid) {
+			return os.ErrProcessDone
+		}
+		return nil
+	}
+	p, err := os.FindProcess(pid)
 	if err != nil {
 		return err
 	}
-	if sig == 0 {
-		// os.FindProcess succeeds if process exists; Signal(0) is unsupported
-		// on Windows (returns EWINDOWS). FindProcess success = alive.
-		return nil
-	}
-	// Windows doesn't support SIGTERM; kill the process directly.
-	if err := proc.Kill(); err != nil {
+	if err := p.Kill(); err != nil {
 		return fmt.Errorf("kill process %d: %w", pid, err)
 	}
 	return nil

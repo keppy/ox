@@ -1,6 +1,8 @@
 package main
 
 import (
+	"github.com/sageox/ox/internal/testguard"
+
 	"fmt"
 	"os"
 	"path/filepath"
@@ -87,10 +89,7 @@ func TestAdapterRemove_RefusesBundled(t *testing.T) {
 	exeDir := filepath.Dir(exe)
 
 	script := fakeAdapterScript("bundled-test", "1.0.0", "session")
-	binaryPath := filepath.Join(exeDir, "ox-adapter-bundled-test")
-	if err := os.WriteFile(binaryPath, []byte(script), 0755); err != nil {
-		t.Fatal(err)
-	}
+	binaryPath := testguard.WriteShellExecutable(t, exeDir, "ox-adapter-bundled-test", script)
 	t.Cleanup(func() { os.Remove(binaryPath) })
 
 	t.Setenv("OX_ADAPTER_PATH", exeDir)
@@ -125,10 +124,7 @@ func TestAdapterRemove_UnknownAdapter(t *testing.T) {
 func TestAdapterLink_ValidatesBinaryBeforeLinking(t *testing.T) {
 	dir := t.TempDir()
 
-	badBinary := filepath.Join(dir, "ox-adapter-bad")
-	if err := os.WriteFile(badBinary, []byte("#!/bin/sh\necho 'not json'"), 0755); err != nil {
-		t.Fatal(err)
-	}
+	badBinary := testguard.WriteShellExecutable(t, dir, "ox-adapter-bad", "#!/bin/sh\necho 'not json'")
 
 	cmd := adapterLinkCmd
 	err := cmd.RunE(cmd, []string{badBinary})
@@ -143,11 +139,17 @@ func TestAdapterLink_RequiresPrefix(t *testing.T) {
 	dir := t.TempDir()
 	createFakeAdapter(t, dir, "myagent", "1.0.0", "session")
 
-	// rename to remove prefix
-	oldPath := filepath.Join(dir, "ox-adapter-myagent")
-	newPath := filepath.Join(dir, "myagent")
+	// rename to remove prefix (the launcher's companion .sh is found by the
+	// executable's own basename, so it moves too on Windows)
+	oldPath := filepath.Join(dir, testguard.ExeName("ox-adapter-myagent"))
+	newPath := filepath.Join(dir, testguard.ExeName("myagent"))
 	if err := os.Rename(oldPath, newPath); err != nil {
 		t.Fatal(err)
+	}
+	if runtime.GOOS == "windows" {
+		if err := os.Rename(filepath.Join(dir, "ox-adapter-myagent.sh"), filepath.Join(dir, "myagent.sh")); err != nil {
+			t.Fatal(err)
+		}
 	}
 
 	cmd := adapterLinkCmd
@@ -254,10 +256,7 @@ func TestDeriveAdapterBinaryName(t *testing.T) {
 // Failure prevented: broken adapter gets installed without validation catching it.
 func TestVerifyAdapterBinary_InvalidBinary(t *testing.T) {
 	dir := t.TempDir()
-	badBinary := filepath.Join(dir, "ox-adapter-bad")
-	if err := os.WriteFile(badBinary, []byte("#!/bin/sh\necho 'not json'"), 0755); err != nil {
-		t.Fatal(err)
-	}
+	badBinary := testguard.WriteShellExecutable(t, dir, "ox-adapter-bad", "#!/bin/sh\necho 'not json'")
 
 	err := verifyAdapterProtocol(badBinary)
 	if err == nil {
@@ -283,10 +282,7 @@ func TestVerifyAdapterBinary_OldProtocol(t *testing.T) {
 	dir := t.TempDir()
 	script := `#!/bin/sh
 echo '{"protocol_version":0,"name":"old","display_name":"Old","version":"1.0.0","type":"session","capabilities":["session_reader"]}'`
-	binaryPath := filepath.Join(dir, "ox-adapter-old")
-	if err := os.WriteFile(binaryPath, []byte(script), 0755); err != nil {
-		t.Fatal(err)
-	}
+	binaryPath := testguard.WriteShellExecutable(t, dir, "ox-adapter-old", script)
 
 	err := verifyAdapterProtocol(binaryPath)
 	if err == nil {
@@ -307,18 +303,11 @@ echo '{"protocol_version":1,"name":"%s","display_name":"%s","version":"%s","type
 }
 
 // createFakeAdapter writes a fake adapter binary script to the given directory.
-// Skips on Windows since these are shell scripts.
+// On Windows the script runs through testguard's launcher.
 func createFakeAdapter(t *testing.T, dir, name, version, adapterType string) string {
 	t.Helper()
-	if runtime.GOOS == "windows" {
-		t.Skip("shell script adapters require unix")
-	}
 	script := fakeAdapterScript(name, version, adapterType)
-	binaryPath := filepath.Join(dir, "ox-adapter-"+name)
-	if err := os.WriteFile(binaryPath, []byte(script), 0755); err != nil {
-		t.Fatal(err)
-	}
-	return binaryPath
+	return testguard.WriteShellExecutable(t, dir, "ox-adapter-"+name, script)
 }
 
 // fakeAdapterWithHooksScript returns a shell script that handles info, install-hooks,
@@ -388,16 +377,9 @@ esac`, name, name, version, adapterType, configDir, configDir, configDir, config
 }
 
 // createFakeAdapterWithHooks writes a fake adapter script that supports hook operations.
-// Skips on Windows since these are shell scripts.
+// On Windows the script runs through testguard's launcher.
 func createFakeAdapterWithHooks(t *testing.T, dir, name, version, adapterType, configDir string) string {
 	t.Helper()
-	if runtime.GOOS == "windows" {
-		t.Skip("shell script adapters require unix")
-	}
 	script := fakeAdapterWithHooksScript(name, version, adapterType, configDir)
-	binaryPath := filepath.Join(dir, "ox-adapter-"+name)
-	if err := os.WriteFile(binaryPath, []byte(script), 0755); err != nil {
-		t.Fatal(err)
-	}
-	return binaryPath
+	return testguard.WriteShellExecutable(t, dir, "ox-adapter-"+name, script)
 }

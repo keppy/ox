@@ -17,6 +17,8 @@ import (
 	"testing"
 	"time"
 
+	"github.com/sageox/ox/internal/testguard"
+
 	"github.com/sageox/ox/internal/auth"
 	"github.com/sageox/ox/internal/gitserver"
 	"github.com/sageox/ox/internal/gitutil"
@@ -1302,7 +1304,7 @@ func TestReadSyncColdStageResumesOnlyProvenIdentity(t *testing.T) {
 		{name: "symlinked receipt directory", damage: func(t *testing.T, stage string) {
 			dir := filepath.Join(stage, ".sageox/cache/read-sync")
 			require.NoError(t, os.RemoveAll(dir))
-			require.NoError(t, os.Symlink(t.TempDir(), dir))
+			testguard.Symlink(t, t.TempDir(), dir)
 		}},
 		{name: "damaged worktree", damage: func(t *testing.T, stage string) {
 			require.NoError(t, os.WriteFile(filepath.Join(stage, "sessions/cold/a.md"), []byte("not the object\n"), 0600))

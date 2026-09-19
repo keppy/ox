@@ -9,6 +9,8 @@ import (
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+
+	"github.com/sageox/ox/internal/fileutil"
 )
 
 // scaffoldRepoForDoctor creates a temp git repo and chdir's into it so
@@ -88,7 +90,7 @@ func TestCheckRepoCompleteness_Shallow(t *testing.T) {
 
 	parent := t.TempDir()
 	dst := filepath.Join(parent, "shallow")
-	clone := exec.Command("git", "clone", "-q", "--depth", "1", "--no-local", "file://"+src, dst)
+	clone := exec.Command("git", "clone", "-q", "--depth", "1", "--no-local", fileutil.FileURL(src), dst)
 	out, err := clone.CombinedOutput()
 	require.NoError(t, err, "%s", out)
 

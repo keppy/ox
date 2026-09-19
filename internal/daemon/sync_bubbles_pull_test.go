@@ -18,6 +18,7 @@ import (
 
 	"github.com/sageox/ox/internal/api"
 	"github.com/sageox/ox/internal/endpoint"
+	"github.com/sageox/ox/internal/fileutil"
 	"github.com/sageox/ox/internal/paths"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -56,7 +57,7 @@ func TestSyncBubbles_Pull_FastForward(t *testing.T) {
 		KBID:    "kb_ff",
 		KBType:  api.KBTypeTeam,
 		Slug:    "ff",
-		RepoURL: "file://" + bareDir,
+		RepoURL: fileutil.FileURL(bareDir),
 	}
 	s.SetKBBubbleListerFactory(func(_, _ string) KBBubbleLister {
 		return &fakeKBLister{bubbles: []api.KB{bubble}}
@@ -103,7 +104,7 @@ func TestSyncBubbles_Pull_DedupSkipsWhenFetchRecent(t *testing.T) {
 		KBID:    "kb_dedup",
 		KBType:  api.KBTypeTeam,
 		Slug:    "dedup",
-		RepoURL: "file://" + bareDir,
+		RepoURL: fileutil.FileURL(bareDir),
 	}
 	s.SetKBBubbleListerFactory(func(_, _ string) KBBubbleLister {
 		return &fakeKBLister{bubbles: []api.KB{bubble}}
@@ -163,7 +164,7 @@ func TestSyncBubbles_Pull_CorruptRepoMovedAside(t *testing.T) {
 		KBID:    "kb_corrupt",
 		KBType:  api.KBTypeTeam,
 		Slug:    "corrupt",
-		RepoURL: "file://" + bareDir,
+		RepoURL: fileutil.FileURL(bareDir),
 	}
 	s.SetKBBubbleListerFactory(func(_, _ string) KBBubbleLister {
 		return &fakeKBLister{bubbles: []api.KB{bubble}}
@@ -221,7 +222,7 @@ func TestSyncBubbles_Pull_NotGitRepoBecomesClonedOnNextPass(t *testing.T) {
 		KBID:    "kb_nogit",
 		KBType:  api.KBTypeProfile,
 		Slug:    "nogit",
-		RepoURL: "file://" + bareDir,
+		RepoURL: fileutil.FileURL(bareDir),
 	}
 	s.SetKBBubbleListerFactory(func(_, _ string) KBBubbleLister {
 		return &fakeKBLister{bubbles: []api.KB{bubble}}
@@ -269,7 +270,7 @@ func TestSyncBubbles_Pull_PreservesUntrackedFiles(t *testing.T) {
 		KBID:    "kb_untracked",
 		KBType:  api.KBTypePersonal,
 		Slug:    "untracked",
-		RepoURL: "file://" + bareDir,
+		RepoURL: fileutil.FileURL(bareDir),
 	}
 	s.SetKBBubbleListerFactory(func(_, _ string) KBBubbleLister {
 		return &fakeKBLister{bubbles: []api.KB{bubble}}
@@ -316,7 +317,7 @@ func TestSyncBubbles_Pull_PreservesUncommittedTrackedChanges(t *testing.T) {
 		KBID:    "kb_stash",
 		KBType:  api.KBTypeTeam,
 		Slug:    "stash",
-		RepoURL: "file://" + bareDir,
+		RepoURL: fileutil.FileURL(bareDir),
 	}
 	s.SetKBBubbleListerFactory(func(_, _ string) KBBubbleLister {
 		return &fakeKBLister{bubbles: []api.KB{bubble}}
@@ -370,7 +371,7 @@ func TestSyncBubbles_Pull_RebaseInProgressIsSkipped(t *testing.T) {
 		KBID:    "kb_rebase",
 		KBType:  api.KBTypeTeam,
 		Slug:    "rebase",
-		RepoURL: "file://" + bareDir,
+		RepoURL: fileutil.FileURL(bareDir),
 	}
 	s.SetKBBubbleListerFactory(func(_, _ string) KBBubbleLister {
 		return &fakeKBLister{bubbles: []api.KB{bubble}}
@@ -420,7 +421,7 @@ func TestSyncBubbles_Pull_LockFilesSkipPull(t *testing.T) {
 		KBID:    "kb_lock",
 		KBType:  api.KBTypeTeam,
 		Slug:    "lock",
-		RepoURL: "file://" + bareDir,
+		RepoURL: fileutil.FileURL(bareDir),
 	}
 	s.SetKBBubbleListerFactory(func(_, _ string) KBBubbleLister {
 		return &fakeKBLister{bubbles: []api.KB{bubble}}

@@ -8,6 +8,9 @@ import (
 	"runtime"
 	"strings"
 
+	"github.com/sageox/ox/internal/homedir"
+
+	"github.com/sageox/ox/internal/fileutil"
 	"github.com/sageox/ox/pkg/adapterprotocol"
 )
 
@@ -69,7 +72,7 @@ func AdapterDirs() []string {
 	// user local: platform-specific
 	switch runtime.GOOS {
 	case "darwin", "linux":
-		if home, err := os.UserHomeDir(); err == nil {
+		if home, err := homedir.Dir(); err == nil {
 			dirs = append(dirs, filepath.Join(home, ".local", "share", "ox", "adapters"))
 		}
 	case "windows":
@@ -108,10 +111,9 @@ func DiscoverExternalAdapters() []*ExternalAdapter {
 				continue
 			}
 
-			// extract adapter name from binary name
-			adapterName := strings.TrimPrefix(name, adapterBinaryPrefix)
-			// on Windows, strip .exe suffix
-			adapterName = strings.TrimSuffix(adapterName, ".exe")
+			// extract adapter name from binary name; on Windows the file
+			// carries a PATHEXT suffix (.exe, .cmd) that is not part of it
+			adapterName := fileutil.StripExecExt(strings.TrimPrefix(name, adapterBinaryPrefix))
 
 			if adapterName == "" {
 				continue
@@ -130,7 +132,7 @@ func DiscoverExternalAdapters() []*ExternalAdapter {
 				slog.Debug("adapter binary stat failed", "path", binaryPath, "error", err)
 				continue
 			}
-			if fi.Mode()&0111 == 0 {
+			if !fileutil.IsExecutable(fi, binaryPath) {
 				slog.Warn("adapter binary not executable", "path", binaryPath)
 				continue
 			}

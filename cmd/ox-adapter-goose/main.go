@@ -18,6 +18,8 @@ import (
 	"os/exec"
 	"path/filepath"
 
+	"github.com/sageox/ox/internal/homedir"
+
 	"github.com/sageox/ox/pkg/adapterprotocol"
 	"github.com/sageox/ox/pkg/adapterruntime"
 )
@@ -195,7 +197,7 @@ func gooseConfigDir() string {
 	if xdg := os.Getenv("XDG_CONFIG_HOME"); xdg != "" {
 		return filepath.Join(xdg, "goose")
 	}
-	home, err := os.UserHomeDir()
+	home, err := homedir.Dir()
 	if err != nil {
 		return ""
 	}
@@ -209,7 +211,7 @@ func gooseDataDir() string {
 	if xdg := os.Getenv("XDG_DATA_HOME"); xdg != "" {
 		return filepath.Join(xdg, "goose")
 	}
-	home, err := os.UserHomeDir()
+	home, err := homedir.Dir()
 	if err != nil {
 		return ""
 	}

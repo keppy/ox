@@ -631,14 +631,23 @@ func dehydrateReadFiles(ctx context.Context, transport *gitserver.ReadTransport,
 	if err != nil {
 		return err
 	}
+	// One ls-tree answers "what does target have at each path?" for every
+	// hydrated file at once. Asking per file with rev-parse costs one git
+	// process per file — on Windows that is a process spawn each, so a ledger
+	// with a few hundred hydrated sessions spent seconds to minutes here
+	// before touching a byte of content. nil means the listing failed and the
+	// loop falls back to the per-file question.
+	var targetOIDs map[string]string
+	if target != "" {
+		targetOIDs = readTreeOIDs(ctx, transport, dir, target)
+	}
 	for _, f := range files {
 		if f.hydrated {
 			if target != "" {
 				// Git preserves local hydration when the committed pointer is
 				// unchanged. Leave those bytes available even if a later object's
 				// download fails, and avoid re-downloading them on every refresh.
-				next, err := runReadGit(ctx, transport, false, dir, "rev-parse", "--verify", target+":"+f.path)
-				if err == nil && next == f.oid {
+				if !pointerChangedAtTarget(ctx, transport, dir, target, targetOIDs, f) {
 					continue
 				}
 			}
@@ -678,6 +687,48 @@ func dehydrateReadFiles(ctx context.Context, transport *gitserver.ReadTransport,
 		}
 	}
 	return nil
+}
+
+// readTreeOIDs returns path → blob oid for every file in target's tree, or
+// nil when the listing cannot be read. Callers fall back to asking per path.
+//
+// The parse mirrors readFiles': ls-tree -z separates entries with NUL and
+// splits each entry's metadata from its name with a TAB.
+func readTreeOIDs(ctx context.Context, transport *gitserver.ReadTransport, dir, target string) map[string]string {
+	tree, err := runReadGit(ctx, transport, false, dir, "ls-tree", "-r", "-z", "--full-tree", target)
+	if err != nil {
+		return nil
+	}
+	oids := make(map[string]string)
+	for _, entry := range strings.Split(tree, "\x00") {
+		if entry == "" {
+			continue
+		}
+		meta, name, ok := strings.Cut(entry, "\t")
+		fields := strings.Fields(meta)
+		if !ok || len(fields) != 3 || name == "" {
+			continue
+		}
+		oids[name] = fields[2]
+	}
+	return oids
+}
+
+// pointerChangedAtTarget reports whether the pointer committed at target for
+// f's path differs from the pointer in the working tree — the question the
+// dehydration loop asks before deciding to keep locally hydrated bytes.
+//
+// A path absent from target's tree counts as changed, which is what the
+// per-file rev-parse returned before this was batched: the command failed,
+// so the caller did not skip. An unreadable listing (nil oids) falls back to
+// asking git directly, one file at a time.
+func pointerChangedAtTarget(ctx context.Context, transport *gitserver.ReadTransport, dir, target string, oids map[string]string, f readFile) bool {
+	if oids != nil {
+		oid, ok := oids[f.path]
+		return !ok || oid != f.oid
+	}
+	next, err := runReadGit(ctx, transport, false, dir, "rev-parse", "--verify", target+":"+f.path)
+	return err != nil || next != f.oid
 }
 
 // readSkips keeps the first failure hydration walked past, and decides which
@@ -1252,13 +1303,10 @@ func publishReadReceipt(path string, receipt readReceipt, previous *readReceipt)
 	return syncReadDir(dir)
 }
 
+// syncReadDir makes a directory's dirent updates durable. Platforms that
+// cannot flush directory handles (Windows) are tolerated by fileutil.SyncDir.
 func syncReadDir(path string) error {
-	f, err := os.Open(path)
-	if err != nil {
-		return err
-	}
-	defer f.Close()
-	return f.Sync()
+	return fileutil.SyncDir(path)
 }
 
 func safeReadDirectory(path string) bool {

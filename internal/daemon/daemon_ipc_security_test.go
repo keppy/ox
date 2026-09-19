@@ -4,6 +4,7 @@ import (
 	"log/slog"
 	"os"
 	"path/filepath"
+	"runtime"
 	"strings"
 	"testing"
 
@@ -284,7 +285,19 @@ func TestSessionWatchStart_RejectsArbitrarySessionFile(t *testing.T) {
 	// would require building a real sessionWatcher + ledger, which is out of
 	// scope for a unit regression test. The handler-level integration is
 	// covered by the existing IPC tests in ipc_handlers_session_watch_test.go.
-	home := "/home/victim"
+	// filepath.IsAbs("/home/victim") is false on Windows; use a root that is
+	// absolute on the running platform so the allow-list logic — not path
+	// syntax — is what the cases exercise.
+	home := filepath.FromSlash("/home/victim")
+	if runtime.GOOS == "windows" {
+		home = `C:\home\victim`
+	}
+	abs := func(p string) string {
+		if p == "" || !strings.HasPrefix(p, "/") {
+			return p
+		}
+		return home + filepath.FromSlash(strings.TrimPrefix(p, "/home/victim"))
+	}
 
 	cases := []struct {
 		name    string
@@ -342,7 +355,7 @@ func TestSessionWatchStart_RejectsArbitrarySessionFile(t *testing.T) {
 	}
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
-			got := adapters.IsSessionFileAllowed(tc.adapter, tc.path, home)
+			got := adapters.IsSessionFileAllowed(tc.adapter, abs(tc.path), home)
 			assert.Equal(t, tc.want, got,
 				"IsSessionFileAllowed(%q, %q) = %v, want %v",
 				tc.adapter, tc.path, got, tc.want)

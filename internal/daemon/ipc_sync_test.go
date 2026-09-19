@@ -336,7 +336,7 @@ func TestServer_SetTeamSyncHandler(t *testing.T) {
 
 // Integration test: Team sync with progress streaming
 func TestServerClient_TeamSyncWithProgress_Integration(t *testing.T) {
-	tmpDir := "/tmp"
+	tmpDir := shortRuntimeDir()
 	t.Setenv("OX_XDG_ENABLE", "1")
 	t.Setenv("XDG_RUNTIME_DIR", tmpDir)
 
@@ -486,7 +486,7 @@ path = %q
 // not found" (fatal) and nil as "legacy daemon, status unknown" (non-fatal). The
 // handler marshals a non-nil slice so the wire value is `[]`, never `null`.
 func TestServerClient_TeamSyncWithProgress_EmptyResults(t *testing.T) {
-	tmpDir := "/tmp"
+	tmpDir := shortRuntimeDir()
 	t.Setenv("OX_XDG_ENABLE", "1")
 	t.Setenv("XDG_RUNTIME_DIR", tmpDir)
 
@@ -575,7 +575,7 @@ func TestServerClient_TeamSyncWithProgress_SetupFailure(t *testing.T) {
 
 // Test team sync when handler not set
 func TestServerClient_TeamSyncWithProgress_NoHandler(t *testing.T) {
-	tmpDir := "/tmp"
+	tmpDir := shortRuntimeDir()
 	t.Setenv("OX_XDG_ENABLE", "1")
 	t.Setenv("XDG_RUNTIME_DIR", tmpDir)
 

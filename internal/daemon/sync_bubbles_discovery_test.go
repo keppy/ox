@@ -24,6 +24,7 @@ import (
 
 	"github.com/sageox/ox/internal/api"
 	"github.com/sageox/ox/internal/endpoint"
+	"github.com/sageox/ox/internal/fileutil"
 	"github.com/sageox/ox/internal/paths"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -80,7 +81,7 @@ func TestSyncBubbles_NewlyAppearing_ClonedOnNextPass(t *testing.T) {
 		KBID:    "kb_newcomer",
 		KBType:  api.KBTypeTeam,
 		Slug:    "newcomer",
-		RepoURL: "file://" + bareDir,
+		RepoURL: fileutil.FileURL(bareDir),
 	}
 	current.Store([]api.KB{newBubble})
 
@@ -125,7 +126,7 @@ func TestSyncBubbles_DisappearingBubble_NotTouchedBySync(t *testing.T) {
 		KBID:    "kb_ephemeral",
 		KBType:  api.KBTypeTeam,
 		Slug:    "ephemeral",
-		RepoURL: "file://" + bareDir,
+		RepoURL: fileutil.FileURL(bareDir),
 	}
 	current.Store([]api.KB{bubble})
 
@@ -174,7 +175,7 @@ func TestSyncBubbles_Discovery_Flapping(t *testing.T) {
 		KBID:    "kb_flap",
 		KBType:  api.KBTypeProfile,
 		Slug:    "flap",
-		RepoURL: "file://" + bareDir,
+		RepoURL: fileutil.FileURL(bareDir),
 	}
 
 	var current atomic.Value
@@ -229,7 +230,7 @@ func TestSyncBubbles_NewBubbleAlongsideExisting(t *testing.T) {
 		KBID:    "kb_a",
 		KBType:  api.KBTypeTeam,
 		Slug:    "alpha",
-		RepoURL: "file://" + bareA,
+		RepoURL: fileutil.FileURL(bareA),
 	}
 
 	var current atomic.Value
@@ -254,7 +255,7 @@ func TestSyncBubbles_NewBubbleAlongsideExisting(t *testing.T) {
 		KBID:    "kb_b",
 		KBType:  api.KBTypeProfile,
 		Slug:    "bravo",
-		RepoURL: "file://" + bareB,
+		RepoURL: fileutil.FileURL(bareB),
 	}
 	current.Store([]api.KB{bubbleA, bubbleB})
 

@@ -6,7 +6,6 @@ import (
 	"os/exec"
 	"path/filepath"
 	"strings"
-	"syscall"
 	"testing"
 
 	"github.com/sageox/ox/internal/fileutil"
@@ -365,15 +364,14 @@ func TestCheckSkillsInventoryDrift_ReportsTheApplyLockDistinctly(t *testing.T) {
 	if err := os.MkdirAll(filepath.Dir(lockPath), 0o755); err != nil {
 		t.Fatalf("mkdir: %v", err)
 	}
-	f, err := os.OpenFile(lockPath, os.O_CREATE|os.O_RDWR, 0o600)
+	f, acquired, err := fileutil.TryLockFile(lockPath)
 	if err != nil {
 		t.Fatalf("open lock: %v", err)
 	}
-	defer f.Close()
-	if err := syscall.Flock(int(f.Fd()), syscall.LOCK_EX|syscall.LOCK_NB); err != nil {
-		t.Skipf("could not take the apply lock: %v", err)
+	if !acquired {
+		t.Skip("could not take the apply lock: held by another process")
 	}
-	defer func() { _ = syscall.Flock(int(f.Fd()), syscall.LOCK_UN) }()
+	defer func() { _ = fileutil.UnlockFile(f) }()
 
 	res := checkSkillsInventoryDrift(context.Background(), root)
 

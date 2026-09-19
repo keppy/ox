@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"context"
 	"errors"
+	"fmt"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -100,9 +101,22 @@ func InspectRepo(repoPath string) (RepoState, error) {
 	// captures the runtime contract (network fetch may be needed). Fall
 	// back to extensions.partialClone for repos that disabled the remote
 	// but still have the extension recorded.
-	if v, err := runQuietGit(ctx, repoPath, "config", "--get-regexp", `^remote\..*\.promisor$`); err == nil && v != "" {
+	//
+	// A lookup that FAILS (config unreadable, detection budget exhausted) is
+	// not evidence the repo is complete — runQuietGit maps only a genuine
+	// exit-1 "key missing" to an empty answer. Propagate the failure so
+	// callers render "unknown" instead of a confident "full history
+	// available"; the partially-filled state stays usable for callers that
+	// only read Shallow.
+	promisor, err := runQuietGit(ctx, repoPath, "config", "--get-regexp", `^remote\..*\.promisor$`)
+	if err != nil {
+		return state, fmt.Errorf("inspect repo: partial-clone detection: %w", err)
+	}
+	if promisor != "" {
 		state.Partial = true
-	} else if v, err := runQuietGit(ctx, repoPath, "config", "--get", "extensions.partialClone"); err == nil && v != "" {
+	} else if extension, err := runQuietGit(ctx, repoPath, "config", "--get", "extensions.partialClone"); err != nil {
+		return state, fmt.Errorf("inspect repo: partial-clone detection: %w", err)
+	} else if extension != "" {
 		state.Partial = true
 	}
 
@@ -131,6 +145,14 @@ func runQuietGit(ctx context.Context, repoPath string, args ...string) (string, 
 	err := cmd.Run()
 	out := strings.TrimSpace(stdout.String())
 	if err != nil {
+		// A command killed by the context is not a git answer. On Windows
+		// Process.Kill terminates with exit code 1, which is exactly what
+		// `git config` reports for a missing key — reading a timed-out
+		// detection as "key missing" reports a partial clone as a complete
+		// repo. Check the context before trusting the exit code.
+		if ctxErr := ctx.Err(); ctxErr != nil {
+			return out, ctxErr
+		}
 		// `git config --get` exits 1 when the key is missing.
 		var exitErr *exec.ExitError
 		if errors.As(err, &exitErr) && exitErr.ExitCode() == 1 && len(args) >= 1 && args[0] == "config" {

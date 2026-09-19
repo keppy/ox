@@ -8,6 +8,8 @@ import (
 	"path/filepath"
 	"testing"
 
+	"github.com/sageox/ox/internal/homedir"
+
 	"github.com/sageox/ox/internal/gitutil"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -15,7 +17,7 @@ import (
 
 // Test isValidRepoPath validates correct paths
 func TestIsValidRepoPath(t *testing.T) {
-	homeDir, err := os.UserHomeDir()
+	homeDir, err := homedir.Dir()
 	require.NoError(t, err)
 
 	tmpDir := os.TempDir()

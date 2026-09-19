@@ -8,6 +8,8 @@ import (
 	"strings"
 	"testing"
 	"time"
+
+	"github.com/sageox/ox/internal/testguard"
 )
 
 func TestCheckReadmeFile_NotFound(t *testing.T) {
@@ -310,9 +312,7 @@ func TestCheckReadmeFile_SymLink(t *testing.T) {
 
 	// create symlink to target
 	readmePath := filepath.Join(sageoxDir, "README.md")
-	if err := os.Symlink(targetPath, readmePath); err != nil {
-		t.Fatalf("failed to create symlink: %v", err)
-	}
+	testguard.Symlink(t, targetPath, readmePath)
 
 	result := checkReadmeFile(false)
 

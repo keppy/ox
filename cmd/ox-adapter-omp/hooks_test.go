@@ -3,6 +3,7 @@ package main
 import (
 	"os"
 	"path/filepath"
+	"runtime"
 	"strings"
 	"testing"
 
@@ -128,8 +129,13 @@ func TestInstallHooksRefreshesStaleBlock(t *testing.T) {
 	assert.Contains(t, content, "at session start to load SageOx team context", "new wording must be present")
 	assert.Contains(t, content, "# my own omp notes", "user content outside the markers must be preserved")
 	assert.Equal(t, 1, strings.Count(content, ompPrimeMarkerStart), "no duplicate block")
-	info, _ := os.Stat(ompPath)
-	assert.Equal(t, os.FileMode(0o600), info.Mode().Perm(), "mode must not be broadened")
+	// Windows file modes do not express POSIX owner/group permissions — every
+	// writable file reports 0666 — so "0600 was not broadened" is only
+	// observable on POSIX.
+	if runtime.GOOS != "windows" {
+		info, _ := os.Stat(ompPath)
+		assert.Equal(t, os.FileMode(0o600), info.Mode().Perm(), "mode must not be broadened")
+	}
 }
 
 // TestRefreshOMPPrimeBlock verifies the pure refresh: it regenerates only a KNOWN-legacy

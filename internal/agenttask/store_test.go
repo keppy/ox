@@ -333,6 +333,7 @@ func TestEnqueueConvenience(t *testing.T) {
 		t.Fatalf("Enqueue: added=%v err=%v", added, err)
 	}
 	store, _ := NewStore(root)
+	t.Cleanup(func() { _ = store.Close() })
 	tasks, _ := store.List(false)
 	if len(tasks) != 1 {
 		t.Fatalf("expected 1 task, got %d", len(tasks))

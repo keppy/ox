@@ -11,6 +11,7 @@ import (
 	"testing"
 
 	"github.com/sageox/ox/internal/config"
+	"github.com/sageox/ox/internal/testguard"
 )
 
 // TestCheckSageoxFilesTracked_FixForceAdds verifies fix=true force adds untracked .sageox/ files
@@ -58,7 +59,14 @@ func TestCheckSageoxFilesTracked_FixForceAdds(t *testing.T) {
 
 // TestCheckAuthFilePermissions_FixSecures verifies fix=true fixes auth file permissions to 0600.
 // Failure prevented: auth tokens stored world-readable after write.
+//
+// POSIX-only: the failure mode (a world-readable token file) and its repair
+// (chmod 0600) exist only where mode bits are enforced. Windows chmod maps
+// the read-only attribute alone, so 0644 → 0600 is unobservable there and no
+// portable shape (directory-instead-of-file, corrupt bytes) can stand in for
+// "the file was readable by other users".
 func TestCheckAuthFilePermissions_FixSecures(t *testing.T) {
+	testguard.RequirePOSIXPerms(t)
 	tmpDir := t.TempDir()
 
 	// override XDG config so checkAuthFilePermissions finds our test auth file

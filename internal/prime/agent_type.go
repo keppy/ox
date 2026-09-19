@@ -17,7 +17,13 @@ var SupportedAgents = map[string]bool{
 	string(agentx.AgentTypePi):         true,
 	string(agentx.AgentTypeOMP):        true,
 	string(agentx.AgentTypeGoose):      true,
+	AgentTypeHermes:                    true,
 }
+
+// AgentTypeHermes is the canonical slug for Hermes Agent. It lives here rather
+// than in sageox/agentx until that module grows a constant for it; every
+// comparison in ox goes through this name so the upstream swap is one line.
+const AgentTypeHermes = "hermes"
 
 // CanonicalAgentType normalizes display names and legacy aliases to canonical agent type slugs.
 func CanonicalAgentType(agentType string) string {
@@ -39,6 +45,8 @@ func CanonicalAgentType(agentType string) string {
 		return string(agentx.AgentTypeOMP)
 	case "goose":
 		return string(agentx.AgentTypeGoose)
+	case "hermes", "hermes-agent", "hermes agent":
+		return AgentTypeHermes
 	}
 
 	// If the input is a display name from registry (e.g., "Cursor"), map to slug.
@@ -83,7 +91,7 @@ func ClassifyAgentTier(agentType string) AgentTier {
 	// hooks. It is strictly ahead of Codex on SessionEnd (which Codex lacks) and
 	// strictly behind everything else here on compaction — Goose fires no
 	// compaction event, so primed context does not survive a Goose compaction.
-	case string(agentx.AgentTypeCodex), string(agentx.AgentTypeGemini), string(agentx.AgentTypeGoose):
+	case string(agentx.AgentTypeCodex), string(agentx.AgentTypeGemini), string(agentx.AgentTypeGoose), AgentTypeHermes:
 		return TierSilver
 	case string(agentx.AgentTypeAmp), string(agentx.AgentTypeOpenCode), string(agentx.AgentTypePi), string(agentx.AgentTypeOMP):
 		return TierBronze

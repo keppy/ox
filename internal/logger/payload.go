@@ -2,10 +2,10 @@ package logger
 
 import (
 	"context"
-	"io"
 	"log/slog"
 	"os"
 	"path/filepath"
+	"sync"
 )
 
 // payloadLogMaxBytes caps the diagnostics file so a chatty prime cannot grow
@@ -34,6 +34,7 @@ const payloadLogMaxBytes = 1 << 20
 // Not applied to other commands: a human running `ox status` should see
 // warnings. Only the two payload-producing commands opt in.
 func InitPayloadMode(verbose bool, logPath string) {
+	closePayloadLog()
 	if verbose {
 		Init(true)
 		return
@@ -58,6 +59,9 @@ func payloadQuietHandler(logPath string) slog.Handler {
 	if f == nil {
 		return slog.DiscardHandler
 	}
+	payloadLogMu.Lock()
+	payloadLog = f
+	payloadLogMu.Unlock()
 	return slog.NewTextHandler(f, &slog.HandlerOptions{
 		Level:       slog.LevelWarn,
 		ReplaceAttr: redactAttr,
@@ -67,7 +71,35 @@ func payloadQuietHandler(logPath string) slog.Handler {
 // openPayloadLog opens logPath for append, truncating first when it has
 // outgrown payloadLogMaxBytes. Returns nil on any failure — callers fall
 // back to discarding, never to stderr.
-func openPayloadLog(logPath string) io.Writer {
+// payloadLog is the currently open diagnostics file, if any. It is process
+// global like the slog default it feeds; re-initializing closes the previous
+// one so the file is released (on Windows an open handle blocks deletion of
+// the directory, which is how test TempDir cleanup surfaced the leak).
+var (
+	payloadLogMu sync.Mutex
+	payloadLog   *os.File
+)
+
+// closePayloadLog releases the diagnostics file opened by a previous
+// InitPayloadMode. Safe to call when none is open.
+func closePayloadLog() {
+	payloadLogMu.Lock()
+	defer payloadLogMu.Unlock()
+	if payloadLog != nil {
+		_ = payloadLog.Close()
+		payloadLog = nil
+	}
+}
+
+// ResetPayloadMode restores the default logger and closes the diagnostics
+// file. Tests that drive prime/hook commands in-process call it in Cleanup so
+// the temp directory holding the log can be removed.
+func ResetPayloadMode() {
+	closePayloadLog()
+	Init(false)
+}
+
+func openPayloadLog(logPath string) *os.File {
 	if logPath == "" {
 		return nil
 	}

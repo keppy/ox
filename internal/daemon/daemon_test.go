@@ -11,6 +11,8 @@ import (
 	"testing"
 	"time"
 
+	"github.com/sageox/ox/internal/testguard"
+
 	projectconfig "github.com/sageox/ox/internal/config"
 	"github.com/sageox/ox/internal/daemon/agentwork"
 	"github.com/sageox/ox/internal/paths"
@@ -24,7 +26,7 @@ func TestDaemon_DeadAgentQuiescesCaptureBeforeFinalizing(t *testing.T) {
 	if testing.Short() {
 		t.Skip("short: builds the Codex adapter")
 	}
-	binaryPath := filepath.Join(t.TempDir(), "ox-adapter-codex")
+	binaryPath := filepath.Join(t.TempDir(), testguard.ExeName("ox-adapter-codex"))
 	build := exec.Command("go", "build", "-o", binaryPath, "./cmd/ox-adapter-codex")
 	build.Dir = supFindRepoRoot(t)
 	out, err := build.CombinedOutput()
@@ -264,8 +266,7 @@ func TestDaemon_Cleanup(t *testing.T) {
 	_, err = os.Stat(PidPath())
 	assert.True(t, os.IsNotExist(err))
 
-	_, err = os.Stat(socketPath)
-	assert.True(t, os.IsNotExist(err))
+	assert.False(t, endpointExists(socketPath))
 }
 
 func TestDaemon_Stop_NotRunning(t *testing.T) {

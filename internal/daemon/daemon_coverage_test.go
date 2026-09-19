@@ -7,6 +7,8 @@ import (
 	"testing"
 	"time"
 
+	"github.com/sageox/ox/internal/testguard"
+
 	"github.com/sageox/ox/internal/runtime"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -69,7 +71,7 @@ func TestWorkspaceID_SymlinkResolution(t *testing.T) {
 	require.NoError(t, os.MkdirAll(realDir, 0755))
 
 	symlinkDir := filepath.Join(tmpDir, "link")
-	require.NoError(t, os.Symlink(realDir, symlinkDir))
+	testguard.Symlink(t, realDir, symlinkDir)
 
 	idReal := WorkspaceID(realDir)
 	idSymlink := WorkspaceID(symlinkDir)

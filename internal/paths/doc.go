@@ -44,7 +44,7 @@
 //	teamsDir := paths.TeamsDataDir()
 //
 //	// Bad - don't do this
-//	configPath := filepath.Join(os.UserHomeDir(), ".sageox", "config", "config.yaml")
+//	configPath := filepath.Join(homedir.Dir(), ".sageox", "config", "config.yaml")
 //
 // # Thread Safety
 //

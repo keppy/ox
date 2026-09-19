@@ -8,6 +8,8 @@ import (
 	"strings"
 	"time"
 
+	"github.com/sageox/ox/internal/homedir"
+
 	"github.com/sageox/ox/internal/config"
 	"github.com/sageox/ox/internal/endpoint"
 	"github.com/sageox/ox/internal/ledger"
@@ -355,12 +357,15 @@ func formatDuration(d time.Duration) string {
 // ShortenPath returns a shortened path for display.
 // Replaces home directory with ~.
 func ShortenPath(path string) string {
-	home, err := os.UserHomeDir()
+	home, err := homedir.Dir()
 	if err != nil {
 		return path
 	}
 	if strings.HasPrefix(path, home) {
-		return "~" + path[len(home):]
+		// Displayed in doctor output and session markdown, and compared
+		// against recorded (portable, slash-form) paths, so keep the
+		// remainder in slash form instead of the platform's separator.
+		return "~" + filepath.ToSlash(path[len(home):])
 	}
 	return path
 }

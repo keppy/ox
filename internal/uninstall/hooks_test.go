@@ -3,6 +3,7 @@ package uninstall
 import (
 	"os"
 	"path/filepath"
+	"runtime"
 	"strings"
 	"testing"
 
@@ -465,10 +466,15 @@ echo "end"
 				assert.NotContains(t, outputStr, unwant, "output contains unwanted content: %q\noutput:\n%s", unwant, outputStr)
 			}
 
-			// verify file still executable
-			info, err := os.Stat(tmpFile)
-			require.NoError(t, err)
-			assert.NotEqual(t, os.FileMode(0), info.Mode()&0111, "output file is not executable")
+			// Verify the file is still executable where the platform models
+			// an executable bit. Windows has none — os.Stat reports 0666 for
+			// every regular file — so the assertion would be checking a
+			// property that cannot exist rather than a behavior.
+			if runtime.GOOS != "windows" {
+				info, err := os.Stat(tmpFile)
+				require.NoError(t, err)
+				assert.NotEqual(t, os.FileMode(0), info.Mode()&0111, "output file is not executable")
+			}
 		})
 	}
 }

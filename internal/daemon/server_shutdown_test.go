@@ -4,6 +4,7 @@ import (
 	"context"
 	"log/slog"
 	"os"
+	"runtime"
 	"testing"
 	"time"
 
@@ -22,7 +23,14 @@ import (
 // (manifested as "Murmur not delivered (daemon unavailable)" even though
 // the daemon process holds the socket open in the kernel).
 func TestServerStart_DoesNotRemoveSocketOnShutdown(t *testing.T) {
-	tmpDir, err := os.MkdirTemp("/tmp", "ox-server-shutdown-")
+	if runtime.GOOS == "windows" {
+		// The invariant is about a socket *file* outliving Server.Start. A
+		// named pipe has no file and vanishes with its last handle, so there
+		// is nothing to preserve; TestDaemonCleanup_SupersededPreservesSocket
+		// covers the decision logic on every platform.
+		t.Skip("Unix socket file lifecycle; Windows uses named pipes")
+	}
+	tmpDir, err := os.MkdirTemp(shortRuntimeDir(), "ox-server-shutdown-")
 	require.NoError(t, err)
 	t.Cleanup(func() { os.RemoveAll(tmpDir) })
 	t.Setenv("OX_XDG_ENABLE", "1")

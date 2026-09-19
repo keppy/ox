@@ -7,6 +7,8 @@ import (
 	"testing"
 	"time"
 
+	"github.com/sageox/ox/internal/testguard"
+
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -533,7 +535,7 @@ func TestFindProjectRoot_ResolvesSymlinks(t *testing.T) {
 	// create a symlink pointing to the project
 	linkParent := t.TempDir()
 	linkPath := filepath.Join(linkParent, "link-to-project")
-	require.NoError(t, os.Symlink(realProjectDir, linkPath))
+	testguard.Symlink(t, realProjectDir, linkPath)
 
 	originalCwd, _ := os.Getwd()
 	defer os.Chdir(originalCwd)
@@ -555,7 +557,7 @@ func TestFindProjectRoot_SymlinkAndReal_SamePath(t *testing.T) {
 
 	linkParent := t.TempDir()
 	linkPath := filepath.Join(linkParent, "link-to-project")
-	require.NoError(t, os.Symlink(realProjectDir, linkPath))
+	testguard.Symlink(t, realProjectDir, linkPath)
 
 	originalCwd, _ := os.Getwd()
 	defer os.Chdir(originalCwd)
@@ -583,7 +585,7 @@ func TestResolveProjectRootOverride_ResolvesSymlinks(t *testing.T) {
 
 	linkParent := t.TempDir()
 	linkPath := filepath.Join(linkParent, "link-to-project")
-	require.NoError(t, os.Symlink(realProjectDir, linkPath))
+	testguard.Symlink(t, realProjectDir, linkPath)
 
 	t.Setenv(EnvProjectRoot, linkPath)
 

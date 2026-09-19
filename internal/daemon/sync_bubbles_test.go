@@ -13,6 +13,7 @@ import (
 
 	"github.com/sageox/ox/internal/api"
 	"github.com/sageox/ox/internal/endpoint"
+	"github.com/sageox/ox/internal/fileutil"
 	"github.com/sageox/ox/internal/gitserver"
 	"github.com/sageox/ox/internal/paths"
 	"github.com/stretchr/testify/assert"
@@ -144,7 +145,7 @@ func TestSyncBubbles_InitialClone(t *testing.T) {
 		Slug:        "personal-abc",
 		OwnerUserID: "user_1",
 		ViewerRole:  "owner",
-		RepoURL:     "file://" + bareDir,
+		RepoURL:     fileutil.FileURL(bareDir),
 	}
 	s.SetKBBubbleListerFactory(func(_, _ string) KBBubbleLister {
 		return &fakeKBLister{bubbles: []api.KB{bubble}}
@@ -191,7 +192,7 @@ func TestSyncBubbles_IncrementalPull(t *testing.T) {
 		KBID:    "kb_team_1",
 		KBType:  api.KBTypeTeam,
 		Slug:    "platform",
-		RepoURL: "file://" + bareDir,
+		RepoURL: fileutil.FileURL(bareDir),
 	}
 	s.SetKBBubbleListerFactory(func(_, _ string) KBBubbleLister {
 		return &fakeKBLister{bubbles: []api.KB{bubble}}
@@ -272,7 +273,7 @@ func TestSyncBubbles_PerBubbleFailureIsolation(t *testing.T) {
 		KBID:    "kb_good",
 		KBType:  api.KBTypeProfile,
 		Slug:    "good-bubble",
-		RepoURL: "file://" + bareDir,
+		RepoURL: fileutil.FileURL(bareDir),
 	}
 	s.SetKBBubbleListerFactory(func(_, _ string) KBBubbleLister {
 		return &fakeKBLister{bubbles: []api.KB{bad, good}}
@@ -319,7 +320,7 @@ func TestSyncBubbles_MetaJSONFields(t *testing.T) {
 		Topics:      []string{"profile", "people"},
 		OwnerUserID: "user_42",
 		ViewerRole:  "owner",
-		RepoURL:     "file://" + bareDir,
+		RepoURL:     fileutil.FileURL(bareDir),
 	}
 	s.SetKBBubbleListerFactory(func(_, _ string) KBBubbleLister {
 		return &fakeKBLister{bubbles: []api.KB{bubble}}

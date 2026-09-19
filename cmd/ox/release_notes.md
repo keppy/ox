@@ -5,6 +5,19 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased]
+
+### New
+
+- **ox works with Hermes Agent** — `ox integrate install --hermes` wires ox into Hermes's shell hooks so a Hermes session gets team context at start, whispers and recall before each model call, and is recorded and published like a Claude Code or Codex session. Hermes reads your `AGENTS.md`, so the prime marker `ox init` writes reaches it with no extra file. Every Hermes surface that writes to `state.db` — CLI, TUI, desktop app, gateway — is covered, per profile. Hermes asks once per hook before it runs; set `hooks_auto_accept: true` for the desktop app and gateway.
+- **ox runs on Windows** — `ox`, the daemon, and every adapter now build, install, and pass their tests natively on Windows. The install script works from Git Bash and adds ox to your user PATH; releases ship `windows_amd64` and `windows_arm64` zips; `ox upgrade` swaps the running `ox.exe` in place. Under the hood the pieces that quietly did nothing on Windows now do the real thing: file locks are real locks, "is that process still alive" is a real check, and adapter binaries are found by `PATHEXT` instead of Unix execute bits.
+
+### Fixed
+
+- **ox no longer hangs on Windows when its input is redirected** — choosing the light or dark markdown theme asks the terminal for its background colour, and on Windows that query opens the console directly whenever stdin isn't already a console: a pipe, a file, `NUL`, or Git Bash. The reply could never be interrupted, so the query's own two-second timeout never fired and the command waited forever instead of falling back to dark — `ox guide` and `ox doctor` from Git Bash, any AI coworker capturing ox's output, and two packages of the Windows test suite, which died at the Go test timeout with the read still parked in `ReadConsole`. The query is now only made when stdin really is the console, which is the only case where it can be interrupted and time out.
+- **A corrupt team-context checkout inside another repository is now repaired** — when a bubble's `.git` was emptied by an interrupted clone and the bubble sat inside a larger checkout (a home directory under git, a CI workspace), git answered for the enclosing repository and the corrupt bubble was reported healthy, never moved aside, and every later pull failed the same way. The daemon now insists the repository it found *is* the bubble.
+- **Team-context read sync no longer fails on Git for Windows** — Git for Windows records `core.symlinks` in every clone and uses the Windows certificate store for TLS; the read-sync transport rejected the former as an unsafe config key. Directory fsync, which Windows does not support, no longer turns a successful write into an error.
+
 ## [0.15.0] - 2026-09-11
 
 ox stops leaving its own files in your pull requests, a first install gets to a working setup without a debugging session, and team-context sync recovers on its own after a network blip.

@@ -66,6 +66,7 @@ func checkAgentEnvValidity() checkResult {
 		"gemini":      "gemini",
 		"droid":       "droid",
 		"goose":       "goose",
+		"hermes":      "hermes",
 	}
 	agentEnvLower := strings.ToLower(agentEnv)
 	if canonical, ok := aliases[agentEnvLower]; ok {
@@ -75,7 +76,7 @@ func checkAgentEnvValidity() checkResult {
 
 	knownAgents := []string{
 		"claude", "cursor", "windsurf", "cline", "aider",
-		"codex", "opencode", "gemini", "droid", "goose",
+		"codex", "opencode", "gemini", "droid", "goose", "hermes",
 	}
 
 	return WarningCheck("AGENT_ENV",

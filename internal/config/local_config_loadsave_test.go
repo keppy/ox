@@ -7,6 +7,8 @@ import (
 	"testing"
 	"time"
 
+	"github.com/sageox/ox/internal/testguard"
+
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -77,7 +79,9 @@ func TestDefaultSageoxSiblingDir(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			got := DefaultSageoxSiblingDir(tt.repoName, tt.projectRoot)
-			assert.Equal(t, tt.want, got, "DefaultSageoxSiblingDir(%q, %q)", tt.repoName, tt.projectRoot)
+			// inputs are POSIX literals; the function builds with filepath, so
+			// compare in the platform's own separator form
+			assert.Equal(t, filepath.FromSlash(tt.want), got, "DefaultSageoxSiblingDir(%q, %q)", tt.repoName, tt.projectRoot)
 		})
 	}
 }
@@ -116,7 +120,7 @@ func TestSiblingLedgerPath(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			got := SiblingLedgerPath(tt.repoName, tt.projectRoot, tt.endpointURL)
-			assert.Equal(t, tt.want, got, "SiblingLedgerPath(%q, %q, %q)", tt.repoName, tt.projectRoot, tt.endpointURL)
+			assert.Equal(t, filepath.FromSlash(tt.want), got, "SiblingLedgerPath(%q, %q, %q)", tt.repoName, tt.projectRoot, tt.endpointURL)
 		})
 	}
 }
@@ -151,7 +155,7 @@ func TestLegacyLedgerPath(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			got := LegacyLedgerPath(tt.repoName, tt.projectRoot)
-			assert.Equal(t, tt.want, got)
+			assert.Equal(t, filepath.FromSlash(tt.want), got)
 		})
 	}
 }
@@ -416,12 +420,13 @@ func TestSanitizeRepoName(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			got := sanitizeRepoName(tt.input)
-			assert.Equal(t, tt.want, got, "sanitizeRepoName(%q)", tt.input)
+			assert.Equal(t, filepath.FromSlash(tt.want), got, "sanitizeRepoName(%q)", tt.input)
 		})
 	}
 }
 
 func TestLocalConfigFilePermissions(t *testing.T) {
+	testguard.RequirePOSIXPerms(t) // asserts 0600 mode bits
 	tmpDir := CreateInitializedProject(t)
 
 	cfg := &LocalConfig{
@@ -552,7 +557,7 @@ func TestDefaultTeamSymlinkPath(t *testing.T) {
 				return
 			}
 
-			assert.Equal(t, tt.want, got)
+			assert.Equal(t, filepath.FromSlash(tt.want), got)
 		})
 	}
 }
@@ -691,7 +696,7 @@ func TestCreateOrUpdateSymlink_CorrectTarget(t *testing.T) {
 	require.NoError(t, os.MkdirAll(target, 0755))
 
 	link := filepath.Join(tmpDir, "link")
-	require.NoError(t, os.Symlink(target, link))
+	testguard.Symlink(t, target, link)
 
 	// calling with same target should be a no-op
 	err := createOrUpdateSymlink(link, target)
@@ -715,7 +720,7 @@ func TestCreateOrUpdateSymlink_WrongTarget(t *testing.T) {
 	require.NoError(t, os.MkdirAll(newTarget, 0755))
 
 	link := filepath.Join(tmpDir, "link")
-	require.NoError(t, os.Symlink(oldTarget, link))
+	testguard.Symlink(t, oldTarget, link)
 
 	// should replace symlink to point to new target
 	err := createOrUpdateSymlink(link, newTarget)
@@ -737,7 +742,7 @@ func TestCreateOrUpdateSymlink_DanglingSymlink(t *testing.T) {
 	require.NoError(t, os.MkdirAll(newTarget, 0755))
 
 	link := filepath.Join(tmpDir, "link")
-	require.NoError(t, os.Symlink(deadTarget, link))
+	testguard.Symlink(t, deadTarget, link)
 
 	// dangling symlink should be replaced
 	err := createOrUpdateSymlink(link, newTarget)

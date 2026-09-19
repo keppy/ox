@@ -8,6 +8,7 @@ import (
 	"net/url"
 	"os"
 	"os/exec"
+	"path"
 	"path/filepath"
 	"sort"
 	"strings"
@@ -302,7 +303,12 @@ func scanLedgerForSecrets(projectRoot, ledgerPath string, match func(name string
 			}
 			anyFileRead = true
 			result.FilesScanned++
-			relForReport := filepath.Join("sessions", sessionName, filename)
+			// Report path in slash form on every platform: this is a
+			// repo-relative ref printed to the user (same convention as
+			// consultscan/decisions), never opened from disk — so the
+			// Windows separator would only make the same finding look
+			// like a different file.
+			relForReport := path.Join("sessions", sessionName, filename)
 			if err := scanLedgerFileForSecrets(redactor, contentPath, relForReport, info.ModTime(), result); err != nil {
 				anyFileFailed = true
 				continue

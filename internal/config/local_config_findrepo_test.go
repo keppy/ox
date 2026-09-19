@@ -7,6 +7,8 @@ import (
 	"testing"
 	"time"
 
+	"github.com/sageox/ox/internal/testguard"
+
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -300,7 +302,7 @@ func TestCreateTeamSymlink(t *testing.T) {
 
 		// create symlink pointing to wrong location
 		wrongTarget := "/some/wrong/path"
-		require.NoError(t, os.Symlink(wrongTarget, symlinkPath))
+		testguard.Symlink(t, wrongTarget, symlinkPath)
 
 		// call CreateTeamSymlink - should recreate with correct target
 		err := CreateTeamSymlink(repoName, projectRoot, teamID, ep)

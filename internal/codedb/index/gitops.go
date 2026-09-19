@@ -23,10 +23,23 @@ func normalizeRepoURL(url string) (string, error) {
 	}
 	stripped = strings.TrimRight(stripped, "/")
 	stripped = strings.TrimSuffix(stripped, ".git")
+	// Local filesystem "URLs" (tests, offline mirrors) may be Windows paths:
+	// "C:\src\repo" must become "c/src/repo", not a component containing a
+	// drive colon that is invalid inside a relative cache path.
+	stripped = strings.ReplaceAll(stripped, "\\", "/")
+	if len(stripped) >= 2 && stripped[1] == ':' && isASCIILetter(stripped[0]) {
+		stripped = strings.ToLower(stripped[:1]) + stripped[2:]
+	}
+	stripped = strings.TrimLeft(stripped, "/")
+	stripped = strings.TrimRight(stripped, "/")
 	if stripped == "" {
 		return "", fmt.Errorf("invalid repo URL: %s", url)
 	}
 	return stripped, nil
+}
+
+func isASCIILetter(c byte) bool {
+	return (c >= 'a' && c <= 'z') || (c >= 'A' && c <= 'Z')
 }
 
 // RepoDirFromURL derives a local directory name from a repo URL.

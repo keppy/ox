@@ -7,6 +7,10 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
+	"time"
+
+	"github.com/sageox/ox/internal/fileutil"
+	"github.com/sageox/ox/internal/testguard"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -85,7 +89,7 @@ func TestInspectRepo(t *testing.T) {
 				dst := filepath.Join(t.TempDir(), "shallow")
 				// file:// + --no-local forces the dumb-protocol path that
 				// honors --depth. A plain path clone hardlinks instead.
-				runGit(t, t.TempDir(), "clone", "--depth", "1", "--no-local", "file://"+src, dst)
+				runGit(t, t.TempDir(), "clone", "--depth", "1", "--no-local", fileutil.FileURL(src), dst)
 				return dst
 			},
 			wantShall:  true,
@@ -96,7 +100,7 @@ func TestInspectRepo(t *testing.T) {
 			setup: func(t *testing.T) string {
 				src, _ := initRepoWithCommits(t, 3)
 				dst := filepath.Join(t.TempDir(), "partial")
-				runGit(t, t.TempDir(), "clone", "--filter=blob:none", "--no-local", "file://"+src, dst)
+				runGit(t, t.TempDir(), "clone", "--filter=blob:none", "--no-local", fileutil.FileURL(src), dst)
 				return dst
 			},
 			wantPart:   true,
@@ -107,7 +111,7 @@ func TestInspectRepo(t *testing.T) {
 			setup: func(t *testing.T) string {
 				src, _ := initRepoWithCommits(t, 5)
 				dst := filepath.Join(t.TempDir(), "both")
-				runGit(t, t.TempDir(), "clone", "--depth", "1", "--filter=blob:none", "--no-local", "file://"+src, dst)
+				runGit(t, t.TempDir(), "clone", "--depth", "1", "--filter=blob:none", "--no-local", fileutil.FileURL(src), dst)
 				return dst
 			},
 			wantShall:  true,
@@ -119,7 +123,7 @@ func TestInspectRepo(t *testing.T) {
 			setup: func(t *testing.T) string {
 				src, _ := initRepoWithCommits(t, 5)
 				main := filepath.Join(t.TempDir(), "main")
-				runGit(t, t.TempDir(), "clone", "--depth", "1", "--no-local", "file://"+src, main)
+				runGit(t, t.TempDir(), "clone", "--depth", "1", "--no-local", fileutil.FileURL(src), main)
 				wt := filepath.Join(t.TempDir(), "wt")
 				runGit(t, main, "worktree", "add", "-b", "feat", wt)
 				return wt
@@ -155,6 +159,74 @@ func TestInspectRepo_EmptyPath(t *testing.T) {
 	assert.Error(t, err)
 }
 
+// TestRunQuietGit_TimedOutLookupIsNotAMissingKey pins the class: a lookup the
+// detection budget KILLS must never be read as git's exit-1 "key missing"
+// answer. On Windows Process.Kill terminates the process with exit code 1 —
+// the same code `git config` uses for an absent key — so without the context
+// guard a timed-out detection answered "not a partial clone", i.e. a
+// confident "full history available" for a repo that was never inspected.
+// Failure prevented: under machine load TestInspectRepo/shallow_and_partial
+// reported Reason "shallow clone" (Partial silently false) instead of an
+// honest detection failure.
+func TestRunQuietGit_TimedOutLookupIsNotAMissingKey(t *testing.T) {
+	// no t.Parallel: injects a fake git via t.Setenv(PATH)
+	if testing.Short() {
+		t.Skip("short: real git + fake-git fixture with a 300ms kill window")
+	}
+	real, err := exec.LookPath("git")
+	require.NoError(t, err, "fixture needs a real git to delegate to")
+	dir := t.TempDir()
+	// a git that outlives the budget, so the context kills it mid-lookup
+	// (Windows-safe launcher: the verbatim-argv helper, not a PATH-symlink)
+	testguard.WriteShellExecutable(t, dir, "git",
+		"#!/bin/sh\nsleep 5\nexec \""+filepath.ToSlash(real)+"\" \"$@\"\n")
+	t.Setenv("PATH", dir+string(os.PathListSeparator)+os.Getenv("PATH"))
+
+	ctx, cancel := context.WithTimeout(context.Background(), 300*time.Millisecond)
+	defer cancel()
+	_, err = runQuietGit(ctx, t.TempDir(), "config", "--get-regexp", `^remote\..*\.promisor$`)
+	require.Error(t, err, "a killed lookup must not read as a missing key")
+	require.ErrorIs(t, err, context.DeadlineExceeded)
+}
+
+// TestInspectRepo_LookupFailureIsNotACompleteRepo pins the caller-facing half
+// of the same class: when the partial-clone lookup cannot run, InspectRepo
+// must report the failure instead of returning a state that reads "complete
+// repo" (Partial false with no error). The readable part of the state must
+// survive so error-ignoring callers (daemon preflight, agent doctor) still
+// see Shallow.
+// Failure prevented: doctor/status render "full history available" for a repo
+// whose clone state could not be read.
+func TestInspectRepo_LookupFailureIsNotACompleteRepo(t *testing.T) {
+	// no t.Parallel: injects a fake git via t.Setenv(PATH)
+	if testing.Short() {
+		t.Skip("short: real git repo fixture + fake-git launcher build")
+	}
+	real, err := exec.LookPath("git")
+	require.NoError(t, err, "fixture needs a real git to delegate to")
+	repo, tip := initRepoWithCommits(t, 1)
+	runGit(t, repo, "config", "remote.origin.promisor", "true")
+	// mark it shallow too, so the failure signature would otherwise be
+	// indistinguishable from "shallow clone" (Partial false, no error)
+	require.NoError(t, os.WriteFile(filepath.Join(repo, ".git", "shallow"), []byte(tip+"\n"), 0o644))
+
+	dir := t.TempDir()
+	// a git that answers rev-parse but hard-fails the config lookup
+	testguard.WriteShellExecutable(t, dir, "git",
+		"#!/bin/sh\n"+
+			"if [ \"$1\" = \"-C\" ]; then shift 2; fi\n"+
+			"if [ \"$1\" = \"config\" ]; then\n"+
+			"  echo \"fatal: unable to read config file\" >&2\n"+
+			"  exit 128\n"+
+			"fi\n"+
+			"exec \""+filepath.ToSlash(real)+"\" \"$@\"\n")
+	t.Setenv("PATH", dir+string(os.PathListSeparator)+os.Getenv("PATH"))
+
+	state, err := InspectRepo(repo)
+	require.Error(t, err, "an unreadable partial-clone lookup is not a complete repo")
+	assert.True(t, state.Shallow, "the readable part of the state must survive the error")
+}
+
 // TestDeepenUntilAncestor verifies the deepen-loop succeeds when the
 // commit exists in upstream history but isn't reachable at the initial
 // shallow depth.
@@ -172,7 +244,7 @@ func TestDeepenUntilAncestor(t *testing.T) {
 	require.NotEmpty(t, oldSHA)
 
 	dst := filepath.Join(t.TempDir(), "shallow")
-	runGit(t, t.TempDir(), "clone", "--depth", "1", "--no-local", "file://"+src, dst)
+	runGit(t, t.TempDir(), "clone", "--depth", "1", "--no-local", fileutil.FileURL(src), dst)
 
 	state, err := InspectRepo(dst)
 	require.NoError(t, err)

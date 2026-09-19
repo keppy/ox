@@ -11,6 +11,8 @@ import (
 	"strings"
 	"time"
 
+	"github.com/sageox/ox/internal/gitutil"
+
 	"github.com/sageox/ox/internal/repotools"
 )
 
@@ -122,6 +124,19 @@ func (t *ReadTransport) command(ctx context.Context, dir string, network bool, a
 		"-c", "protocol.version=2", "-c", "fetch.recurseSubmodules=false",
 		"-c", "submodule.recurse=false", "-c", "gc.auto=0", "-c", "maintenance.auto=false",
 	}
+	// The read-sync tree is deep by construction (data/... under the endpoint,
+	// with .sageox/cache/... below it); without this Git for Windows refuses
+	// any path past MAX_PATH.
+	gitArgs = append(gitArgs, gitutil.LongPathsArgs()...)
+	// Test-only transport config, appended last so a fixture can pin its own
+	// TLS trust (Git for Windows defaults to the schannel backend, which
+	// consults the Windows certificate store and ignores http.sslCAInfo).
+	// Existing this way so a fixture never has to shadow `git` on PATH: a
+	// shim named `git` is re-entered by git's own child processes, which
+	// spawns an unbounded chain instead of finishing the command.
+	for _, kv := range TestExtraGitConfig {
+		gitArgs = append(gitArgs, "-c", kv)
+	}
 	if !network {
 		gitArgs = append(gitArgs, "-c", "protocol.https.allow=never")
 		env = append(env, "GIT_NO_LAZY_FETCH=1")
@@ -202,7 +217,10 @@ func (t *ReadTransport) validateConfig(ctx context.Context, dir string, env []st
 
 func (t *ReadTransport) safeConfig(key, value string) bool {
 	switch key {
-	case "", "core.repositoryformatversion", "core.filemode", "core.bare", "core.logallrefupdates", "core.ignorecase", "core.precomposeunicode", "core.sparsecheckout", "core.sparsecheckoutcone", "index.sparse", "extensions.worktreeconfig", "extensions.partialclone", "remote.origin.promisor", "remote.origin.partialclonefilter", "user.name", "user.email", "commit.gpgsign", "tag.gpgsign":
+	// core.symlinks is written by Git for Windows on every init/clone (false
+	// unless Developer Mode). It only governs how symlink entries are
+	// checked out — never a transport or executable surface.
+	case "", "core.repositoryformatversion", "core.filemode", "core.bare", "core.logallrefupdates", "core.ignorecase", "core.precomposeunicode", "core.symlinks", "core.sparsecheckout", "core.sparsecheckoutcone", "index.sparse", "extensions.worktreeconfig", "extensions.partialclone", "remote.origin.promisor", "remote.origin.partialclonefilter", "user.name", "user.email", "commit.gpgsign", "tag.gpgsign":
 		return true
 	case "remote.origin.url":
 		return value == t.readURL

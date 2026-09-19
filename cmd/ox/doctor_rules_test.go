@@ -10,6 +10,8 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/sageox/ox/internal/testguard"
+
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -41,7 +43,7 @@ func buildRulesAdapters(t *testing.T) string {
 		{"ox-adapter-claude-code", "./cmd/ox-adapter-claude-code"},
 		{"ox-adapter-droid", "./cmd/ox-adapter-droid"},
 	} {
-		out := filepath.Join(binDir, pkg.name)
+		out := filepath.Join(binDir, testguard.ExeName(pkg.name))
 		cmd := exec.Command("go", "build", "-o", out, pkg.path)
 		cmd.Dir = moduleRoot
 		if combined, err := cmd.CombinedOutput(); err != nil {

@@ -38,6 +38,7 @@ func TestProduceAgentTasks_DoctorMarker(t *testing.T) {
 	// deterministic lifecycle work and must never create a daemon AI chore.
 	m.produceAgentTasks(m.loadConfig())
 	store, _ := agenttask.NewStore(root)
+	t.Cleanup(func() { _ = store.Close() })
 	tasks, _ := store.List(false)
 	if len(tasks) != 0 {
 		t.Fatalf("expected no tasks without marker, got %d", len(tasks))
@@ -126,6 +127,7 @@ func TestProduceFinalizeTasks_NoWorkerEnqueues(t *testing.T) {
 	m.produceFinalizeTasks(m.loadConfig())
 
 	store, _ := agenttask.NewStore(project)
+	t.Cleanup(func() { _ = store.Close() })
 	tasks, _ := store.List(false)
 	if len(tasks) != 1 {
 		t.Fatalf("expected 1 finalize task, got %d", len(tasks))
@@ -158,6 +160,7 @@ func TestProduceFinalizeTasks_WorkerEnabledSkips(t *testing.T) {
 	m.produceFinalizeTasks(m.loadConfig())
 
 	store, _ := agenttask.NewStore(project)
+	t.Cleanup(func() { _ = store.Close() })
 	tasks, _ := store.List(false)
 	if len(tasks) != 0 {
 		t.Fatalf("expected 0 tasks when worker enabled, got %d", len(tasks))
@@ -185,6 +188,7 @@ func TestProduceFinalizeTasks_UsesPassedSnapshot(t *testing.T) {
 	m.produceFinalizeTasks(nil)
 
 	store, _ := agenttask.NewStore(project)
+	t.Cleanup(func() { _ = store.Close() })
 	tasks, _ := store.List(false)
 	if len(tasks) != 1 {
 		t.Fatalf("producer must honor the passed snapshot (nil=no worker) and enqueue; got %d tasks", len(tasks))

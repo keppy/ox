@@ -7,6 +7,9 @@ import (
 	"testing"
 	"time"
 
+	"github.com/sageox/ox/internal/homedir"
+	"github.com/sageox/ox/internal/testguard"
+
 	"github.com/sageox/ox/internal/config"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -22,6 +25,7 @@ func TestCheckHealth_StorageWritable(t *testing.T) {
 }
 
 func TestCheckHealth_StorageNotWritable(t *testing.T) {
+	testguard.RequirePOSIXPerms(t)
 	// skip if running as root (root can always write)
 	if os.Getuid() == 0 {
 		t.Skip("skipping test when running as root")
@@ -267,7 +271,7 @@ func TestFormatDuration(t *testing.T) {
 }
 
 func TestShortenPath(t *testing.T) {
-	home, _ := os.UserHomeDir()
+	home, _ := homedir.Dir()
 
 	tests := []struct {
 		name string

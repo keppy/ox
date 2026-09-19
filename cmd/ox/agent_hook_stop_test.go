@@ -138,8 +138,10 @@ func TestDeriveLedgerPath(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			// filepath.Dir normalises separators on Windows; the assertion is
+			// about which directory is returned, not how it is spelled.
 			got := deriveLedgerPath(tt.sessionPath)
-			assert.Equal(t, tt.want, got)
+			assert.Equal(t, filepath.FromSlash(tt.want), filepath.FromSlash(got))
 		})
 	}
 }
@@ -161,5 +163,5 @@ func TestDeriveLedgerPath_RecordingJSON(t *testing.T) {
 	require.NoError(t, json.Unmarshal(data, &loaded))
 
 	got := deriveLedgerPath(loaded.SessionPath)
-	assert.Equal(t, ledgerPath, got)
+	assert.Equal(t, filepath.Clean(ledgerPath), filepath.Clean(got))
 }

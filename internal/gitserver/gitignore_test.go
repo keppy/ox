@@ -3,6 +3,7 @@ package gitserver
 import (
 	"os"
 	"os/exec"
+	"path"
 	"path/filepath"
 	"strings"
 	"testing"
@@ -346,8 +347,12 @@ func TestEnsureGitignoreBeforeCommit_IgnoresAndUntracksRej(t *testing.T) {
 	runGit(t, dir, "config", "user.email", "test@test.com")
 	runGit(t, dir, "config", "commit.gpgsign", "false")
 
-	// commit a .rej deep in a session dir, mirroring the real pollution path
-	relRej := filepath.Join("sessions", "2026-01-01T00-00-x", "meta.json.rej")
+	// commit a .rej deep in a session dir, mirroring the real pollution path.
+	// git-relative paths are always '/'-separated: filepath.Join would hand
+	// git a backslash path on Windows, and git echoes it back C-quoted
+	// ("sessions\\...\\meta.json.rej") — which is neither what git check-ignore
+	// prints for a real repo-relative path nor what the assertion wants.
+	relRej := path.Join("sessions", "2026-01-01T00-00-x", "meta.json.rej")
 	require.NoError(t, os.MkdirAll(filepath.Join(dir, filepath.Dir(relRej)), 0755))
 	require.NoError(t, os.WriteFile(filepath.Join(dir, relRej), []byte("<<<<<<< reject"), 0644))
 	runGit(t, dir, "add", relRej)
@@ -374,7 +379,7 @@ func TestEnsureGitignoreBeforeCommit_IgnoresAndUntracksRej(t *testing.T) {
 	runGit(t, dir, "add", "-A")
 	runGit(t, dir, "commit", "-m", "untrack .rej")
 	require.NoError(t, os.WriteFile(filepath.Join(dir, relRej), []byte("new reject"), 0644))
-	fresh := filepath.Join("sessions", "2026-02-02T00-00-y", "session.md.rej")
+	fresh := path.Join("sessions", "2026-02-02T00-00-y", "session.md.rej")
 	require.NoError(t, os.MkdirAll(filepath.Join(dir, filepath.Dir(fresh)), 0755))
 	require.NoError(t, os.WriteFile(filepath.Join(dir, fresh), []byte("another"), 0644))
 

@@ -22,6 +22,7 @@ import (
 	"time"
 
 	"github.com/sageox/ox/internal/api"
+	"github.com/sageox/ox/internal/fileutil"
 )
 
 // scenarioRepoDir is the parent under which every bubble's bare repo
@@ -181,7 +182,7 @@ func resolveRepoURLs(d *scenarioRepoDir, bubbles []BubbleSpec) ([]api.KB, error)
 			if err != nil {
 				return nil, err
 			}
-			row.RepoURL = "file://" + bare
+			row.RepoURL = fileutil.FileURL(bare)
 		}
 		out = append(out, row)
 	}

@@ -13,17 +13,17 @@ ox works with multiple AI coding agents. Support depth varies by agent — here'
 
 ## Feature Availability
 
-| Feature | Claude Code | Codex | Gemini | Droid | OpenCode | Amp | Pi | Aider | Goose |
-|---------|:-:|:-:|:-:|:-:|:-:|:-:|:-:|:-:|:-:|
-| Tier | Gold | Silver | Silver | Silver | Bronze | Bronze | Bronze | Bronze | Silver |
-| Context prime | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ |
-| Session recording | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅* | ✅ | ✅ |
-| Auto-prime at session start | ✅ | ✅ | — | — | ✅ | — | — | — | ✅ |
-| Lifecycle hooks | ✅ | ✅ | ✅ | ✅ | plugin | plugin | — | — | ✅ |
-| Whisper push | ✅ | ✅ | fallback | fallback | — | — | — | — | ✅ |
-| Team rules install | ✅ | — | — | ✅ | — | — | — | — | — |
-| Skills / commands install | ✅ | ✅ | ✅ | — | — | — | — | — | — |
-| Anti-entropy recovery | ✅ | — | — | — | — | — | — | — | — |
+| Feature | Claude Code | Codex | Gemini | Droid | OpenCode | Amp | Pi | Aider | Goose | Hermes |
+|---------|:-:|:-:|:-:|:-:|:-:|:-:|:-:|:-:|:-:|:-:|
+| Tier | Gold | Silver | Silver | Silver | Bronze | Bronze | Bronze | Bronze | Silver | Silver |
+| Context prime | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ |
+| Session recording | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅* | ✅ | ✅ | ✅ |
+| Auto-prime at session start | ✅ | ✅ | — | — | ✅ | — | — | — | ✅ | ✅ |
+| Lifecycle hooks | ✅ | ✅ | ✅ | ✅ | plugin | plugin | — | — | ✅ | ✅ |
+| Whisper push | ✅ | ✅ | fallback | fallback | — | — | — | — | ✅ | ✅ |
+| Team rules install | ✅ | — | — | ✅ | — | — | — | — | — | — |
+| Skills / commands install | ✅ | ✅ | ✅ | — | — | — | — | — | — | — |
+| Anti-entropy recovery | ✅ | — | — | — | — | — | — | — | — | — |
 
 **Auto-prime** means a hook or plugin runs `ox agent prime` for you. Where it's absent,
 priming relies on the agent obeying the blocking marker in its instruction file.
@@ -48,6 +48,7 @@ the next prompt. Every agent can pull explicitly with `ox agent <id> whisper`.
 | Pi | `~/.pi/agent/sessions/--<mangled-cwd>--/<timestamp>_<uuid>.jsonl` |
 | Aider | `.aider.chat.history.md` |
 | Goose | `~/.local/share/goose/sessions/sessions.db` (SQLite) |
+| Hermes Agent | `$HERMES_HOME/state.db` (SQLite; `~/.hermes` or `%LOCALAPPDATA%\hermes`, per profile) |
 
 ## Quick Start by Agent
 
@@ -144,6 +145,38 @@ so without it a failed turn stays invisible until the next success or `Stop`.
 Goose also loads `AGENTS.md` before `.goosehints`, hierarchically from the working
 directory up to the repo root, so context primes even before hooks are installed.
 
+### Hermes Agent
+```bash
+ox init
+ox integrate install --hermes
+hermes config set hooks_auto_accept true   # optional: pre-approve for gateway/desktop
+```
+Installs five [shell hooks](https://hermes-agent.nousresearch.com/docs/user-guide/features/hooks#shell-hooks)
+into the active profile's `config.yaml` (`$HERMES_HOME`, so a named profile
+gets its own). Hermes execs hook commands without a shell, so the entries are
+plain `ox agent hook <event> --agent hermes` — no `AGENT_ENV` prefix. The
+adapter edits the YAML at the node level and preserves the user's own hooks,
+comments, and key order; uninstall removes only ox entries.
+
+| Hermes event | ox phase | What happens |
+|---|---|---|
+| `on_session_start` | start | `ox agent prime`, recording begins |
+| `pre_llm_call` | prompt | whispers / recall preamble injected as `{"context": …}` |
+| `post_tool_call` | after_tool | heartbeat, session tail |
+| `on_session_end` | stop | fires once per completed turn |
+| `on_session_finalize` | end | CLI/TUI/gateway teardown |
+
+Hermes loads `AGENTS.md` natively (git root → cwd chain), so the prime marker
+`ox init` writes reaches it with no extra file. Hooks are user-scoped; there is
+no per-project hook file in Hermes.
+
+**Consent.** Hermes asks once per `(event, command)` the first time a hook
+fires in an interactive session and records the answer in
+`$HERMES_HOME/shell-hooks-allowlist.json`. Non-interactive surfaces (gateway,
+cron, desktop background sessions) skip un-approved hooks silently, so set
+`hooks_auto_accept: true` (or run once with `hermes --accept-hooks`) before
+relying on recording there. `ox doctor` reports the un-approved state.
+
 ## Known Limitations
 
 - **Goose**: has **no compaction event**, so team context primed at session start
@@ -164,6 +197,10 @@ directory up to the repo root, so context primes even before hooks are installed
   model that ox does not yet parse — `ox doctor` reports `pi:format-unsupported` when it
   sees a newer format, and those sessions record as empty until the reader is updated.
 - **Aider**: instruction-file marker only. No lifecycle hooks.
+- **Hermes Agent**: compaction is exposed only to gateway hooks (`session:compress`), not
+  shell hooks, so ox cannot re-prime after Hermes compacts — the `AGENTS.md`
+  marker still instructs the model to re-run `ox agent prime`. Sessions are
+  read with `active=1` only; compaction archives are skipped, not recorded twice.
 - **Cursor, Windsurf, Cline, Copilot, Kiro**: marker only. ox writes the prime
   marker into `.cursorrules`, `.windsurfrules`, `.clinerules`,
   `.github/copilot-instructions.md`, and `.kiro/steering/ox.md` respectively.

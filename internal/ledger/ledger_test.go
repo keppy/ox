@@ -8,6 +8,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/sageox/ox/internal/testguard"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -408,10 +409,7 @@ func TestLedger_CorruptedGitDirectory(t *testing.T) {
 }
 
 func TestLedger_PermissionDenied(t *testing.T) {
-	// skip if running as root (root can always access)
-	if os.Getuid() == 0 {
-		t.Skip("skipping permission test when running as root")
-	}
+	testguard.RequirePOSIXPerms(t)
 
 	tempDir := t.TempDir()
 

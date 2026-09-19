@@ -65,6 +65,14 @@ func dial(path string) (net.Conn, error) {
 	return net.DialTimeout("unix", path, 5*time.Second)
 }
 
+// endpointExists reports whether the daemon's socket file is present. A
+// file can outlive its daemon after a crash, so callers cross-check the
+// owning PID before trusting it.
+func endpointExists(path string) bool {
+	_, err := os.Stat(path)
+	return err == nil
+}
+
 // cleanupSocket removes the socket file.
 func cleanupSocket(path string) {
 	os.Remove(path)

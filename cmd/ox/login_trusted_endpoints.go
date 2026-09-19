@@ -8,6 +8,8 @@ import (
 	"path/filepath"
 	"strings"
 
+	"github.com/sageox/ox/internal/homedir"
+
 	"github.com/sageox/ox/internal/endpoint"
 	"github.com/spf13/cobra"
 )
@@ -30,7 +32,7 @@ import (
 // trustedEndpointsFile is the persistence path. Stored under the user's
 // XDG data dir so it survives upgrades and lives next to credentials.
 func trustedEndpointsFile() (string, error) {
-	home, err := os.UserHomeDir()
+	home, err := homedir.Dir()
 	if err != nil {
 		return "", err
 	}

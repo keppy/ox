@@ -10,6 +10,8 @@ import (
 	"testing"
 	"time"
 
+	"github.com/sageox/ox/internal/testguard"
+
 	"github.com/sageox/ox/internal/agentinstance"
 	"github.com/spf13/cobra"
 )
@@ -757,9 +759,7 @@ func TestFindProjectRoot_ResolvesSymlinks(t *testing.T) {
 	linkParent := t.TempDir()
 	linkParent, _ = filepath.EvalSymlinks(linkParent)
 	linkPath := filepath.Join(linkParent, "linked-project")
-	if err := os.Symlink(realDir, linkPath); err != nil {
-		t.Fatalf("failed to create symlink: %v", err)
-	}
+	testguard.Symlink(t, realDir, linkPath)
 
 	originalCwd, _ := os.Getwd()
 	t.Cleanup(func() { os.Chdir(originalCwd) })
@@ -792,9 +792,7 @@ func TestFindProjectRoot_SymlinkAndReal_ReturnSamePath(t *testing.T) {
 	linkParent := t.TempDir()
 	linkParent, _ = filepath.EvalSymlinks(linkParent)
 	linkPath := filepath.Join(linkParent, "linked-project")
-	if err := os.Symlink(realDir, linkPath); err != nil {
-		t.Fatalf("failed to create symlink: %v", err)
-	}
+	testguard.Symlink(t, realDir, linkPath)
 
 	originalCwd, _ := os.Getwd()
 	t.Cleanup(func() { os.Chdir(originalCwd) })
@@ -841,9 +839,7 @@ func TestFindProjectRoot_SymlinkInParentDir(t *testing.T) {
 	linkBase := t.TempDir()
 	linkBase, _ = filepath.EvalSymlinks(linkBase)
 	linkPath := filepath.Join(linkBase, "linked")
-	if err := os.Symlink(parentDir, linkPath); err != nil {
-		t.Fatalf("failed to create symlink: %v", err)
-	}
+	testguard.Symlink(t, parentDir, linkPath)
 
 	originalCwd, _ := os.Getwd()
 	t.Cleanup(func() { os.Chdir(originalCwd) })
@@ -881,9 +877,7 @@ func TestFindProjectRoot_OverrideEnvResolvesSymlinks(t *testing.T) {
 	linkParent := t.TempDir()
 	linkParent, _ = filepath.EvalSymlinks(linkParent)
 	linkPath := filepath.Join(linkParent, "linked-project")
-	if err := os.Symlink(realDir, linkPath); err != nil {
-		t.Fatalf("failed to create symlink: %v", err)
-	}
+	testguard.Symlink(t, realDir, linkPath)
 
 	// cwd is somewhere unrelated
 	otherDir := t.TempDir()

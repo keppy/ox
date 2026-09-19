@@ -86,7 +86,7 @@ func TestKBGC_ReListedAfterTriage_TrashLeftAlone(t *testing.T) {
 	// pre-existing recent trash entry for kb_returning
 	trashDir := filepath.Join(root, kbTrashDirName)
 	require.NoError(t, os.MkdirAll(trashDir, 0o755))
-	recentTS := time.Now().UTC().Add(-1 * time.Hour).Format(time.RFC3339)
+	recentTS := time.Now().UTC().Add(-1 * time.Hour).Format(kbTrashTimestampLayout)
 	trashed := filepath.Join(trashDir, fmt.Sprintf("kb_returning-%s", recentTS))
 	require.NoError(t, os.MkdirAll(trashed, 0o755))
 	require.NoError(t, os.WriteFile(filepath.Join(trashed, "old-content"), []byte("from-grace"), 0o644))
@@ -130,7 +130,7 @@ func TestKBGC_ReListedAfterTriage_FreshCloneCoexists(t *testing.T) {
 	// stale trash entry from a prior pass
 	trashDir := filepath.Join(root, kbTrashDirName)
 	require.NoError(t, os.MkdirAll(trashDir, 0o755))
-	staleTS := time.Now().UTC().Add(-2 * 24 * time.Hour).Format(time.RFC3339)
+	staleTS := time.Now().UTC().Add(-2 * 24 * time.Hour).Format(kbTrashTimestampLayout)
 	stale := filepath.Join(trashDir, fmt.Sprintf("kb_back-%s", staleTS))
 	require.NoError(t, os.MkdirAll(stale, 0o755))
 	require.NoError(t, os.WriteFile(filepath.Join(stale, "old"), []byte("two-days-ago"), 0o644))
@@ -172,7 +172,7 @@ func TestKBGC_ReListedAfterGracePeriod_FreshCloneClean(t *testing.T) {
 	// trash entry beyond grace (reapable)
 	trashDir := filepath.Join(root, kbTrashDirName)
 	require.NoError(t, os.MkdirAll(trashDir, 0o755))
-	expiredTS := time.Now().UTC().Add(-(kbTrashGracePeriod + 1*time.Hour)).Format(time.RFC3339)
+	expiredTS := time.Now().UTC().Add(-(kbTrashGracePeriod + 1*time.Hour)).Format(kbTrashTimestampLayout)
 	expired := filepath.Join(trashDir, fmt.Sprintf("kb_back-%s", expiredTS))
 	require.NoError(t, os.MkdirAll(expired, 0o755))
 

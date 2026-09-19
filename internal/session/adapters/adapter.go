@@ -244,6 +244,8 @@ var adapterAliases = map[string]string{
 	"continue":        "generic",
 	"cline":           "generic",
 	"goose":           "goose",
+	"hermes":          "hermes",
+	"hermes-agent":    "hermes",
 	"kiro":            "generic",
 	"droid":           "droid",
 }

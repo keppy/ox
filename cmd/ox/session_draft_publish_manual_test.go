@@ -66,7 +66,7 @@ func newDraftHookLedgerFixture(t *testing.T) *draftHookLedgerFixture {
 	t.Setenv("OX_XDG_ENABLE", "1")
 	t.Setenv("HOME", cacheHome)
 	t.Setenv("XDG_CACHE_HOME", cacheHome)
-	// internal/paths.getHomeDir() memoizes os.UserHomeDir() process-wide via
+	// internal/paths.getHomeDir() memoizes homedir.Dir() process-wide via
 	// sync.Once, so t.Setenv("HOME", ...) alone is not reliable in a shared
 	// test binary — whichever test in the package happens to call any
 	// paths.*Dir() first wins the cache for every later test. XDG_DATA_HOME is

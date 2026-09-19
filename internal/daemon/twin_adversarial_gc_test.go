@@ -11,6 +11,8 @@ import (
 	"sync"
 	"testing"
 
+	"github.com/sageox/ox/internal/testguard"
+
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -47,7 +49,7 @@ func TestGC_SymlinkInUntracked_NotFollowed(t *testing.T) {
 
 	// create a symlink pointing to /etc/hosts (exists on macOS and Linux)
 	symlinkPath := filepath.Join(cloneDir, "rogue-link")
-	require.NoError(t, os.Symlink("/etc/hosts", symlinkPath))
+	testguard.Symlink(t, "/etc/hosts", symlinkPath)
 
 	// also create a normal untracked file to verify GC still works
 	normalPath := filepath.Join(cloneDir, "normal-file.txt")
@@ -127,7 +129,7 @@ func TestGC_SymlinkInUntracked_DanglingSymlink(t *testing.T) {
 
 	// create a dangling symlink pointing to a nonexistent path
 	danglingPath := filepath.Join(cloneDir, "dangling-link")
-	require.NoError(t, os.Symlink("/nonexistent/path/that/does/not/exist", danglingPath))
+	testguard.Symlink(t, "/nonexistent/path/that/does/not/exist", danglingPath)
 
 	// also create a normal untracked file
 	normalPath := filepath.Join(cloneDir, "normal-file.txt")

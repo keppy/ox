@@ -10,6 +10,8 @@ import (
 	"testing"
 	"time"
 
+	"github.com/sageox/ox/internal/testguard"
+
 	"github.com/sageox/ox/internal/config"
 )
 
@@ -967,9 +969,7 @@ func TestEnrich_CorpusPartiallyUnreadable(t *testing.T) {
 		"docs/adr/ADR-001-visible.md": "# ADR-001: Visible Decision\n\n**Status**: Accepted\n",
 	})
 	broken := filepath.Join(root, "docs/adr/ADR-002-broken.md")
-	if err := os.Symlink(filepath.Join(root, "missing-target"), broken); err != nil {
-		t.Fatal(err)
-	}
+	testguard.Symlink(t, filepath.Join(root, "missing-target"), broken)
 
 	res := Enrich(context.Background(), Input{Topic: "authentication"}, root)
 	if !res.Signals.Degraded {

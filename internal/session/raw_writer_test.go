@@ -7,6 +7,7 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/sageox/ox/internal/testguard"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -444,6 +445,7 @@ func TestGeneratedAirtableRule_KeywordIsTokenAnchor(t *testing.T) {
 // would leak it to every local user. Covers both constructors.
 // Failure prevented: companion "raw.jsonl world-readable" finding.
 func TestRawWriter_FileModeIsOwnerOnly(t *testing.T) {
+	testguard.RequirePOSIXPerms(t)
 	for _, tc := range []struct {
 		name string
 		open func(path string) (*RawWriter, error)

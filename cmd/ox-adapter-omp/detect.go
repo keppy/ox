@@ -9,6 +9,8 @@ import (
 	"path/filepath"
 	"strings"
 
+	"github.com/sageox/ox/internal/homedir"
+
 	"github.com/sageox/ox/pkg/adapterprotocol"
 )
 
@@ -20,7 +22,7 @@ func handleDetect() (*adapterprotocol.DetectResponse, error) {
 		return &adapterprotocol.DetectResponse{Detected: true, Reason: "omp binary found in PATH"}, nil
 	}
 
-	home, err := os.UserHomeDir()
+	home, err := homedir.Dir()
 	if err != nil {
 		return &adapterprotocol.DetectResponse{Detected: false, Reason: "cannot determine home directory"}, nil
 	}

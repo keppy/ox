@@ -11,6 +11,8 @@ import (
 	"strings"
 	"time"
 
+	"github.com/sageox/ox/internal/homedir"
+
 	"github.com/sageox/ox/internal/doctor"
 )
 
@@ -237,8 +239,12 @@ type shellRCFile struct {
 // tools commonly run under; "unknown" never claims a specific file that
 // might be wrong.
 func shellRCFor(kind shellKind) shellRCFile {
+	// The remediation is a line for a POSIX shell rc file, so the directory is
+	// rendered with forward slashes on every platform: the line is executed by
+	// zsh/bash/fish (on Windows that is Git Bash or MSYS, which accept the
+	// C:/dir form in PATH), and a backslash form is not shell syntax there.
 	exportLine := func(dir string) string {
-		return fmt.Sprintf(`export PATH="$PATH:%s"`, dir)
+		return fmt.Sprintf(`export PATH="$PATH:%s"`, filepath.ToSlash(dir))
 	}
 	switch kind {
 	case shellZsh:
@@ -248,7 +254,7 @@ func shellRCFor(kind shellKind) shellRCFile {
 	case shellFish:
 		return shellRCFile{
 			file: "~/.config/fish/config.fish",
-			line: func(dir string) string { return fmt.Sprintf(`fish_add_path -- "%s"`, dir) },
+			line: func(dir string) string { return fmt.Sprintf(`fish_add_path -- "%s"`, filepath.ToSlash(dir)) },
 		}
 	default:
 		return shellRCFile{file: "your shell's startup file", line: exportLine}
@@ -375,7 +381,7 @@ func probeShellPath(ctx context.Context, shellPath, binary string) (string, erro
 // that environment without importing the caller's PATH.
 func scrubbedShellEnv() []string {
 	env := []string{"PATH=/usr/bin:/bin:/usr/sbin:/sbin"}
-	if home, err := os.UserHomeDir(); err == nil && home != "" {
+	if home, err := homedir.Dir(); err == nil && home != "" {
 		env = append(env, "HOME="+home)
 	}
 	if user := os.Getenv("USER"); user != "" {

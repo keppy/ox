@@ -17,6 +17,8 @@ import (
 	"strings"
 	"time"
 
+	"github.com/sageox/ox/internal/homedir"
+
 	"github.com/sageox/ox/internal/config"
 	"github.com/sageox/ox/internal/gitutil"
 	"github.com/sageox/ox/internal/ledger"
@@ -813,7 +815,7 @@ func fileLastCommitIsPushed(ledgerPath, path string) (bool, error) {
 // accidentally overwritten.
 func snapshotLedger(ledgerPath, backupDir string) (string, string, error) {
 	if backupDir == "" {
-		home, err := os.UserHomeDir()
+		home, err := homedir.Dir()
 		if err != nil {
 			return "", "", err
 		}

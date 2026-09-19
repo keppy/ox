@@ -9,6 +9,8 @@ import (
 	"path/filepath"
 	"time"
 
+	"github.com/sageox/ox/internal/homedir"
+
 	"github.com/sageox/ox/internal/logger"
 	"github.com/sageox/ox/internal/useragent"
 	"gopkg.in/yaml.v3"
@@ -54,7 +56,7 @@ type azureCliConfig struct {
 // readAzureCliConfig reads the Azure DevOps token from Azure CLI config file.
 // The Azure CLI stores credentials at ~/.azure/config (YAML format).
 func readAzureCliConfig() string {
-	home, err := os.UserHomeDir()
+	home, err := homedir.Dir()
 	if err != nil {
 		return ""
 	}

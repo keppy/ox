@@ -3,6 +3,8 @@
 package main
 
 import (
+	"github.com/sageox/ox/internal/testguard"
+
 	"bytes"
 	"encoding/json"
 	"os"
@@ -149,6 +151,7 @@ func TestRunAgentPrime_ReconcilesWhenTheRecordedRevisionIsStale(t *testing.T) {
 
 // A source created after prime must join the existing recording, including after a state-write failure.
 func TestPrimeCodexRecording_ReprimeDiscoversDelayedSource(t *testing.T) {
+	testguard.RequirePOSIXPerms(t)
 	adapterBin := buildCodexCaptureAdapter(t)
 	for _, readOnlyState := range []bool{false, true} {
 		name := "writable state"

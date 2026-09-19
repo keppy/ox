@@ -6,6 +6,8 @@ import (
 	"os"
 	"path/filepath"
 
+	"github.com/sageox/ox/internal/homedir"
+
 	claude "github.com/sageox/ox/internal/hooks/claude"
 
 	"github.com/sageox/ox/internal/constants"
@@ -65,7 +67,7 @@ func writeSettingsFileRaw(path string, settings *ClaudeSettings, rawMap map[stri
 }
 
 func getClaudeSettingsPath() (string, error) {
-	homeDir, err := os.UserHomeDir()
+	homeDir, err := homedir.Dir()
 	if err != nil {
 		return "", fmt.Errorf("failed to get home directory: %w", err)
 	}

@@ -1,6 +1,8 @@
 package config
 
 import (
+	"github.com/sageox/ox/internal/testguard"
+
 	"strings"
 	"testing"
 )
@@ -15,7 +17,7 @@ func TestValidateDecisionConfig(t *testing.T) {
 		{"empty paths", &DecisionConfig{}, ""},
 		{"valid dirs and globs", &DecisionConfig{Paths: []string{"docs/adr", "eng/**/decisions/*.md"}}, ""},
 		{"empty entry", &DecisionConfig{Paths: []string{"docs/adr", "  "}}, "empty path"},
-		{"absolute path", &DecisionConfig{Paths: []string{"/etc/adr"}}, "relative"},
+		{"absolute path", &DecisionConfig{Paths: []string{testguard.FakePath("/etc/adr")}}, "relative"},
 		{"parent traversal", &DecisionConfig{Paths: []string{"../other/adr"}}, "traverse"},
 		{"embedded traversal", &DecisionConfig{Paths: []string{"docs/../../adr"}}, "traverse"},
 		{"bare dotdot", &DecisionConfig{Paths: []string{".."}}, "traverse"},

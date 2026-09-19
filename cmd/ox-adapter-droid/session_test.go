@@ -5,6 +5,8 @@ import (
 	"os"
 	"path/filepath"
 	"testing"
+
+	"github.com/sageox/ox/internal/testguard"
 )
 
 func TestProjectDirMatchesRepo_SymlinkResolution(t *testing.T) {
@@ -24,9 +26,7 @@ func TestProjectDirMatchesRepo_SymlinkResolution(t *testing.T) {
 
 	// create a symlink pointing to the real repo dir
 	symlinkDir := filepath.Join(t.TempDir(), "symlink-repo")
-	if err := os.Symlink(realRepoDir, symlinkDir); err != nil {
-		t.Fatalf("create symlink: %v", err)
-	}
+	testguard.Symlink(t, realRepoDir, symlinkDir)
 
 	// symlink path should match the real repo
 	if !projectDirMatchesRepo(projectDir, symlinkDir) {
@@ -49,9 +49,7 @@ func TestProjectDirMatchesRepo_ReverseSymlink(t *testing.T) {
 
 	// create a symlink pointing to the real repo dir
 	symlinkDir := filepath.Join(t.TempDir(), "symlink-repo")
-	if err := os.Symlink(realRepoDir, symlinkDir); err != nil {
-		t.Fatalf("create symlink: %v", err)
-	}
+	testguard.Symlink(t, realRepoDir, symlinkDir)
 
 	// write a session file whose cwd is the symlink path (reverse case)
 	projectDir := t.TempDir()

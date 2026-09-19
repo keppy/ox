@@ -8,6 +8,7 @@ import (
 	"path/filepath"
 	"testing"
 
+	"github.com/sageox/ox/internal/testguard"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -377,7 +378,7 @@ Other content.
 
 	// create CLAUDE.md as symlink
 	claudePath := filepath.Join(gitRoot, "CLAUDE.md")
-	require.NoError(t, os.Symlink("AGENTS.md", claudePath), "failed to create symlink")
+	testguard.Symlink(t, "AGENTS.md", claudePath)
 
 	// save original flag state
 	origDryRun := uninstallDryRun

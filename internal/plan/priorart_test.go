@@ -1,6 +1,8 @@
 package plan
 
 import (
+	"github.com/sageox/ox/internal/testguard"
+
 	"context"
 	"encoding/json"
 	"os"
@@ -615,7 +617,8 @@ func TestStoredVsLivePlanPath(t *testing.T) {
 	if got := storedPlanPath("docs/plan.md"); got != "" {
 		t.Errorf("storedPlanPath(relative) = %q, want \"\" (unprovable)", got)
 	}
-	if got := storedPlanPath("/abs/docs/plan.md"); got != "/abs/docs/plan.md" {
+	abs := testguard.FakePath("/abs/docs/plan.md")
+	if got := storedPlanPath(abs); got != abs {
 		t.Errorf("storedPlanPath(absolute) = %q, want it kept", got)
 	}
 	if got := storedPlanPath(""); got != "" {

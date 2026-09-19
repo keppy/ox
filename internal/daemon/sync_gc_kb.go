@@ -207,9 +207,7 @@ func (s *SyncScheduler) kbGCTriage(ctx context.Context, kbRoot, trashDir string,
 			s.logger.Warn("kb_gc triage mkdir trash failed", "path", trashDir, "error", err)
 			return
 		}
-		ts := time.Now().UTC().Format(time.RFC3339)
-		// RFC3339 contains ':' which is valid on POSIX; on Windows we'd
-		// need a replacement, but the daemon's GC path is POSIX-first.
+		ts := time.Now().UTC().Format(kbTrashTimestampLayout)
 		dest := filepath.Join(trashDir, fmt.Sprintf("%s-%s", name, ts))
 		src := filepath.Join(kbRoot, name)
 		renameErr := os.Rename(src, dest)
@@ -274,10 +272,20 @@ func (s *SyncScheduler) kbGCReap(trashDir string) {
 	}
 }
 
-// parseKBTrashTimestamp pulls the trailing RFC3339 timestamp out of a
-// trash entry name of the form "<kb_id>-<RFC3339>". RFC3339 contains
-// internal '-' characters (date separators) so we split on the LAST
-// boundary that begins a valid timestamp rather than the first '-'.
+// kbTrashTimestampLayout is RFC3339 with ':' replaced by '.' in the time
+// part: "2006-01-02T15.04.05Z". ':' is not a legal filename character on
+// Windows (NTFS treats it as an alternate-data-stream separator), and a
+// name that cannot be created on one platform cannot be a shared on-disk
+// contract. Second precision is kept; the layout stays lexically sortable.
+const kbTrashTimestampLayout = "2006-01-02T15.04.05Z07:00"
+
+// parseKBTrashTimestamp pulls the trailing timestamp out of a trash entry
+// name of the form "<kb_id>-<timestamp>". The timestamp is
+// kbTrashTimestampLayout; entries written by older builds with plain
+// RFC3339 (':' separators, POSIX only) are still recognized so an
+// upgrade never orphans existing trash. The date part contains internal
+// '-' characters so we split on the LAST boundary that begins a valid
+// timestamp rather than the first '-'.
 //
 // Strategy: try to parse progressively longer suffixes from the right.
 // In practice the timestamp is always 20–25 chars; we cap the search
@@ -301,6 +309,9 @@ func parseKBTrashTimestamp(name string) (time.Time, bool) {
 			continue
 		}
 		candidate := name[i+1:]
+		if t, err := time.Parse(kbTrashTimestampLayout, candidate); err == nil {
+			return t, true
+		}
 		if t, err := time.Parse(time.RFC3339, candidate); err == nil {
 			return t, true
 		}

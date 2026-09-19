@@ -15,6 +15,8 @@ import (
 	"runtime"
 	"strings"
 
+	"github.com/sageox/ox/internal/homedir"
+
 	adapter "github.com/sageox/ox/internal/adapter"
 	"github.com/sageox/ox/internal/cli"
 	"github.com/sageox/ox/internal/gitutil"
@@ -64,7 +66,7 @@ func init() {
 func userLocalAdaptersDir() (string, error) {
 	switch runtime.GOOS {
 	case "darwin", "linux":
-		home, err := os.UserHomeDir()
+		home, err := homedir.Dir()
 		if err != nil {
 			return "", fmt.Errorf("cannot determine home directory: %w", err)
 		}

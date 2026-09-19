@@ -15,7 +15,7 @@ import (
 // Integration test: Server and Client communication
 func TestServerClient_Integration(t *testing.T) {
 	// use /tmp directly to avoid long socket paths (Unix socket path limit ~104 chars)
-	tmpDir := "/tmp"
+	tmpDir := shortRuntimeDir()
 	t.Setenv("OX_XDG_ENABLE", "1")
 	t.Setenv("XDG_RUNTIME_DIR", tmpDir)
 
@@ -96,7 +96,7 @@ func TestServerClient_Integration(t *testing.T) {
 // Test multiple concurrent client requests
 func TestServerClient_ConcurrentRequests(t *testing.T) {
 	// use /tmp directly to avoid long socket paths
-	tmpDir := "/tmp"
+	tmpDir := shortRuntimeDir()
 	t.Setenv("OX_XDG_ENABLE", "1")
 	t.Setenv("XDG_RUNTIME_DIR", tmpDir)
 

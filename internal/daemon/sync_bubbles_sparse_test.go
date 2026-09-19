@@ -10,6 +10,7 @@ import (
 
 	"github.com/sageox/ox/internal/api"
 	"github.com/sageox/ox/internal/endpoint"
+	"github.com/sageox/ox/internal/fileutil"
 	"github.com/sageox/ox/internal/paths"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -58,7 +59,7 @@ func TestSyncBubbles_Pull_ReappliesSparseFromManifest(t *testing.T) {
 		KBID:    "kb_sparse_drift",
 		KBType:  api.KBTypeTeam,
 		Slug:    "sparse-drift",
-		RepoURL: "file://" + bareDir,
+		RepoURL: fileutil.FileURL(bareDir),
 	}
 	s.SetKBBubbleListerFactory(func(_, _ string) KBBubbleLister {
 		return &fakeKBLister{bubbles: []api.KB{bubble}}
@@ -166,7 +167,7 @@ func TestSyncBubbles_UnparseableManifest_MaterializesKnowledgeTree(t *testing.T)
 		KBID:    "kb_fallback_shape",
 		KBType:  api.KBTypeTeam,
 		Slug:    "fallback-shape",
-		RepoURL: "file://" + bareDir,
+		RepoURL: fileutil.FileURL(bareDir),
 	}
 	s.SetKBBubbleListerFactory(func(_, _ string) KBBubbleLister {
 		return &fakeKBLister{bubbles: []api.KB{bubble}}

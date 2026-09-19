@@ -1,6 +1,8 @@
 package auth
 
 import (
+	"github.com/sageox/ox/internal/testguard"
+
 	"encoding/json"
 	"fmt"
 	"os"
@@ -684,6 +686,7 @@ func TestAtomicity_ConcurrentReadDuringSave(t *testing.T) {
 // after save (readable only by owner).
 // Failure prevented: credentials readable by other users on shared systems.
 func TestAtomicity_FilePermissions(t *testing.T) {
+	testguard.RequirePOSIXPerms(t) // asserts mode bits
 	t.Parallel()
 	client := NewTestClient(t)
 	CreateTestTokenForClient(t, client, time.Hour)
@@ -701,6 +704,7 @@ func TestAtomicity_FilePermissions(t *testing.T) {
 // has 0700 permissions after creation.
 // Failure prevented: config dir accessible by other users.
 func TestAtomicity_DirectoryPermissions(t *testing.T) {
+	testguard.RequirePOSIXPerms(t) // asserts mode bits
 	t.Parallel()
 	client := NewTestClient(t)
 	CreateTestTokenForClient(t, client, time.Hour)

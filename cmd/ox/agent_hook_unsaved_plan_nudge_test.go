@@ -1,6 +1,8 @@
 package main
 
 import (
+	"github.com/sageox/ox/internal/testguard"
+
 	"bytes"
 	"encoding/json"
 	"os"
@@ -361,7 +363,8 @@ func TestArmUnsavedPlanStamp_SameTopicDifferentFileStillNudges(t *testing.T) {
 	if second.Len() == 0 {
 		t.Fatal("second plan with the same title was never reminded about: NudgedAt was carried across two distinct files")
 	}
-	if !strings.Contains(second.String(), "/repo/b/plan.md") {
+	// the nudge quotes the file as a shell path, native separators on Windows
+	if !strings.Contains(second.String(), filepath.FromSlash("/repo/b/plan.md")) {
 		t.Errorf("nudge names the wrong file; got %q", second.String())
 	}
 }
@@ -451,6 +454,7 @@ func TestReadUnsavedPlanStamp_CorruptStateDegradesToSilence(t *testing.T) {
 // Arming must never fail the command the agent is waiting on. An unwritable
 // cache directory returns an error for the caller's debug log and nothing else.
 func TestArmUnsavedPlanStamp_UnwritableCacheIsAnErrorNotAPanic(t *testing.T) {
+	testguard.RequirePOSIXPerms(t)
 	root := t.TempDir()
 	cacheParent := filepath.Join(root, ".sageox", "cache")
 	if err := os.MkdirAll(cacheParent, 0o755); err != nil {
@@ -476,6 +480,7 @@ func TestArmUnsavedPlanStamp_UnwritableCacheIsAnErrorNotAPanic(t *testing.T) {
 // every prompt for four hours. That tradeoff is documented in the code and was
 // previously untested.
 func TestEmitUnsavedPlanNudge_StaysSilentWhenItCannotMarkDelivery(t *testing.T) {
+	testguard.RequirePOSIXPerms(t)
 	root := t.TempDir()
 	if err := armUnsavedPlanStamp(root, testAgentID, draftedInput("plan.md"), materialResult()); err != nil {
 		t.Fatalf("arm returned error: %v", err)
@@ -522,6 +527,7 @@ func TestClearUnsavedPlanStamp_NoStampAndNoAgentAreQuietNoOps(t *testing.T) {
 // — a reminder is worth nothing if the feature that carries it can break
 // `ox plan enrich`.
 func TestPlanEnrichCmd_SurvivesAnUnwritableStampCache(t *testing.T) {
+	testguard.RequirePOSIXPerms(t)
 	root := newPlanEnrichTestRepo(t)
 	t.Setenv("SAGEOX_AGENT_ID", testAgentID)
 
@@ -598,7 +604,7 @@ func TestHandlePrompt_DeliversTheUnsavedPlanNudge(t *testing.T) {
 	if !strings.Contains(out, "never saved to the ledger") {
 		t.Fatalf("the nudge never reached stdout, so nothing delivers it in production; got %q", out)
 	}
-	if !strings.Contains(out, "/repo/plan.md") {
+	if !strings.Contains(out, filepath.FromSlash("/repo/plan.md")) {
 		t.Errorf("nudge reached stdout without naming the plan; got %q", out)
 	}
 

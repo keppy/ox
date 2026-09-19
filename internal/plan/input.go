@@ -8,6 +8,8 @@ import (
 	"regexp"
 	"sort"
 	"strings"
+
+	"github.com/sageox/ox/internal/homedir"
 )
 
 // h2Pattern matches a markdown H2 heading at the start of a line ("## Heading").
@@ -148,7 +150,7 @@ func planModeDir() string {
 	if planModeDirOverride != "" {
 		return planModeDirOverride
 	}
-	home, err := os.UserHomeDir()
+	home, err := homedir.Dir()
 	if err != nil || home == "" {
 		return ""
 	}

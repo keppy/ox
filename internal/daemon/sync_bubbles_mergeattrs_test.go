@@ -24,6 +24,7 @@ import (
 
 	"github.com/sageox/ox/internal/api"
 	"github.com/sageox/ox/internal/endpoint"
+	"github.com/sageox/ox/internal/fileutil"
 	"github.com/sageox/ox/internal/kb"
 	"github.com/sageox/ox/internal/paths"
 	"github.com/stretchr/testify/assert"
@@ -63,7 +64,7 @@ func TestSyncBubbles_MergeAttrs_AppliedAtCloneTime(t *testing.T) {
 		KBID:    "kb_clonetime",
 		KBType:  api.KBTypeTeam,
 		Slug:    "clonetime",
-		RepoURL: "file://" + bareDir,
+		RepoURL: fileutil.FileURL(bareDir),
 	}
 	s.SetKBBubbleListerFactory(func(_, _ string) KBBubbleLister {
 		return &fakeKBLister{bubbles: []api.KB{bubble}}
@@ -105,7 +106,7 @@ func TestSyncBubbles_MergeAttrs_NotInWorkingTree(t *testing.T) {
 		KBID:    "kb_noworking",
 		KBType:  api.KBTypePersonal,
 		Slug:    "noworking",
-		RepoURL: "file://" + bareDir,
+		RepoURL: fileutil.FileURL(bareDir),
 	}
 	s.SetKBBubbleListerFactory(func(_, _ string) KBBubbleLister {
 		return &fakeKBLister{bubbles: []api.KB{bubble}}
@@ -144,7 +145,7 @@ func TestSyncBubbles_MergeAttrs_IdempotentAcrossPasses(t *testing.T) {
 		KBID:    "kb_idempotent_attrs",
 		KBType:  api.KBTypeTeam,
 		Slug:    "idem",
-		RepoURL: "file://" + bareDir,
+		RepoURL: fileutil.FileURL(bareDir),
 	}
 	s.SetKBBubbleListerFactory(func(_, _ string) KBBubbleLister {
 		return &fakeKBLister{bubbles: []api.KB{bubble}}
@@ -190,7 +191,7 @@ func TestSyncBubbles_MergeAttrs_PreservesUserAuthoredLines(t *testing.T) {
 		KBID:    "kb_userlines",
 		KBType:  api.KBTypePersonal,
 		Slug:    "userlines",
-		RepoURL: "file://" + bareDir,
+		RepoURL: fileutil.FileURL(bareDir),
 	}
 	s.SetKBBubbleListerFactory(func(_, _ string) KBBubbleLister {
 		return &fakeKBLister{bubbles: []api.KB{bubble}}
@@ -240,7 +241,7 @@ func TestSyncBubbles_MergeAttrs_RecoversTruncatedManagedBlock(t *testing.T) {
 		KBID:    "kb_truncated",
 		KBType:  api.KBTypeTeam,
 		Slug:    "truncated",
-		RepoURL: "file://" + bareDir,
+		RepoURL: fileutil.FileURL(bareDir),
 	}
 	s.SetKBBubbleListerFactory(func(_, _ string) KBBubbleLister {
 		return &fakeKBLister{bubbles: []api.KB{bubble}}
@@ -292,7 +293,7 @@ func TestSyncBubbles_MergeAttrs_ThreeWayUnionConcatenates(t *testing.T) {
 		KBID:    "kb_threeway",
 		KBType:  api.KBTypeTeam,
 		Slug:    "threeway",
-		RepoURL: "file://" + bareDir,
+		RepoURL: fileutil.FileURL(bareDir),
 	}
 	s.SetKBBubbleListerFactory(func(_, _ string) KBBubbleLister {
 		return &fakeKBLister{bubbles: []api.KB{bubble}}

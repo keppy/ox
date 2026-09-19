@@ -14,6 +14,8 @@ import (
 	"path/filepath"
 	"runtime"
 
+	"github.com/sageox/ox/internal/homedir"
+
 	"github.com/sageox/ox/pkg/adapterprotocol"
 	"github.com/sageox/ox/pkg/adapterruntime"
 )
@@ -249,7 +251,7 @@ func observedVersion(db *sql.DB) string {
 
 // openCodeDataDir returns the default OpenCode data directory.
 func openCodeDataDir() string {
-	home, err := os.UserHomeDir()
+	home, err := homedir.Dir()
 	if err != nil {
 		return ""
 	}

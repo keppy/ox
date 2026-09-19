@@ -113,7 +113,8 @@ func loadCorpus(gitRoot string, cfg *config.DecisionConfig) corpusLoadResult {
 			rec.Size = fi.Size()
 		}
 		if rel, err := filepath.Rel(gitRoot, file); err == nil {
-			rec.RelPath = rel
+			// repo-relative reference shown to the coworker; slash form like git
+			rec.RelPath = filepath.ToSlash(rel)
 		}
 		rec.Corpus = "repo"
 		records = append(records, rec)

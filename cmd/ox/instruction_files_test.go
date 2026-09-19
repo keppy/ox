@@ -8,6 +8,8 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/sageox/ox/internal/testguard"
+
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -534,7 +536,7 @@ func TestEnsureInstructionFileMarkers_SymlinkedFile(t *testing.T) {
 
 	// CLAUDE.md is a symlink to AGENTS.md
 	claudePath := filepath.Join(root, "CLAUDE.md")
-	require.NoError(t, os.Symlink("AGENTS.md", claudePath))
+	testguard.Symlink(t, "AGENTS.md", claudePath)
 
 	_, err := EnsureInstructionFileMarkers(root)
 	require.NoError(t, err)
