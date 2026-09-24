@@ -17,6 +17,7 @@ require (
 	github.com/charmbracelet/x/ansi v0.11.7
 	github.com/charmbracelet/x/term v0.2.2
 	github.com/chromedp/chromedp v0.16.0
+	github.com/creack/pty v1.1.18
 	github.com/docker/docker v28.5.2+incompatible
 	github.com/docker/go-connections v0.6.0
 	github.com/fatih/color v1.19.0
@@ -217,3 +218,5 @@ require (
 	modernc.org/mathutil v1.7.1 // indirect
 	modernc.org/memory v1.11.0 // indirect
 )
+
+replace github.com/sageox/ox/pkg/sessionprovenance => ./pkg/sessionprovenance

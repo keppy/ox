@@ -12,11 +12,131 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **ox works with Hermes Agent** — `ox integrate install --hermes` wires ox into Hermes's shell hooks so a Hermes session gets team context at start, whispers and recall before each model call, and is recorded and published like a Claude Code or Codex session. Hermes reads your `AGENTS.md`, so the prime marker `ox init` writes reaches it with no extra file. Every Hermes surface that writes to `state.db` — CLI, TUI, desktop app, gateway — is covered, per profile. Hermes asks once per hook before it runs; set `hooks_auto_accept: true` for the desktop app and gateway.
 - **ox runs on Windows** — `ox`, the daemon, and every adapter now build, install, and pass their tests natively on Windows. The install script works from Git Bash and adds ox to your user PATH; releases ship `windows_amd64` and `windows_arm64` zips; `ox upgrade` swaps the running `ox.exe` in place. Under the hood the pieces that quietly did nothing on Windows now do the real thing: file locks are real locks, "is that process still alive" is a real check, and adapter binaries are found by `PATHEXT` instead of Unix execute bits.
 
+### Changed
+
+- **Plans are for any work your team executes, and now say so** — `ox plan --help` described "implementation plans", so a designer, a product marketer, or anyone planning a rollout reasonably concluded Plans was not for them. It always was: `ox plan save --kind` takes `plan`, `mockup`, `review`, or `evidence`. The help text, the guidance every AI coworker receives at prime, and the plan skill now name design, GTM, rollout, and engineering work alike.
+
 ### Fixed
 
+- **Saving a mockup no longer asks you to add a mockup** — `ox plan save --kind mockup` ran a plan's craft checks against it and told the author their mockup had no mockup, and that a visual proposal needed a collapsed "Implementation notes" appendix for its implementer. Both expectations are plan-shaped: one asks you to *propose* a surface, the other serves a plan's second reader. A mockup, a review sheet, and an evidence page have neither, so they no longer fire — while the one check that applies to every kind, *did this page draw anything at all*, still does. `ox plan lint` and `ox plan render` take `--kind` too, so the check you get before saving is the check you get after.
+- **ox names what you actually saved** — saving a mockup said "Saved plan to ledger", which is the single-noun collapse `--kind` exists to end.
+## [0.17.1] - 2026-09-22
+Your team can install a curated add-on once and every teammate's AI coworker gets it, what ox tells you about your coworkers and your team rules is now true, and the lists you read every day fit on a screen.
+- **AI coworkers can discover the bulletin board before it syncs** — enrolled coworkers now learn how to post at session start. `ox guide bulletin` explains posting, reading, expiry, and troubleshooting.
+- **`ox adapter list` tells the truth about your AI coworkers** — it understated what 8 of the 10 bundled adapters can do, including Claude Code, so anyone choosing a coding agent from that table was reading fiction.
+- **A team rule can no longer stop reaching anyone** — if a repo's ignore rules stopped covering the managed rule folder, the rule froze in place *and* went unmentioned at session start, arriving through neither path while both looked healthy. It now always arrives at least once.
+- **A stuck `git` can no longer hang session start** — the check ox runs while priming had no time limit, so a wedged index lock or stalled network drive meant a coding session that simply never began.
+- **An approval that could never be satisfied** — in a checkout with no `origin` remote, a team skill could look approvable to `ox skills approve` while being invisible to the reconciler that had to act on it.
+- **A syncing outage no longer looks like a broken setup** — when the server returns an error, ox now recognizes it as temporary and retries, instead of suspending sync and telling you to go fix a checkout that was never wrong.
+- **A false data-loss alarm is gone** — renaming plans (which `ox plan backfill` does routinely) was reported as a wipe of your saved plans and sessions, on every check, for as long as the commit stayed in recent history. ox now asks whether anything was actually lost.
+- **Commands you don't have access to are hidden, not just unlisted** — a feature-gated command no longer appears in help or completions for accounts that cannot run it.
+## [0.17.0] - 2026-09-21
+Team rules now load natively in your coding tool and a skill you wrote can reach your whole team with one command, ox behaves predictably when a script, CI job, or AI coworker is driving it, and refreshing a large Ledger takes seconds instead of hours.
+- **Stray arguments are rejected instead of ignored** — `ox uninstall other-repo` used to act on the repo you were in, and `--force false` quietly meant `--force`. `ox init`, `login`, `logout`, `uninstall`, `sync`, `upgrade`, and `doctor` now fail before changing anything.
+- **`ox upgrade` installs exactly the version it reports** — `--target` works even when the latest-release check is unreachable and can reinstall or go back to an older release, and upgrades through Go install ox and its adapters at that same version. A failed check no longer claims you're up to date, and a failed install fails the command.
+- **`ox init` leaves your staged work alone** — in a brand-new repository, the first commit ox makes used to sweep in files you had already staged; it now commits only its own file.
+- **Sync stops reporting problems you don't have** — a laptop sleep or network blip no longer makes ox report merge conflicts that aren't there and hold sync until you confirm. A Ledger conflict ox created against itself — two machines disagreeing on how many times a summary was retried — now resolves on its own instead of stopping sync until someone repaired it by hand.
+- **Ledgers hit by an old upload bug can be read again** — sync used to fetch everything, fail its final check on a few empty files, and start from scratch on every retry. ox also no longer uploads files in that broken form.
+- **Knowledge Bubbles from your other teams are left alone** — when your projects span more than one team, cleanup in one project could move another team's Knowledge Bubbles to the trash. `ox doctor` also stops hanging for 30 seconds on every run trying to clear a stale bubble it never removed.
+- **`brew install ox` installs ox** — the documented Homebrew command resolved to an unrelated text editor of the same name, so a new coworker following the README got someone else's program and `ox version` printed `0.7.7`. The command is `brew install sageox/tap/ox`, and the README, `make install`, `ox doctor`, and the setup hints all say so now.
+- **Commands run by an AI coworker, a script, or CI no longer quietly do nothing** — `ox logout`, `ox login`, and `ox uninstall` used to take the default when a confirmation prompt had nobody to answer it, so the logout never happened and uninstall left your cloud records behind. Each now either does the thing or says plainly why it did not, and `--yes` reaches every prompt.
+- **A session still reaches your Ledger when its window closes without a clean stop** — a transcript whose client died mid-recording used to sit on disk indefinitely: not uploaded, not repaired in the background, not reported by `ox doctor`. ox now confirms the owning process is gone before finishing the upload, so a recording made by an older ox that never noted its process is deliberately left alone rather than risk cutting off a session that is still running.
+- **The PATH recovery instruction survives a directory with a space in it** — the fish version of the fix silently added two wrong directories instead, for exactly the user who needed it to work.
+- **Stopping the daemon no longer lets it start new work on the way out.**
 - **ox no longer hangs on Windows when its input is redirected** — choosing the light or dark markdown theme asks the terminal for its background colour, and on Windows that query opens the console directly whenever stdin isn't already a console: a pipe, a file, `NUL`, or Git Bash. The reply could never be interrupted, so the query's own two-second timeout never fired and the command waited forever instead of falling back to dark — `ox guide` and `ox doctor` from Git Bash, any AI coworker capturing ox's output, and two packages of the Windows test suite, which died at the Go test timeout with the read still parked in `ReadConsole`. The query is now only made when stdin really is the console, which is the only case where it can be interrupted and time out.
 - **A corrupt team-context checkout inside another repository is now repaired** — when a bubble's `.git` was emptied by an interrupted clone and the bubble sat inside a larger checkout (a home directory under git, a CI workspace), git answered for the enclosing repository and the corrupt bubble was reported healthy, never moved aside, and every later pull failed the same way. The daemon now insists the repository it found *is* the bubble.
 - **Team-context read sync no longer fails on Git for Windows** — Git for Windows records `core.symlinks` in every clone and uses the Windows certificate store for TLS; the read-sync transport rejected the former as an unsafe config key. Directory fsync, which Windows does not support, no longer turns a successful write into an error.
+
+## [0.17.1] - 2026-09-22
+
+Your team can install a curated add-on once and every teammate's AI coworker gets it, what ox tells you about your coworkers and your team rules is now true, and the lists you read every day fit on a screen.
+
+### New
+
+- **Experimental Claude Code trace attachments** — opted-in recordings can include compressed execution traces and events in the Ledger, with identity attributes removed. Paused intervals are excluded, retries preserve the stop boundary, and trace failures do not block the recording. Enablement remains local; no project settings are changed.
+- **`ox addons` — install a curated add-on once, for the whole team** — pick an add-on and ox writes it into your Team Context, so every repo on the team receives it and every teammate's AI coworker sees the same selection. `ox sync` distributes it; there is no per-repo step and no second sync command to learn. Three add-ons ship today: `agent-toolkit`, for standing up a hosted AI chat agent across Slack and Nostr; `post-cutoff`, a shelf of what your team has adopted that postdates your model's training; and `post-cutoff-jev`, one brief on typed-decision models.
+- **Updates replace, and say what they replaced** — `ox addons update` overwrites the files an add-on owns and drops the ones its new version stopped shipping. If your team edited one, ox names it before overwriting so the change is one `git log -p` away instead of silently gone. ox never touches a file it doesn't own: a name that collides with something you wrote is refused, not merged.
+- **An add-on is skills, rules, and the context each skill carries** — the context is the point: it ships *inside* the skill that needs it, so an AI coworker reads it exactly when the work calls for it. It is not a dump into your Team Context.
+- **`ox skills list` shows the skills you actually chose** — your team's first, yours next, and only ox's most useful ones last, with the rest a `--all` away. Descriptions now get up to three lines instead of stopping mid-sentence, and it points you at `ox addons` when you want more.
+- **`ox addons list` and `ox skills status` read like a page, not a dump** — full descriptions, aligned columns, relative sync times, and nothing repeated back at you that the heading already said.
+- **`ox status` lists your other teams as a table** — one line per team with visibility, membership, and sync state, so the team that needs attention is the one that looks different. `--verbose` keeps the detailed cards.
+- **`--json` is readable when you run it yourself** — syntax-colored at a terminal, and byte-exact plain JSON the moment it is piped, redirected, or read by an AI coworker.
+
+### Fixed
+
+- **AI coworkers can discover the bulletin board before it syncs** — enrolled coworkers now learn how to post at session start. `ox guide bulletin` explains posting, reading, expiry, and troubleshooting.
+- **`ox adapter list` tells the truth about your AI coworkers** — it understated what 8 of the 10 bundled adapters can do, including Claude Code, so anyone choosing a coding agent from that table was reading fiction.
+- **A team rule can no longer stop reaching anyone** — if a repo's ignore rules stopped covering the managed rule folder, the rule froze in place *and* went unmentioned at session start, arriving through neither path while both looked healthy. It now always arrives at least once.
+- **A stuck `git` can no longer hang session start** — the check ox runs while priming had no time limit, so a wedged index lock or stalled network drive meant a coding session that simply never began.
+- **An approval that could never be satisfied** — in a checkout with no `origin` remote, a team skill could look approvable to `ox skills approve` while being invisible to the reconciler that had to act on it.
+- **A syncing outage no longer looks like a broken setup** — when the server returns an error, ox now recognizes it as temporary and retries, instead of suspending sync and telling you to go fix a checkout that was never wrong.
+- **A false data-loss alarm is gone** — renaming plans (which `ox plan backfill` does routinely) was reported as a wipe of your saved plans and sessions, on every check, for as long as the commit stayed in recent history. ox now asks whether anything was actually lost.
+- **Commands you don't have access to are hidden, not just unlisted** — a feature-gated command no longer appears in help or completions for accounts that cannot run it.
+
+## [0.17.0] - 2026-09-21
+
+Team rules now load natively in your coding tool and a skill you wrote can reach your whole team with one command, ox behaves predictably when a script, CI job, or AI coworker is driving it, and refreshing a large Ledger takes seconds instead of hours.
+
+### New
+
+- **Team rules load natively in your coding tool** — ox now places team rules in the rules folder Claude Code, Cursor, Copilot, Cline, or Kiro already uses, so a rule scoped with `globs:` activates the moment you open a matching file instead of only being mentioned at session start.
+- **Share a skill you wrote with your whole team** — `ox skills publish` copies a skill from this repo into your team context so your team's AI coworkers get it too, and `ox skills list` shows every skill in the repo and whether ox, your team, or you put it there.
+- **`--no-input` for unattended runs** — turns off every prompt, spinner, and editor, so ox never sits waiting when CI, a script, or an AI coworker is driving it. A command that needs a choice fails immediately and says what to pass instead.
+- **See what your team publishes, and where it lands** — `ox team show` now lists every rule and skill your team publishes and which repos each one reaches, including rules that apply to every repo because they don't name any.
+- **`ox skills approve` and `ox skills revoke`** — see exactly what a team skill would run before it can, then approve it; `--allow-scripts` also puts its bundled scripts on disk, and `revoke` withdraws an approval. An approval covers exactly the content you reviewed and is recorded in the repo, so teammates inherit it and a changed skill asks again.
+
+### Improved
+
+- **Team skills and rules arrive dependably** — a skill that bundles a script now installs its instructions and holds back only the script, `ox sync` brings this repo up to date on the spot and reports anything still pending, and `ox doctor --fix` restores team rules and skills missing from your machine.
+- **Reading a large Ledger is fast, and finishes** — refreshing a 16,600-file Ledger now takes seconds instead of an estimated two hours, and a busy server no longer makes sync give up on files it could have fetched (7% of one 26,700-file Ledger used to be left behind). When a sync does fall short, `ox sync --read-only --json` says how far it got and what it skipped.
+- **Plan review is obvious to enter and easy to leave** — **Review** becomes **Exit review**, Esc closes the open note and then leaves review, `r` toggles it on every plan, and review mode survives the reload each time your AI coworker applies a fix. If your feedback can't reach the AI coworker that wrote the plan, the page and the terminal now say so instead of reporting success.
+- **Large sessions are checked for secrets in milliseconds, not seconds** — the scan that runs before a session is shared now skips patterns a line cannot match, so stopping a long session no longer stalls on it.
+- **Output you can script against** — `--json` keeps stdout to the result alone, with warnings, errors, and installer logs on stderr, and `ox guide` and `ox config` now honor it. A plain `ox status` exits non-zero when you're signed out or the repo isn't initialized (and `--quiet` now quiets it), and pressing Ctrl-C mid-sync is reported as an interruption instead of a success.
+
+### Deprecated
+
+- **External adapters: `rules_installer` is deprecated** — declare `rule_targets` instead. The adapters that ship with ox have already moved; in 0.18.0 ox stops calling `rules_installer`, and rules installed only through it will stop arriving.
+
+### Fixed
+
+- **Stray arguments are rejected instead of ignored** — `ox uninstall other-repo` used to act on the repo you were in, and `--force false` quietly meant `--force`. `ox init`, `login`, `logout`, `uninstall`, `sync`, `upgrade`, and `doctor` now fail before changing anything.
+- **`ox upgrade` installs exactly the version it reports** — `--target` works even when the latest-release check is unreachable and can reinstall or go back to an older release, and upgrades through Go install ox and its adapters at that same version. A failed check no longer claims you're up to date, and a failed install fails the command.
+- **`ox init` leaves your staged work alone** — in a brand-new repository, the first commit ox makes used to sweep in files you had already staged; it now commits only its own file.
+- **Sync stops reporting problems you don't have** — a laptop sleep or network blip no longer makes ox report merge conflicts that aren't there and hold sync until you confirm. A Ledger conflict ox created against itself — two machines disagreeing on how many times a summary was retried — now resolves on its own instead of stopping sync until someone repaired it by hand.
+- **Ledgers hit by an old upload bug can be read again** — sync used to fetch everything, fail its final check on a few empty files, and start from scratch on every retry. ox also no longer uploads files in that broken form.
+- **Knowledge Bubbles from your other teams are left alone** — when your projects span more than one team, cleanup in one project could move another team's Knowledge Bubbles to the trash. `ox doctor` also stops hanging for 30 seconds on every run trying to clear a stale bubble it never removed.
+
+### Security
+
+- **A team skill can only write inside its own folder** — a crafted skill name or file path in a team context could previously overwrite files outside it, including your AI coworker's settings.
+- **Session summaries written with Codex run read-only** — the summarizer can no longer change your repository or start recording its own session. It needs a current Codex; an older one gets an error asking to update instead of broader access.
+
+## [0.16.0] - 2026-09-17
+
+Your team can publish a skill or a convention once and have it reach every teammate's AI coworker, reading a large Ledger no longer takes an hour or throws away its progress, and `brew install` finally gets you ox.
+
+### New
+
+- **Publish a skill or a convention once, for the whole team** — what your team publishes reaches every teammate's AI coworker, in every repo, whichever coding agent they use, and disappears everywhere when the team retires it. One design system can now hold across a desktop app, a mobile app, and a website without hand-copying the same conventions into three repos forever.
+- **Scope a team rule to the files it is about** — a team rule can now carry `globs:`, so one Go-idioms rule applies across every repo but only in sessions that touch `.go` files. The choice between spending context in every session and copying the rule into each repo, where the copies drift, is gone.
+- **`ox skills status` says why a team skill is not on your machine** — a checkout that never cloned, a skills folder that never materialized, a repo none of the rules target, and a team that published nothing all look identical from your repo: nothing there. Each line of the report now ends with the command that fixes it.
+- **Your team's skills reach Amp, Droid, Goose, OpenCode, and pi** — `ox init` selected these coworkers, reported success, and installed nothing, so neither ox's own playbooks nor your team's ever arrived. They now receive the same skills every other supported coworker does.
+- **Read a Ledger you have no checkout of** — `ox session list --repo repo_<uuid>` and `ox glance --repo repo_<uuid>` reach a hosted Ledger directly, so a hosted service or a scheduled job can read a team's history without cloning the source repository first.
+- **`ox attest publish` picks up where it left off** — a publication interrupted by a crash, an expired credential, or a lost acknowledgment resumes into the same package and run instead of starting over, and never re-uploads bytes that already landed.
+
+### Improved
+
+- **Reading a large Ledger is several times faster and no longer discards its progress** — content downloads in parallel with retries instead of one object at a time with none, an interrupted sync keeps everything it already fetched, and a resumed one asks only for what is still missing. `--timeout` now defaults to 30 minutes, a budget a background refresh can plan around.
+- **One unservable object no longer hides the rest of your Ledger** — sync used to stop at the first object the server would not serve, leaving thousands of healthy ones never attempted. It now fetches everything it can and names the objects it could not, and why, so a server-side data problem is distinguishable from a problem on your machine.
+
+### Fixed
+
+- **`brew install ox` installs ox** — the documented Homebrew command resolved to an unrelated text editor of the same name, so a new coworker following the README got someone else's program and `ox version` printed `0.7.7`. The command is `brew install sageox/tap/ox`, and the README, `make install`, `ox doctor`, and the setup hints all say so now.
+- **Commands run by an AI coworker, a script, or CI no longer quietly do nothing** — `ox logout`, `ox login`, and `ox uninstall` used to take the default when a confirmation prompt had nobody to answer it, so the logout never happened and uninstall left your cloud records behind. Each now either does the thing or says plainly why it did not, and `--yes` reaches every prompt.
+- **A session still reaches your Ledger when its window closes without a clean stop** — a transcript whose client died mid-recording used to sit on disk indefinitely: not uploaded, not repaired in the background, not reported by `ox doctor`. ox now confirms the owning process is gone before finishing the upload, so a recording made by an older ox that never noted its process is deliberately left alone rather than risk cutting off a session that is still running.
+- **The PATH recovery instruction survives a directory with a space in it** — the fish version of the fix silently added two wrong directories instead, for exactly the user who needed it to work.
+- **Stopping the daemon no longer lets it start new work on the way out.**
+
 
 ## [0.15.0] - 2026-09-11
 

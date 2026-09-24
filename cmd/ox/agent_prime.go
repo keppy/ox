@@ -26,6 +26,7 @@ import (
 	"github.com/sageox/ox/internal/doctor"
 	"github.com/sageox/ox/internal/endpoint"
 	"github.com/sageox/ox/internal/ephemeral"
+	"github.com/sageox/ox/internal/flags"
 	"github.com/sageox/ox/internal/identity"
 	"github.com/sageox/ox/internal/kb"
 	"github.com/sageox/ox/internal/ledger"
@@ -39,6 +40,7 @@ import (
 	"github.com/sageox/ox/internal/session/adapters"
 	"github.com/sageox/ox/internal/sessionid"
 	"github.com/sageox/ox/internal/teamdocs"
+	"github.com/sageox/ox/internal/teamrules"
 	"github.com/sageox/ox/internal/telemetry"
 	"github.com/sageox/ox/internal/tips"
 	"github.com/sageox/ox/internal/tokens"
@@ -449,6 +451,9 @@ func runAgentPrime(cmd *cobra.Command, args []string) error {
 	phaseStart = time.Now()
 	continuedFromSessionID := recordingSessionIDFromMarker(existingMarker)
 	sessionStat := startSessionRecording(projectRoot, agentID, agentType, parentAgentID, continuedFromSessionID, agentSessionID)
+	// a prime that lands on an existing recording (CLAUDE.md-driven re-prime
+	// after /clear, hookless agents) is also a native session sighting
+	recordNativeSessionForRecording(projectRoot, agentID, agentSessionID, hookSource)
 	recordingSessionID := recordingSessionIDForMarker(projectRoot, agentID, continuedFromSessionID)
 	timing["session_start"] = time.Since(phaseStart).Milliseconds()
 
@@ -502,7 +507,18 @@ func runAgentPrime(cmd *cobra.Command, args []string) error {
 	// discover team context if configured
 	phaseStart = time.Now()
 	repoSlug := repoSlugFromRemoteOrDir(projectRoot)
-	teamCtx := discoverTeamContext(projectRoot, repoSlug)
+	// The directory-name fallback is useful display context, but it is not an
+	// authoritative identity for repos: filters. With no canonical origin, pass
+	// an unknown slug so targeted rules stay out instead of being misclassified
+	// against an unrelated local directory name.
+	ruleRepoSlug, _ := repotools.RepoSlugFromRemote(projectRoot)
+	teamCtx := discoverTeamContext(projectRoot, ruleRepoSlug)
+	if teamCtx != nil {
+		// A rule current in this agent's native rule root is omitted here; every
+		// other rule retains its prime fallback. This is the exactly-once seam
+		// between background projection and session-start delivery.
+		teamCtx.TeamRules = teamrules.ForPrime(projectRoot, agentType, teamCtx.TeamRules)
+	}
 
 	// check team context staleness
 	checkTeamContextStaleness(teamCtx, projectRoot)
@@ -1183,6 +1199,7 @@ func buildGuidance(agentID, projectRoot string, teamCtx *teamContextInfo, ledger
 		CodeDBExists:     statErr == nil,
 		MemoryEnabled:    auth.IsMemoryEnabled(),
 		MurmuringEnabled: config.MurmuringEnabled(projectRoot),
+		BulletinEnabled:  flags.Get().BulletinEnabled,
 		AgentType:        agentType,
 		HasKB:            hasKB,
 	})
@@ -1412,6 +1429,7 @@ func startSessionRecording(projectRoot, agentID, agentType, parentAgentID, conti
 			s.InheritedPause = true
 			s.InheritedFromSession = priorSession
 			s.PauseCount++
+			s.RecordTraceBoundary("pause", now)
 			s.Lifecycle = append(s.Lifecycle, session.LifecycleEvent{
 				Action: session.LifecycleActionPause,
 				At:     now,
@@ -1577,14 +1595,15 @@ func outputAgentPrime(cmd *cobra.Command, textMode, reviewMode bool, output agen
 	switch formatFlag {
 	case "json":
 		// legacy JSON output for debugging and programmatic consumers
-		cw := agentinstance.NewCountingWriter(cmd.OutOrStdout())
-		encoder := json.NewEncoder(cw)
-		encoder.SetIndent("", "  ")
-		if err := encoder.Encode(output); err != nil {
+		jsonOut, err := cli.MarshalJSONIndent(output)
+		if err != nil {
+			return err
+		}
+		if err := cli.WriteJSONBytes(cmd.OutOrStdout(), jsonOut); err != nil {
 			return err
 		}
 		// prime is not dispatched via runWithAgentID, send heartbeat directly
-		if bytes := cw.BytesWritten(); bytes > 0 && output.AgentID != "" {
+		if bytes := int64(len(jsonOut)); bytes > 0 && output.AgentID != "" {
 			sendContextHeartbeat(output.AgentID, bytes, "prime")
 		}
 		return nil
@@ -1819,6 +1838,10 @@ func outputAgentPrimeText(cmd *cobra.Command, output agentPrimeOutput) error {
 		fmt.Fprintln(cmd.OutOrStdout())
 		fmt.Fprintln(cmd.OutOrStdout(), "---TEAM_CONTEXT---")
 		teamJSON, _ := json.Marshal(output.TeamContext)
+		// Deliberately NOT themed: this is a compact machine payload between
+		// parse markers, read by the adapter, not a document a human scans.
+		// Color would buy nothing and risks feeding escape bytes to the parser
+		// if this ever runs on a pty. See .claude/rules/json-output.md.
 		fmt.Fprintln(cmd.OutOrStdout(), string(teamJSON))
 		fmt.Fprintln(cmd.OutOrStdout(), "---END_TEAM_CONTEXT---")
 
@@ -1915,6 +1938,17 @@ func outputAgentPrimeText(cmd *cobra.Command, output agentPrimeOutput) error {
 					fmt.Fprintf(cmd.OutOrStdout(), "    Path: %s\n", doc.Path)
 				}
 			}
+		}
+
+		// team bulletin board — a pointer plus the reading rules. Post bodies
+		// are never read or printed here; the coworker lists the directory
+		// and opens a post on demand.
+		if output.TeamContext.BulletinHint != "" {
+			fmt.Fprintln(cmd.OutOrStdout())
+			fmt.Fprintln(cmd.OutOrStdout(), "## Team Bulletin Board (read on demand — not preloaded)")
+			fmt.Fprintln(cmd.OutOrStdout())
+			fmt.Fprintf(cmd.OutOrStdout(), "  Dir: %s\n", output.TeamContext.BulletinHint)
+			fmt.Fprintf(cmd.OutOrStdout(), "  %s\n", prime.BulletinReadingHint)
 		}
 
 		// always emit team context guidance — may sync after prime runs
@@ -2221,6 +2255,16 @@ func loadTeamMemory(info *teamContextInfo, teamDir string) {
 	guidePath := filepath.Join(teamDir, "memory", "GUIDE.md")
 	if _, err := os.Stat(guidePath); err == nil {
 		info.ObservationGuideHint = guidePath
+	}
+
+	// bulletin/<board>/posts — team bulletin board, reference pointer only.
+	// Post bodies are teammates' unreviewed, time-limited notes and are never
+	// read here. The gate is the board folder itself: the posts dir may be
+	// absent after every post expired, and the hint still points there so a
+	// coworker knows where the next post will land. Not gated on the publish
+	// flag — reads continue when publishing is off.
+	if st, err := os.Stat(filepath.Join(teamDir, "bulletin")); err == nil && st.IsDir() {
+		info.BulletinHint = filepath.Join(teamDir, filepath.FromSlash(prime.BulletinPostsRelDir(prime.BulletinDefaultBoard)))
 	}
 
 	// discover memory timeline files for progressive disclosure

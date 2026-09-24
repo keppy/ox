@@ -438,6 +438,19 @@ func outputAgentPrimeXML(cmd *cobra.Command, output agentPrimeOutput) (*prime.Co
 				bk.charge(prime.BudgetSourceSageox)
 			}
 
+			// team bulletin board — a pointer and the reading rules, nothing
+			// else. No rows and no bodies: posts are teammates' unreviewed,
+			// time-limited notes, and prime must never copy one into an AI
+			// coworker's standing context. Emitted whenever the board folder
+			// exists, independent of the docs catalog above. The framing is
+			// ours; the path is one line, so the whole element is charged to
+			// the sageox bucket. Attribute values, so escapeXML (quotes too).
+			if output.TeamContext.BulletinHint != "" {
+				fmt.Fprintf(&sb, "\n<bulletin dir=\"%s\" hint=\"%s\"/>\n",
+					escapeXML(output.TeamContext.BulletinHint), escapeXML(prime.BulletinReadingHint))
+				bk.charge(prime.BudgetSourceSageox)
+			}
+
 			// team rules: framing is ours, bodies and rows are team data.
 			// emitTeamRules charges its own buckets through the bookkeeper.
 			if len(output.TeamContext.TeamRules) > 0 {
@@ -794,7 +807,7 @@ func writePlanEnrichmentGuidance(sb *strings.Builder, agentType string) {
 		sb.WriteString("</plan-enrichment-guidance>\n")
 		return
 	}
-	sb.WriteString("Plan non-trivial work (multi-file OR architectural OR hotspot/open-PR OR ~5+ steps): run `ox plan enrich` WHILE drafting — JSON team context (collisions, prior art, expert routing) at zero LLM/network cost. This is your default plan-enrichment call.\n")
+	sb.WriteString("Plan any non-trivial work — design, GTM, rollout, engineering (multi-file OR architectural OR hotspot/open-PR OR ~5+ steps): run `ox plan enrich` WHILE drafting — JSON team context (collisions, prior art, expert routing) at zero LLM/network cost. This is your default plan-enrichment call.\n")
 	// HTML + review loop are HUMAN-opt-in: the agent recommends, the human runs.
 	// The authored page leads; ox supplies canonical storage, enrichment chrome,
 	// and review without becoming a second renderer or source of truth.
@@ -878,6 +891,10 @@ func emitTeamRules(sb *strings.Builder, bk *bookkeeper, rules []teamdocs.TeamRul
 		bk.charge(prime.BudgetSourceTeam)
 		sb.WriteString(" visibility=\"always\"")
 		bk.charge(prime.BudgetSourceSageox)
+		if len(r.Globs) > 0 {
+			fmt.Fprintf(sb, ` globs="%s"`, escapeXML(strings.Join(r.Globs, ",")))
+			bk.charge(prime.BudgetSourceTeam)
+		}
 		if r.Description != "" {
 			fmt.Fprintf(sb, ` description="%s"`, escapeXML(r.Description))
 			bk.charge(prime.BudgetSourceTeam)
@@ -897,9 +914,25 @@ func emitTeamRules(sb *strings.Builder, bk *bookkeeper, rules []teamdocs.TeamRul
 
 	// indexed-tier rules: framing/headers ours, rows are team's
 	if len(indexedRules) > 0 {
+		anyGlobs := false
+		for _, r := range indexedRules {
+			if len(r.Globs) > 0 {
+				anyGlobs = true
+				break
+			}
+		}
 		sb.WriteString("\n<indexed hint=\"read on demand with the Read tool at the absolute Path below\">\n")
-		sb.WriteString("| Name | Description | Path |\n")
-		sb.WriteString("|------|-------------|------|\n")
+		// The Globs column appears only when a rule actually scopes itself. A team
+		// with no scoped rules pays nothing for the feature existing — this table
+		// is emitted into every session, so an always-present empty column is a
+		// per-session tax on every customer to serve the ones using it.
+		if anyGlobs {
+			sb.WriteString("| Name | Description | Applies to | Path |\n")
+			sb.WriteString("|------|-------------|------------|------|\n")
+		} else {
+			sb.WriteString("| Name | Description | Path |\n")
+			sb.WriteString("|------|-------------|------|\n")
+		}
 		bk.charge(prime.BudgetSourceSageox)
 		for _, r := range indexedRules {
 			desc := r.Description
@@ -912,7 +945,15 @@ func emitTeamRules(sb *strings.Builder, bk *bookkeeper, rules []teamdocs.TeamRul
 			// the file was found under (agents/rules or coworkers/rules), and
 			// that root is never emitted — so a relative path here is not
 			// resolvable by the agent being instructed to open it.
-			fmt.Fprintf(sb, "| %s | %s | %s |\n", escapeXMLText(r.Name), escapeXMLText(desc), escapeXMLText(r.AbsPath))
+			if anyGlobs {
+				scope := strings.Join(r.Globs, ", ")
+				if scope == "" {
+					scope = "any file"
+				}
+				fmt.Fprintf(sb, "| %s | %s | %s | %s |\n", escapeXMLText(r.Name), escapeXMLText(desc), escapeXMLText(scope), escapeXMLText(r.AbsPath))
+			} else {
+				fmt.Fprintf(sb, "| %s | %s | %s |\n", escapeXMLText(r.Name), escapeXMLText(desc), escapeXMLText(r.AbsPath))
+			}
 		}
 		bk.charge(prime.BudgetSourceTeam)
 		sb.WriteString("</indexed>\n")

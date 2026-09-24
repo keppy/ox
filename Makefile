@@ -1,7 +1,7 @@
 # Makefile for ox CLI tool
 
 .PHONY: check-no-git-lfs-shell check-raw-writer-chokepoint check-session-meta-rmw check-codedb-guarded-open check-test-tiers test-tiers
-.PHONY: help build build-ox build-adapters build-acceptance install install-adapters clean dev run test test-cover test-timings test-all test-slow test-fuzz test-browser test-integration test-acceptance test-acceptance-cover test-acceptance-run test-release test-agents test-preflight test-digital-twin test-digital-twin-cover test-cloud-api-twin test-ledger-twin eval eval-smoke eval-no-bash eval-scaffold-check test-sequential test-profile test-watch coverage coverage-report coverage-func coverage-baseline coverage-diff coverage-check coverage-ratchet coverage-ratchet-diff coverage-ratchet-test build-cover coverage-integration smoke-test lint lint-test-env format release release-snapshot dist install-hooks docs docs-check docs-publish refresh-friction-catalog bump-version verify-version check-release-drift beads-setup
+.PHONY: help build build-ox build-adapters build-acceptance install install-adapters clean dev run test test-cover test-timings test-all test-slow test-fuzz test-browser test-integration test-acceptance test-acceptance-cover test-acceptance-run test-release test-release-coverage release-stages test-agents test-preflight test-digital-twin test-digital-twin-cover test-cloud-api-twin test-ledger-twin eval eval-smoke eval-no-bash eval-scaffold-check test-sequential test-profile test-watch coverage coverage-report coverage-func coverage-baseline coverage-diff coverage-check coverage-ratchet coverage-ratchet-diff coverage-ratchet-test build-cover coverage-integration smoke-test lint lint-test-env format release release-snapshot dist install-hooks docs docs-check docs-publish refresh-friction-catalog bump-version verify-version check-release-drift beads-setup
 
 # Variables
 GO := go
@@ -42,13 +42,22 @@ empty :=
 space := $(empty) $(empty)
 comma := ,
 ACCEPTANCE_DIR := $(abspath tmp/acceptance)
+# Coverage-instrumented acceptance binary + its adapter set, isolated from bin/
+# for the reason documented on build-cover.
+COVER_BIN_DIR := $(abspath tmp/acceptance-cover)
+COVER_OX_BIN := $(COVER_BIN_DIR)/$(BINARY_NAME)
 ACCEPTANCE_OX_BIN ?= $(ACCEPTANCE_DIR)/$(BINARY_NAME)
 ACCEPTANCE_GO_COVER_DIR ?=
 ACCEPTANCE_INTEGRATION_COVER_FLAGS = $(if $(strip $(ACCEPTANCE_GO_COVER_DIR)),-coverprofile=$(ACCEPTANCE_GO_COVER_DIR)/integration-test.out -covermode=atomic,)
 ACCEPTANCE_SLOW_COVER_FLAGS = $(if $(strip $(ACCEPTANCE_GO_COVER_DIR)),-coverprofile=$(ACCEPTANCE_GO_COVER_DIR)/slow-test.out -covermode=atomic,)
-ACCEPTANCE_INTEGRATION_TESTS := TestCodeActivityE2E TestFreshInstall_MockServer_InitThenDoctor TestFreshInstall_MockServer_SyncUnavailableThenDoctorStillWorks
+ACCEPTANCE_INTEGRATION_TESTS := TestCodeActivityE2E TestFreshInstall_MockServer_InitThenDoctor TestFreshInstall_MockServer_SyncUnavailableThenDoctorStillWorks TestNoInputCLI TestUnexpectedArgumentsCLI TestUpgradeCLI
 ifneq ($(filter darwin linux freebsd,$(shell $(GO) env GOOS)),)
 ACCEPTANCE_INTEGRATION_TESTS += TestBackgroundDaemonSurvivesCommandCleanup
+endif
+ifneq ($(filter darwin linux,$(shell $(GO) env GOOS)),)
+# Exercise terminal output modes against the instrumented binary in CI.
+ACCEPTANCE_INTEGRATION_TESTS += TestConfigCLIOutputModes
+ACCEPTANCE_INTEGRATION_TESTS += TestSpinnerCLIInterrupt
 endif
 ACCEPTANCE_SLOW_TESTS := TestIncrementalE2E_SingleAgent TestIncrementalE2E_CtrlC_AntiEntropy
 TWIN_COVER_DIR ?=
@@ -258,7 +267,17 @@ check-test-tiers: ## Validate the machine-readable test-tier contract
 test-tiers: check-test-tiers ## Print the executable test-tier contract
 	@for tier in fast full slow acceptance digital_twin integration release; do $(TEST_TIER_TOOL) describe $$tier; echo; done
 
-test: check-test-tiers ## Run fast tests — unit tests <500ms, race detection, no coverage (every commit)
+# Root ./... deliberately excludes nested public modules, so the contract's
+# coverage is collected here and appended into coverage.out by each coverage
+# tier below before the ratchet reads it. Otherwise every change to the
+# contract fails the changed-line gate as "no coverage data".
+SESSIONPROVENANCE_COVER := tmp/sessionprovenance-coverage.out
+.PHONY: test-sessionprovenance
+test-sessionprovenance: ## Validate the public native-session contract
+	@mkdir -p tmp
+	@$(GO) -C pkg/sessionprovenance test -race -coverprofile=$(CURDIR)/$(SESSIONPROVENANCE_COVER) -covermode=atomic ./...
+
+test: check-test-tiers test-sessionprovenance ## Run fast tests — unit tests <500ms, race detection, no coverage (every commit)
 	$(call say,"Running fast tests (skipping >500ms, no coverage)...")
 	@timings='$(TEST_TIMINGS)'; \
 	if [ -z "$$timings" ]; then mkdir -p tmp; timings=$$(mktemp -p tmp test-timings.XXXXXX); else mkdir -p "$$(dirname "$$timings")"; fi; \
@@ -270,9 +289,10 @@ test: check-test-tiers ## Run fast tests — unit tests <500ms, race detection, 
 	if [ "$$test_status" -ne 0 ]; then exit "$$test_status"; fi; \
 	exit "$$metrics_status"
 
-test-cover: check-test-tiers ## Run fast tests with coverage collection (~15-20% slower than `make test`)
+test-cover: check-test-tiers test-sessionprovenance ## Run fast tests with coverage collection (~15-20% slower than `make test`)
 	$(call say,"Running fast tests with coverage...")
 	@$(TEST_GIT_ISOLATION) $(TIME_CMD) $(GOTESTSUM) --format $(GOTESTSUM_FMT) $(GOTESTSUM_LEAN) $(GOTESTSUM_JUNIT) $(GOTESTSUM_TIMINGS) -- $(FAST_TEST_FLAGS) -coverprofile=coverage.out -covermode=atomic ./...
+	@tail -n +2 $(SESSIONPROVENANCE_COVER) >> coverage.out
 	@python3 scripts/coverage_ratchet.py coverage.out --write-provenance coverage.out.provenance.json
 
 test-timings: ## Reprint metrics from the latest fast-test timing artifact
@@ -280,12 +300,13 @@ test-timings: ## Reprint metrics from the latest fast-test timing artifact
 	@test -f $(TEST_TIMINGS) || (echo "No fast-test timing artifact at $(TEST_TIMINGS)." && exit 1)
 	@python3 $(TEST_METRICS) $(TEST_TIMINGS)
 
-test-all: check-test-tiers ## Run all unit tests including expensive ones (git clone, SQLite, LFS) with coverage
+test-all: check-test-tiers test-sessionprovenance ## Run all unit tests including expensive ones (git clone, SQLite, LFS) with coverage
 	$(call say,"Running all tests including expensive tests...")
 	@$(TEST_GIT_ISOLATION) $(TIME_CMD) $(GOTESTSUM) --format $(GOTESTSUM_FMT) $(GOTESTSUM_LEAN) $(GOTESTSUM_JUNIT) $(GOTESTSUM_TIMINGS) -- $(FULL_TEST_FLAGS) -coverprofile=coverage.out -covermode=atomic ./...
+	@tail -n +2 $(SESSIONPROVENANCE_COVER) >> coverage.out
 	@python3 scripts/coverage_ratchet.py coverage.out --write-provenance coverage.out.provenance.json
 
-test-calm: check-test-tiers ## Run the full test tier at reduced concurrency (shared or already-loaded machine)
+test-calm: check-test-tiers test-sessionprovenance ## Run the full test tier at reduced concurrency (shared or already-loaded machine)
 	@# The tier contract's -p 8 -parallel 32 assumes the runner owns the machine.
 	@# Locally it runs once per agent session per worktree: two concurrent
 	@# `make test-all` runs on an 18-core workstation measured load average 37
@@ -294,6 +315,7 @@ test-calm: check-test-tiers ## Run the full test tier at reduced concurrency (sh
 	$(call say,"Running full tests at reduced concurrency (-p $(CALM_P) -parallel $(CALM_PARALLEL))...")
 	@calm_flags="$$(OX_TEST_P=$(CALM_P) OX_TEST_PARALLEL=$(CALM_PARALLEL) $(TEST_TIER_TOOL) flags full)" || exit $$?; \
 		$(TEST_GIT_ISOLATION) $(TIME_CMD) $(GOTESTSUM) --format $(GOTESTSUM_FMT) $(GOTESTSUM_LEAN) $(GOTESTSUM_JUNIT) $(GOTESTSUM_TIMINGS) -- $$calm_flags -coverprofile=coverage.out -covermode=atomic ./...
+	@tail -n +2 $(SESSIONPROVENANCE_COVER) >> coverage.out
 	@python3 scripts/coverage_ratchet.py coverage.out --write-provenance coverage.out.provenance.json
 
 test-slow: check-test-tiers ## Run slow tests (build tag: slow) — requires real ox binary, no Claude needed
@@ -304,6 +326,7 @@ test-fuzz: ## Run bounded fuzz smoke gates over untrusted parsers
 	@$(GO) test -race -run '^$$' -fuzz '^FuzzParseLayerName$$' -fuzztime=5s ./internal/conversation/format
 	@$(GO) test -race -run '^$$' -fuzz '^FuzzFolderName$$' -fuzztime=5s ./internal/conversation/read
 	@$(GO) test -race -run '^$$' -fuzz '^FuzzParseHistoryEntry$$' -fuzztime=5s ./internal/session
+	@$(GO) test -race -run '^$$' -fuzz '^FuzzRedactString_ScreenIsTransparent$$' -fuzztime=5s ./internal/session
 
 test-browser: ## Run real-browser E2E (build tag: browser) — drives headless Chrome; skips if no Chrome installed
 	$(call say,"Running real-browser E2E (requires Chrome/Chromium)...")
@@ -323,7 +346,7 @@ test-acceptance-cover: check-test-tiers build-cover ## Acceptance journeys throu
 	@mkdir -p $(COVERDIR)/integration
 	@OX_TEST_GOCOVERDIR="$(abspath $(COVERDIR)/integration)" \
 		$(MAKE) --no-print-directory test-acceptance-run \
-			"ACCEPTANCE_OX_BIN=$(abspath bin/$(BINARY_NAME)-cover)" \
+			"ACCEPTANCE_OX_BIN=$(COVER_OX_BIN)" \
 			"ACCEPTANCE_GO_COVER_DIR=$(COVERDIR)"
 	@test -s $(COVERDIR)/integration-test.out || { echo "ERROR: integration acceptance produced no Go coverage profile"; exit 1; }
 	@test -s $(COVERDIR)/slow-test.out || { echo "ERROR: session acceptance produced no Go coverage profile"; exit 1; }
@@ -352,12 +375,23 @@ test-acceptance-run:
 		-run '^($(subst $(space),|,$(strip $(ACCEPTANCE_SLOW_TESTS))))$$' \
 		./cmd/ox
 
+# The release gate's independent stages. `make test-release` runs them in order;
+# release.yml reads this list with `make release-stages` and runs each stage as
+# its own parallel job, so CI cannot skip a stage that `make test-release` runs.
+RELEASE_STAGES := test-release-coverage test-slow test-fuzz
+
 test-release: check-test-tiers ## Run every enforceable in-repo release tier sequentially
+	@for stage in $(RELEASE_STAGES); do $(MAKE) $$stage || exit 1; done
+
+# One stage, not three: the ratchet reads the profile merged from the full,
+# acceptance, and digital-twin runs.
+test-release-coverage: check-test-tiers ## Release stage: full, acceptance, and digital-twin tiers under the merged coverage ratchets
 	@$(MAKE) coverage-ratchet-test
 	@$(MAKE) coverage-integration
 	@python3 scripts/coverage_ratchet.py coverage-all.out --require-provenance coverage-all.out.provenance.json
-	@$(MAKE) test-slow
-	@$(MAKE) test-fuzz
+
+release-stages: ## Print the release gate's stages as a JSON array (the release workflow's job matrix)
+	@python3 -c 'import json, sys; print(json.dumps(sys.argv[1:]))' $(RELEASE_STAGES)
 
 test-agents: ## Drive real coding agents and read their transcripts back through ox (opt-in, costs API calls)
 	$(call say,"Driving real coding agents — requires each agent installed and authenticated...")
@@ -637,13 +671,21 @@ coverage-ratchet-diff: test-all ## Enforce package + changed-line coverage vs CO
 coverage-ratchet-test: ## Test the coverage ratchet parser and failure semantics
 	@cd scripts && PYTHONDONTWRITEBYTECODE=1 python3 -m unittest -v coverage_ratchet_test.py test_tiers_test.py test_metrics_test.py
 
+# The instrumented binary lands in its OWN directory, not shared bin/, because
+# ox discovers adapters as siblings of the running binary. In bin/ it saw every
+# adapter a previous `make build` left behind (all ten), while
+# build-acceptance's tmp/acceptance/ holds exactly two — so the same acceptance
+# journeys ran against a different adapter set depending on which target
+# invoked them, and the coverage run failed on a Pi prime block the plain run
+# never produced. Mirroring build-acceptance keeps instrumentation the only
+# difference between the two.
 build-cover: ## Build ox binary with coverage instrumentation
-	@rm -rf $(COVERDIR)/integration $(COVERDIR)/merged
-	@mkdir -p bin $(COVERDIR)/integration
-	@$(GO) build -cover -covermode=atomic $(LDFLAGS) -o bin/$(BINARY_NAME)-cover ./cmd/ox
-	@$(GO) build $(ADAPTER_LDFLAGS) -o bin/ox-adapter-claude-code ./cmd/ox-adapter-claude-code
-	@echo "Instrumented binary: bin/$(BINARY_NAME)-cover"
-	@echo "Run with: GOCOVERDIR=$(COVERDIR)/integration bin/$(BINARY_NAME)-cover ..."
+	@rm -rf $(COVERDIR)/integration $(COVERDIR)/merged "$(COVER_BIN_DIR)"
+	@mkdir -p "$(COVER_BIN_DIR)" $(COVERDIR)/integration
+	@$(GO) build -cover -covermode=atomic $(LDFLAGS) -o "$(COVER_OX_BIN)" ./cmd/ox
+	@$(GO) build $(ADAPTER_LDFLAGS) -o "$(COVER_BIN_DIR)/ox-adapter-claude-code" ./cmd/ox-adapter-claude-code
+	@echo "Instrumented binary: $(COVER_OX_BIN)"
+	@echo "Run with: GOCOVERDIR=$(COVERDIR)/integration $(COVER_OX_BIN) ..."
 
 coverage-integration: ## Run acceptance through instrumented ox and merge full + binary coverage
 	@rm -f coverage-all.out coverage-all.out.provenance.json
@@ -673,7 +715,7 @@ smoke-test: build ## Run smoke tests against SageOx cloud (requires SAGEOX_CI_PA
 
 # Code quality
 # Targets below are agent-friendly by default (quiet). V=1 for verbose.
-lint: lint-test-env ## Run golangci-lint
+lint: lint-test-env lint-sessionprovenance ## Run golangci-lint
 	@which golangci-lint > /dev/null || (echo "golangci-lint not found. Install from https://golangci-lint.run/usage/install/" && exit 1)
 	@# --allow-parallel-runners: multiple AI coding agent sessions routinely run
 	@# `make lint` at the same time in this repo. golangci-lint's default file
@@ -681,6 +723,13 @@ lint: lint-test-env ## Run golangci-lint
 	@# instead of just queuing or racing harmlessly — each invocation has its
 	@# own in-memory analysis, so concurrent runs don't corrupt shared state.
 	@golangci-lint run -c .config/golangci.yml --allow-parallel-runners ./...
+
+# Root ./... cannot reach a nested module: golangci-lint resolves packages
+# against the main module, so pkg/sessionprovenance would ship unlinted.
+.PHONY: lint-sessionprovenance
+lint-sessionprovenance: ## Lint the public native-session contract
+	@which golangci-lint > /dev/null || (echo "golangci-lint not found. Install from https://golangci-lint.run/usage/install/" && exit 1)
+	@cd pkg/sessionprovenance && golangci-lint run -c $(CURDIR)/.config/golangci.yml --allow-parallel-runners ./...
 
 lint-test-env: ## Check that test files use testguard instead of os.Environ()
 	$(call say,"Checking for os.Environ() in test files...")

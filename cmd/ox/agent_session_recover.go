@@ -1,11 +1,11 @@
 package main
 
 import (
-	"encoding/json"
 	"fmt"
 	"log/slog"
 	"os"
 	"path/filepath"
+	"time"
 
 	"github.com/sageox/ox/internal/agentinstance"
 	"github.com/sageox/ox/internal/cli"
@@ -241,6 +241,8 @@ func recoverFromCache(inst *agentinstance.Instance, projectRoot string, state *s
 						ContinuedFromSessionID(state.ContinuedFromSessionID).
 						ProducedCommits(state.ProducedCommits).
 						ProducedPlans(state.ProducedPlans).
+						NativeSessions(state.NativeSessions).
+						StoppedAt(session.ResolveStoppedAt(state.StoppedAt, rawPath, time.Now())).
 						WithFiles(fileRefs)
 					meta := metaBuilder.Build()
 					if err := lfs.WriteSessionMeta(ledgerSessionDir, meta); err != nil {
@@ -308,10 +310,5 @@ func recoverFromCache(inst *agentinstance.Instance, projectRoot string, state *s
 }
 
 func outputRecoverJSON(output *sessionRecoverOutput) error {
-	jsonOut, err := json.MarshalIndent(output, "", "  ")
-	if err != nil {
-		return fmt.Errorf("format recover JSON: %w", err)
-	}
-	fmt.Println(string(jsonOut))
-	return nil
+	return cli.PrintJSONTo(os.Stdout, output)
 }

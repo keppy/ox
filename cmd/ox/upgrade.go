@@ -2,7 +2,6 @@ package main
 
 import (
 	"context"
-	"encoding/json"
 	"errors"
 	"fmt"
 	"os"
@@ -40,83 +39,106 @@ type upgradeResult struct {
 
 var upgradeCmd = &cobra.Command{
 	Use:   "upgrade",
-	Short: "Upgrade ox to the latest version",
-	Long:  "Detect how ox was installed and upgrade using the appropriate method: Homebrew, go install, or an in-place download that verifies and replaces the binary.",
-	RunE:  runUpgrade,
+	Args:  cobra.NoArgs,
+	Short: "Upgrade ox to the latest or a specific version",
+	Long: `Detect how ox was installed and upgrade using the appropriate method: Homebrew, go install, or an in-place download that verifies and replaces the binary.
+
+Targets must be release versions such as v0.18.0. Go installations require the
+v prefix and do not accept build metadata other than +incompatible.
+For Go and direct binary installations, --target installs the specified release
+without checking the latest release. It can reinstall the current version or
+select an older release. Homebrew and source installations do not support --target.
+
+Failed update checks and installations exit with status 1. With --json,
+stdout contains only the result; installer logs are written to stderr.`,
+	RunE: runUpgrade,
 }
 
 func init() {
 	upgradeCmd.Flags().Bool("json", false, "output as JSON")
 	upgradeCmd.Flags().String("target", "",
 		"pin upgrade to a specific version tag (e.g. v0.18.0); empty = latest from GitHub releases API")
-	// ox-zbi5: when this env var is set, refuse to upgrade with an @latest
-	// target. Forces operators to specify a pinned version, defeating the
-	// "compromised GOPROXY serves backdoored bytes for @latest" path.
-	// Defaults off so the typical interactive upgrade still works.
 }
 
 func runUpgrade(cmd *cobra.Command, _ []string) error {
 	jsonOutput, _ := cmd.Flags().GetBool("json")
+	target, _ := cmd.Flags().GetString("target")
 	method := detectInstallMethod()
-
-	// check if update is available
-	vResult := checkVersionFromCache()
-
-	if vResult == nil {
-		// no cache — try a live check
-		latestTag, err := getLatestGitHubRelease()
-		if err == nil {
-			writeVersionCacheFromDoctor(latestTag)
-			vResult = checkVersionFromCache()
-		}
-	}
-
 	result := upgradeResult{
 		PreviousVersion: version.Version,
 		InstallMethod:   method,
 	}
 
-	// treat "no cache" and "already current" the same
-	if vResult == nil || !vResult.UpdateAvailable {
-		result.Status = "up-to-date"
-		result.Message = fmt.Sprintf("ox v%s is already the latest version", version.Version)
-		return outputUpgradeResult(cmd, result, jsonOutput)
-	}
-
-	result.NewVersion = vResult.LatestVersion
-	result.ReleaseURL = fmt.Sprintf("https://github.com/sageox/ox/releases/tag/v%s", vResult.LatestVersion)
-
-	if !jsonOutput {
-		fmt.Printf("%s v%s → v%s\n\n",
-			cli.StyleBrand.Render("ox"),
-			cli.StyleDim.Render(vResult.CurrentVersion),
-			cli.StyleSuccess.Render(vResult.LatestVersion))
-		fmt.Printf("%s %s\n", cli.StyleDim.Render("Install method:"), string(method))
-	}
-
-	// perform upgrade based on install method
-	target, _ := cmd.Flags().GetString("target")
 	if err := validateUpgradeTarget(method, target); err != nil {
 		result.Status = "failed"
 		result.Message = err.Error()
 		return outputUpgradeResult(cmd, result, jsonOutput)
 	}
+
+	newVersion := strings.TrimPrefix(target, "v")
+	if target == "" {
+		vResult := checkVersionFromCache()
+		if vResult == nil {
+			// No cached update is available; check the current release directly.
+			latestTag, err := latestReleaseFetcher()
+			if err == nil && strings.TrimPrefix(latestTag, "v") == "" {
+				err = errors.New("GitHub returned an empty release tag")
+			}
+			if err != nil {
+				result.Status = "failed"
+				result.Message = fmt.Sprintf("could not check for updates: %v", err)
+				return outputUpgradeResult(cmd, result, jsonOutput)
+			}
+
+			latest := strings.TrimPrefix(latestTag, "v")
+			current := strings.TrimPrefix(version.Version, "v")
+			vResult = &versionCheckResult{
+				UpdateAvailable: isNewerVersion(latest, current),
+				LatestVersion:   latest,
+				CurrentVersion:  current,
+			}
+			// Caching is best effort; the live result must survive a cache write failure.
+			writeVersionCacheFromDoctor(latestTag)
+		}
+
+		if !vResult.UpdateAvailable {
+			result.Status = "up-to-date"
+			result.Message = fmt.Sprintf("ox v%s is already the latest version", version.Version)
+			return outputUpgradeResult(cmd, result, jsonOutput)
+		}
+		newVersion = vResult.LatestVersion
+	}
+
+	result.NewVersion = newVersion
+	result.ReleaseURL = fmt.Sprintf("https://github.com/sageox/ox/releases/tag/v%s", newVersion)
+
+	if !jsonOutput {
+		fmt.Printf("%s v%s → v%s\n\n",
+			cli.StyleBrand.Render("ox"),
+			cli.StyleDim.Render(strings.TrimPrefix(version.Version, "v")),
+			cli.StyleSuccess.Render(newVersion))
+		fmt.Printf("%s %s\n", cli.StyleDim.Render("Install method:"), string(method))
+	}
+
+	// perform upgrade based on install method
 	var err error
 	switch method {
 	case installHomebrew:
 		err = upgradeViaHomebrew(jsonOutput)
 	case installGoInstall:
-		err = upgradeViaGoInstallWithTarget(jsonOutput, target)
+		// Require an operator-supplied pin, even when the release check selected
+		// a concrete version. A cached or API-selected release is not explicit.
+		if target == "" && os.Getenv("OX_UPGRADE_REQUIRE_PIN") == "1" {
+			err = fmt.Errorf("OX_UPGRADE_REQUIRE_PIN=1 set: pass --target=<version> explicitly")
+		} else {
+			err = upgradeViaGoInstallWithTarget(jsonOutput, "v"+newVersion)
+		}
 	case installSource:
 		result.Status = "manual"
 		result.Message = "Dev build detected. Use 'make build && make install' to upgrade."
 		return outputUpgradeResult(cmd, result, jsonOutput)
 	case installBinary:
-		upgradeVersion := vResult.LatestVersion
-		if target != "" {
-			upgradeVersion = strings.TrimPrefix(target, "v")
-		}
-		err = upgradeViaSelfReplace(jsonOutput, upgradeVersion)
+		err = upgradeViaSelfReplace(jsonOutput, newVersion)
 	}
 
 	if err != nil {
@@ -130,7 +152,7 @@ func runUpgrade(cmd *cobra.Command, _ []string) error {
 	clearVersionCacheAfterUpgrade()
 
 	result.Status = "upgraded"
-	result.Message = fmt.Sprintf("Upgraded to v%s", vResult.LatestVersion)
+	result.Message = fmt.Sprintf("Upgraded to v%s", newVersion)
 	// This process still contains the OLD compiled-in version and skill catalog,
 	// even after brew/go install/self-replace updates the executable on disk. It
 	// may safely stop old daemons, but must leave inventory reconciliation to the
@@ -147,41 +169,53 @@ func validateUpgradeTarget(method installMethod, target string) error {
 	// go-install and direct-binary (self-replace) installs can both honor a
 	// pinned version — one via go install @tag, the other by downloading that
 	// tag's release tarball. Homebrew and dev/source builds cannot.
-	if target == "" || method == installGoInstall || method == installBinary {
+	if target == "" {
 		return nil
 	}
-	return fmt.Errorf("--target is supported only for go-install and binary installations; %s upgrades cannot safely honor a pinned release", method)
+	if method != installGoInstall && method != installBinary {
+		return fmt.Errorf("--target is supported only for go-install and binary installations; %s upgrades cannot safely honor a pinned release", method)
+	}
+	// Go treats noncanonical spellings as revision queries, which can follow branches.
+	_, metadata, _ := strings.Cut(target, "+")
+	goRevision := method == installGoInstall && (!strings.HasPrefix(target, "v") || (metadata != "" && metadata != "incompatible"))
+	if goRevision || !upgrade.IsValidVersion(strings.TrimPrefix(target, "v")) {
+		return fmt.Errorf("--target must be a release version such as v0.18.0; got %q", target)
+	}
+	return nil
 }
 
 func outputUpgradeResult(cmd *cobra.Command, result upgradeResult, jsonOutput bool) error {
 	if jsonOutput {
-		encoder := json.NewEncoder(cmd.OutOrStdout())
-		encoder.SetIndent("", "  ")
-		return encoder.Encode(result)
-	}
-
-	switch result.Status {
-	case "up-to-date":
-		fmt.Printf("%s %s\n",
-			cli.StyleSuccess.Render("✓"),
-			result.Message)
-	case "upgraded":
-		fmt.Printf("\n%s %s\n", cli.StyleSuccess.Render("✓"), result.Message)
-		fmt.Printf("%s %s\n", cli.StyleDim.Render("Release notes:"), result.ReleaseURL)
-		if result.DaemonsStopped > 0 {
-			fmt.Printf("%s %s\n", cli.StyleDim.Render("Daemons:"),
-				"stopped so they restart on the new version (they respawn on demand)")
+		if err := cli.PrintJSONTo(cmd.OutOrStdout(), result); err != nil {
+			return err
 		}
-		fmt.Printf("%s %s\n", cli.StyleDim.Render("Tip:"), "Restart your terminal to pick up the new binary in this shell")
-	case "manual":
-		fmt.Printf("\n%s\n", result.Message)
-		if result.ReleaseURL != "" {
+	} else {
+		switch result.Status {
+		case "up-to-date":
+			fmt.Printf("%s %s\n",
+				cli.StyleSuccess.Render("✓"),
+				result.Message)
+		case "upgraded":
+			fmt.Printf("\n%s %s\n", cli.StyleSuccess.Render("✓"), result.Message)
 			fmt.Printf("%s %s\n", cli.StyleDim.Render("Release notes:"), result.ReleaseURL)
+			if result.DaemonsStopped > 0 {
+				fmt.Printf("%s %s\n", cli.StyleDim.Render("Daemons:"),
+					"stopped so they restart on the new version (they respawn on demand)")
+			}
+			fmt.Printf("%s %s\n", cli.StyleDim.Render("Tip:"), "Restart your terminal to pick up the new binary in this shell")
+		case "manual":
+			fmt.Printf("\n%s\n", result.Message)
+			if result.ReleaseURL != "" {
+				fmt.Printf("%s %s\n", cli.StyleDim.Render("Release notes:"), result.ReleaseURL)
+			}
+		case "failed":
+			fmt.Fprintf(cmd.ErrOrStderr(), "\n%s %s\n", cli.StyleWarning.Render("✗"), result.Message)
 		}
-	case "failed":
-		fmt.Printf("\n%s %s\n", cli.StyleWarning.Render("✗"), result.Message)
 	}
 
+	if result.Status == "failed" {
+		return &commandExitError{ExitCode: 1, Message: result.Message}
+	}
 	return nil
 }
 
@@ -215,6 +249,9 @@ func upgradeViaHomebrew(quiet bool) error {
 	}
 	cmd := exec.Command("brew", "upgrade", "sageox/tap/ox")
 	cmd.Stdout = os.Stdout
+	if quiet {
+		cmd.Stdout = os.Stderr
+	}
 	cmd.Stderr = os.Stderr
 	return cmd.Run()
 }
@@ -234,42 +271,7 @@ var adapterPackages = []string{
 	"github.com/sageox/ox/cmd/ox-adapter-goose",
 }
 
-// resolveUpgradeTarget returns the version tag to install. Per ox-zbi5:
-//   - --target=<tag> wins (operator explicit choice).
-//   - Else fetch the latest tag from the GitHub releases API and pin to it.
-//   - When OX_UPGRADE_REQUIRE_PIN=1, refuse @latest entirely; the operator
-//     MUST specify --target. Defends against a compromised GOPROXY by
-//     forcing an explicit version that the operator chose out-of-band.
-//
-// Returns "latest" as a fall-through ONLY when the require-pin gate is
-// not set AND the GitHub release fetch failed; callers see this and can
-// warn loudly before invoking go install.
-func resolveUpgradeTarget(targetFlag string) (string, error) {
-	if targetFlag != "" {
-		return targetFlag, nil
-	}
-	if os.Getenv("OX_UPGRADE_REQUIRE_PIN") == "1" {
-		return "", fmt.Errorf("OX_UPGRADE_REQUIRE_PIN=1 set: pass --target=<version> explicitly")
-	}
-	if tag, err := getLatestGitHubRelease(); err == nil && tag != "" {
-		return tag, nil
-	}
-	return "latest", nil
-}
-
-func upgradeViaGoInstallWithTarget(quiet bool, targetFlag string) error {
-	target, err := resolveUpgradeTarget(targetFlag)
-	if err != nil {
-		return err
-	}
-	if target == "latest" && !quiet {
-		fmt.Fprintln(os.Stderr, cli.StyleDim.Render(
-			"WARNING: upgrading to @latest because the GitHub releases API "+
-				"could not be reached. The bytes go install fetches are "+
-				"determined by GOPROXY. To pin: pass --target=v0.x.y or "+
-				"set OX_UPGRADE_REQUIRE_PIN=1."))
-	}
-
+func upgradeViaGoInstallWithTarget(quiet bool, target string) error {
 	// install ox and all bundled adapters in one invocation, pinned to the
 	// same target version so their protocol versions stay in sync.
 	args := []string{"install", "github.com/sageox/ox/cmd/ox@" + target}
@@ -281,6 +283,9 @@ func upgradeViaGoInstallWithTarget(quiet bool, targetFlag string) error {
 	}
 	cmd := exec.Command("go", args...)
 	cmd.Stdout = os.Stdout
+	if quiet {
+		cmd.Stdout = os.Stderr
+	}
 	cmd.Stderr = os.Stderr
 	return cmd.Run()
 }
