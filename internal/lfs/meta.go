@@ -8,6 +8,7 @@ import (
 	"io/fs"
 	"log/slog"
 	"os"
+	"path"
 	"path/filepath"
 	"strings"
 	"time"
@@ -520,13 +521,18 @@ func ValidateRelativePath(name string) error {
 	if name == "" {
 		return fmt.Errorf("empty path")
 	}
-	if filepath.IsAbs(name) {
+	// Names are a slash-separated wire format shared across machines, so the
+	// checks use path (not filepath): filepath.IsAbs("/etc/passwd") is false
+	// on Windows and filepath.Clean would rewrite "a/b" to "a\b" there,
+	// making every valid name "unclean". A leading slash or a drive letter
+	// is absolute regardless of host.
+	if strings.HasPrefix(name, "/") || filepath.IsAbs(name) || filepath.VolumeName(name) != "" {
 		return fmt.Errorf("absolute path not allowed: %s", name)
 	}
 	if strings.Contains(name, `\`) {
 		return fmt.Errorf("backslash not allowed in path: %s", name)
 	}
-	cleaned := filepath.Clean(name)
+	cleaned := path.Clean(name)
 	if cleaned != name {
 		return fmt.Errorf("path must be clean (got %q, cleaned to %q)", name, cleaned)
 	}

@@ -13,6 +13,8 @@ import (
 	"testing"
 	"time"
 
+	"github.com/sageox/ox/internal/testguard"
+
 	"github.com/sageox/ox/pkg/adapterprotocol"
 )
 
@@ -25,7 +27,7 @@ func supBuildTestAdapter(t *testing.T) string {
 	}
 
 	dir := t.TempDir()
-	binaryPath := filepath.Join(dir, "ox-adapter-test")
+	binaryPath := filepath.Join(dir, testguard.ExeName("ox-adapter-test"))
 
 	repoRoot := supFindRepoRoot(t)
 	cmd := exec.Command("go", "build", "-o", binaryPath, "./cmd/ox-adapter-test")
@@ -307,9 +309,7 @@ func TestSupervisor_MultipleAdapterTypes(t *testing.T) {
 	// symlink simulates a second adapter type
 	originalBinary := filepath.Join(adapterDir, "ox-adapter-test")
 	secondBinary := filepath.Join(adapterDir, "ox-adapter-test2")
-	if err := os.Symlink(originalBinary, secondBinary); err != nil {
-		t.Fatalf("create symlink: %v", err)
-	}
+	testguard.Symlink(t, originalBinary, secondBinary)
 
 	sup := NewAdapterSupervisor(testLogger(), []string{adapterDir})
 	defer sup.Shutdown(context.Background())

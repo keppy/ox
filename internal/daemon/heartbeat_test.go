@@ -1067,7 +1067,11 @@ func TestHeartbeatHandler_CallerTracking(t *testing.T) {
 		t.Errorf("expected agent ID OxA1b2, got %q", callers[0].AgentID)
 	}
 
-	// heartbeat from zagreb (different clone, different callerID)
+	// heartbeat from zagreb (different clone, different callerID).
+	// LastSeen is stamped with time.Now() on receipt; on Windows the system
+	// clock ticks at ~0.5–15ms, so two back-to-back heartbeats can tie and
+	// "most recent" becomes map-iteration order. Step past the tick.
+	time.Sleep(20 * time.Millisecond)
 	handler.Handle("ef56gh78", mustMarshal(HeartbeatPayload{
 		CallerPath: "/Users/dev/conductor/workspaces/ox/zagreb-v2",
 		Timestamp:  time.Now(),

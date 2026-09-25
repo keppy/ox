@@ -6,6 +6,8 @@ import (
 	"os"
 	"path/filepath"
 
+	"github.com/sageox/ox/internal/homedir"
+
 	"github.com/sageox/ox/pkg/adapterprotocol"
 )
 
@@ -271,7 +273,7 @@ func searchString(s, substr string) bool {
 
 func resolveSettingsPath(repoRoot, scope string) string {
 	if scope == "user" {
-		home, _ := os.UserHomeDir()
+		home, _ := homedir.Dir()
 		return filepath.Join(home, ".factory", "settings.json")
 	}
 	return filepath.Join(repoRoot, ".factory", "settings.json")

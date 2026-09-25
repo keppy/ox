@@ -3,6 +3,7 @@
 package proc
 
 import (
+	"errors"
 	"fmt"
 	"os"
 	"os/exec"
@@ -48,6 +49,21 @@ func processName(pid int) string {
 func isAliveProc(proc *os.Process) bool {
 	err := proc.Signal(syscall.Signal(0))
 	return err == nil
+}
+
+// aliveButDenied reports whether pid exists but cannot be queried for
+// liveness. Unix has no direct probe: EPERM from kill(pid, 0) means the
+// process exists but belongs to another user — exactly the ambiguous case
+// IsAliveOrDenied resolves toward alive.
+func aliveButDenied(pid int) bool {
+	if pid <= 0 {
+		return false
+	}
+	proc, err := os.FindProcess(pid)
+	if err != nil {
+		return false
+	}
+	return errors.Is(proc.Signal(syscall.Signal(0)), syscall.EPERM)
 }
 
 // terminateProc sends SIGINT, letting the target close resources and release any

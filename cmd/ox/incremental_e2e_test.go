@@ -412,7 +412,7 @@ func buildIncrementalE2EBinaries(t *testing.T) (string, string) {
 	// falls through to the generic adapter, and PostToolUse hooks never
 	// parse the fake Claude JSONL source file. In particular, do not write
 	// beside OX_TEST_OX_BINARY: callers may provide a read-only shared artifact.
-	adapterBin := filepath.Join(adapterDir, "ox-adapter-claude-code")
+	adapterBin := filepath.Join(adapterDir, testguard.ExeName("ox-adapter-claude-code"))
 	adapterCmd := exec.Command("go", "build", "-o", adapterBin, "./cmd/ox-adapter-claude-code")
 	adapterCmd.Dir = dir
 	adapterOut, adapterErr := adapterCmd.CombinedOutput()

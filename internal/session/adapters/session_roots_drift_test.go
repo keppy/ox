@@ -3,6 +3,8 @@ package adapters
 import (
 	"path/filepath"
 	"testing"
+
+	"github.com/sageox/ox/internal/testguard"
 )
 
 // This file is the drift alarm for the session-file allow-list.
@@ -101,8 +103,8 @@ var realHandles = []handleCase{
 // not a data fix, so this test asserts the CURRENT behavior and names the gap
 // rather than quietly papering over it.
 func TestAllowList_AiderIsStructurallyUngovernable(t *testing.T) {
-	const home = "/Users/someone"
-	projectTranscript := "/Users/someone/src/project/.aider.chat.history.md"
+	home := testguard.FakeHome("/Users/someone")
+	projectTranscript := testguard.FakePath("/Users/someone/src/project/.aider.chat.history.md")
 
 	if IsSessionFileAllowed("aider", projectTranscript, home) {
 		t.Fatal("aider transcripts are now allow-listed — delete this test and add aider to realHandles above")
@@ -113,7 +115,7 @@ func TestAllowList_AiderIsStructurallyUngovernable(t *testing.T) {
 }
 
 func TestAllowList_AcceptsWhatAdaptersActuallyReturn(t *testing.T) {
-	const home = "/Users/someone"
+	home := testguard.FakeHome("/Users/someone")
 
 	for _, tc := range realHandles {
 		t.Run(tc.adapter, func(t *testing.T) {
@@ -134,13 +136,13 @@ func TestAllowList_AcceptsWhatAdaptersActuallyReturn(t *testing.T) {
 }
 
 func TestAllowList_AcceptsOMPConfiguredSessionDirectory(t *testing.T) {
-	const home = "/Users/someone"
-	t.Setenv("PI_CODING_AGENT_SESSION_DIR", "/Volumes/sessions/omp")
-	path := "/Volumes/sessions/omp/2026-08-17_session.jsonl"
+	home := testguard.FakeHome("/Users/someone")
+	t.Setenv("PI_CODING_AGENT_SESSION_DIR", testguard.FakePath("/Volumes/sessions/omp"))
+	path := testguard.FakePath("/Volumes/sessions/omp/2026-08-17_session.jsonl")
 	if !IsSessionFileAllowed("omp", path, home) {
 		t.Fatalf("daemon rejected OMP's configured session directory %s", path)
 	}
-	if IsSessionFileAllowed("omp", "/Volumes/sessions/other.jsonl", home) {
+	if IsSessionFileAllowed("omp", testguard.FakePath("/Volumes/sessions/other.jsonl"), home) {
 		t.Fatal("OMP path override widened beyond the configured directory")
 	}
 }
@@ -149,7 +151,7 @@ func TestAllowList_AcceptsOMPConfiguredSessionDirectory(t *testing.T) {
 // handles must not become a hole through which a same-UID IPC peer can name a
 // file for the daemon to read and upload.
 func TestAllowList_StillRejectsPathTraversal(t *testing.T) {
-	const home = "/Users/someone"
+	home := testguard.FakeHome("/Users/someone")
 
 	rejects := []struct {
 		name        string

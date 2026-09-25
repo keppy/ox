@@ -1327,8 +1327,13 @@ func (s *Store) Prune(olderThan time.Duration) (int, error) {
 //	With OX_XDG_ENABLE: $XDG_CACHE_HOME/sageox/
 //
 // See internal/paths/doc.go for architecture rationale.
+// GetCacheDir returns the session cache root in portable (slash) form.
+//
+// The value is recorded in session state and read back on other platforms, so
+// it keeps one form everywhere: filepath would rewrite an XDG_CACHE_HOME value
+// — POSIX-form by specification — to backslashes on Windows.
 func GetCacheDir() string {
-	return paths.CacheDir()
+	return filepath.ToSlash(paths.CacheDir())
 }
 
 // GetContextPath returns the full path to a repo's session context directory.
@@ -1340,5 +1345,5 @@ func GetCacheDir() string {
 //
 // See internal/paths/doc.go for architecture rationale.
 func GetContextPath(repoID string) string {
-	return paths.SessionCacheDir(repoID)
+	return filepath.ToSlash(paths.SessionCacheDir(repoID))
 }

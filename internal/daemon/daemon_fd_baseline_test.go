@@ -12,6 +12,7 @@ import (
 	"time"
 
 	"github.com/sageox/ox/internal/api"
+	"github.com/sageox/ox/internal/fileutil"
 	whisperstore "github.com/sageox/ox/internal/whisper/store"
 )
 
@@ -72,7 +73,7 @@ func TestDaemon_MultiSubsystem_NoFDLeak(t *testing.T) {
 			KBID:    fmt.Sprintf("fdkb_%02d", i),
 			KBType:  api.KBTypePersonal,
 			Slug:    fmt.Sprintf("fdkb-%02d", i),
-			RepoURL: "file://" + bareDir,
+			RepoURL: fileutil.FileURL(bareDir),
 		}
 	}
 	s.SetKBBubbleListerFactory(func(_, _ string) KBBubbleLister {

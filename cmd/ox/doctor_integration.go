@@ -7,6 +7,8 @@ import (
 	"path/filepath"
 	"strings"
 
+	"github.com/sageox/ox/internal/homedir"
+
 	lipgloss "charm.land/lipgloss/v2"
 	"github.com/sageox/agentx"
 	"github.com/sageox/ox/internal/ui"
@@ -318,7 +320,7 @@ var knownEditors = []editorConfig{
 func detectOtherAIEditors() []string {
 	var detected []string
 
-	homeDir, err := os.UserHomeDir()
+	homeDir, err := homedir.Dir()
 	if err != nil {
 		return detected
 	}
@@ -412,7 +414,7 @@ func detectClaudeCode() bool {
 		}
 	}
 	// check for user-level Claude config
-	homeDir, err := os.UserHomeDir()
+	homeDir, err := homedir.Dir()
 	if err != nil {
 		return false
 	}

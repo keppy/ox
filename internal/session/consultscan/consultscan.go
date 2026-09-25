@@ -301,11 +301,12 @@ func underRoot(path, root string) bool {
 	return strings.HasPrefix(path, root+string(filepath.Separator))
 }
 
-// relOrBase returns path relative to root, or the base name if it can't be made
+// relOrBase returns path relative to root (slash-separated so the callers'
+// prefix checks hold on Windows), or the base name if it can't be made
 // relative — so the receipt stays readable and never leaks an absolute path.
 func relOrBase(root, path string) string {
 	if rel, err := filepath.Rel(root, path); err == nil && !strings.HasPrefix(rel, "..") {
-		return rel
+		return filepath.ToSlash(rel)
 	}
 	return filepath.Base(path)
 }

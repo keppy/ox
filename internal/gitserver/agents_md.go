@@ -177,9 +177,13 @@ func commitAgentsMD(ctx context.Context, repoPath string) error {
 	// commit
 	commitCmd := exec.CommandContext(ctx, "git", "-C", repoPath, "commit", "-m", "docs: add AGENTS.md repository documentation")
 	if output, err := commitCmd.CombinedOutput(); err != nil {
-		// might fail if nothing to commit (already added)
+		// might fail if nothing to commit (already added). A command killed
+		// by the context must not be read as that answer: on Windows a kill
+		// terminates with exit code 1, the same code `git commit` uses for
+		// "nothing to commit", so a timed-out commit would be reported as
+		// success while AGENTS.md was never committed.
 		var exitErr *exec.ExitError
-		if errors.As(err, &exitErr) && exitErr.ExitCode() == 1 {
+		if errors.As(err, &exitErr) && exitErr.ExitCode() == 1 && ctx.Err() == nil {
 			logger.Debug("AGENTS.md already committed or no changes")
 			return nil
 		}

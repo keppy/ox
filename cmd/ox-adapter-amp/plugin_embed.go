@@ -8,6 +8,8 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+
+	"github.com/sageox/ox/internal/homedir"
 )
 
 //go:embed plugin/ox-bridge.ts
@@ -24,7 +26,7 @@ var oxBridgePluginSrc []byte
 // (honors $HOME on unix, $USERPROFILE on windows), falls back to $HOME
 // directly for environments where UserHomeDir is unhappy.
 func userBridgePluginPath() (string, error) {
-	if home, err := os.UserHomeDir(); err == nil && home != "" {
+	if home, err := homedir.Dir(); err == nil && home != "" {
 		return filepath.Join(home, ".config", "amp", "plugins", "ox-bridge.ts"), nil
 	}
 	if home := os.Getenv("HOME"); home != "" {

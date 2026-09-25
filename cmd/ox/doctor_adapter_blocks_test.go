@@ -7,6 +7,8 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/sageox/ox/internal/testguard"
+
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -97,7 +99,7 @@ func TestCheckAdapterPrimeBlocks_SymlinkAmplifier(t *testing.T) {
 		"AGENTS.md": "<!-- ox:prime-check -->\n\n<!-- ox:prime:pi:start -->\npi block\n<!-- ox:prime:pi:end -->\n",
 	})
 	// create CLAUDE.md as a symlink to AGENTS.md (the #527 configuration)
-	require.NoError(t, os.Symlink("AGENTS.md", filepath.Join(dir, "CLAUDE.md")))
+	testguard.Symlink(t, "AGENTS.md", filepath.Join(dir, "CLAUDE.md"))
 
 	res := checkAdapterPrimeBlocks(false)
 	assert.True(t, res.warning)
@@ -175,7 +177,7 @@ func TestCheckAdapterPrimeBlocks_DedupesSymlinkedFiles(t *testing.T) {
 	dir := setupGitRepoWithFiles(t, map[string]string{
 		"AGENTS.md": "<!-- ox:prime:pi:start -->\npi\n<!-- ox:prime:pi:end -->\n",
 	})
-	require.NoError(t, os.Symlink("AGENTS.md", filepath.Join(dir, "CLAUDE.md")))
+	testguard.Symlink(t, "AGENTS.md", filepath.Join(dir, "CLAUDE.md"))
 
 	res := checkAdapterPrimeBlocks(false)
 	assert.True(t, res.warning)

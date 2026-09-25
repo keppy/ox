@@ -241,7 +241,7 @@ func BuildOxBinary(t *testing.T, projectRoot string) string {
 	}
 
 	binDir := t.TempDir()
-	binPath := fmt.Sprintf("%s/ox", binDir)
+	binPath := filepath.Join(binDir, ExeName("ox"))
 
 	cmd := exec.Command("go", "build", "-o", binPath, "./cmd/ox")
 	cmd.Dir = projectRoot

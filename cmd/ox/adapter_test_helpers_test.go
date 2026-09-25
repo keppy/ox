@@ -8,6 +8,8 @@ import (
 	"path/filepath"
 	"time"
 
+	"github.com/sageox/ox/internal/homedir"
+
 	"github.com/sageox/ox/internal/session/adapters"
 )
 
@@ -177,7 +179,7 @@ func (a *testCodexAdapter) Name() string { return "codex" }
 func (a *testCodexAdapter) Detect() bool { return false }
 func (a *testCodexAdapter) FindSessionFile(lookup adapters.SessionLookup) (string, error) {
 	// scan ~/.codex/sessions/ for recent session files (mirrors real CodexAdapter behavior)
-	home, err := os.UserHomeDir()
+	home, err := homedir.Dir()
 	if err != nil {
 		return "", adapters.ErrSessionNotFound
 	}

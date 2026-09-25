@@ -7,6 +7,7 @@ import (
 	"testing"
 
 	"github.com/sageox/agentx"
+	"github.com/sageox/ox/internal/testguard"
 )
 
 // gitIgnores asks git itself whether a path is ignored.
@@ -231,9 +232,7 @@ func TestScopedIgnoreFiles_RefusesSymlinkedPaths(t *testing.T) {
 	t.Run("symlinked agent directory", func(t *testing.T) {
 		root := newIgnoreTestRepo(t)
 		outside := t.TempDir()
-		if err := os.Symlink(outside, filepath.Join(root, ".claude")); err != nil {
-			t.Fatalf("symlink .claude: %v", err)
-		}
+		testguard.Symlink(t, outside, filepath.Join(root, ".claude"))
 
 		written, err := ensureScopedIgnoreFiles(root)
 		if err != nil {
@@ -254,9 +253,7 @@ func TestScopedIgnoreFiles_RefusesSymlinkedPaths(t *testing.T) {
 		if err := os.WriteFile(outside, []byte("# the user's own file\n"), 0o644); err != nil {
 			t.Fatalf("write victim: %v", err)
 		}
-		if err := os.Symlink(outside, filepath.Join(root, ".claude", ".gitignore")); err != nil {
-			t.Fatalf("symlink .gitignore: %v", err)
-		}
+		testguard.Symlink(t, outside, filepath.Join(root, ".claude", ".gitignore"))
 
 		if _, err := ensureScopedIgnoreFiles(root); err != nil {
 			t.Fatalf("ensureScopedIgnoreFiles: %v", err)

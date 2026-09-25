@@ -7,6 +7,8 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
+
+	"github.com/sageox/ox/internal/testguard"
 )
 
 func TestMergeGitignoreEntries_EmptyContent(t *testing.T) {
@@ -816,9 +818,7 @@ func TestCheckSageoxGitignore_SymlinkToValidFile(t *testing.T) {
 
 	// create symlink
 	gitignorePath := filepath.Join(sageoxDir, ".gitignore")
-	if err := os.Symlink(targetPath, gitignorePath); err != nil {
-		t.Fatalf("failed to create symlink: %v", err)
-	}
+	testguard.Symlink(t, targetPath, gitignorePath)
 
 	result := checkSageoxGitignore(false)
 
@@ -849,9 +849,7 @@ func TestCheckSageoxGitignore_SymlinkToInvalidFile(t *testing.T) {
 
 	// create symlink
 	gitignorePath := filepath.Join(sageoxDir, ".gitignore")
-	if err := os.Symlink(targetPath, gitignorePath); err != nil {
-		t.Fatalf("failed to create symlink: %v", err)
-	}
+	testguard.Symlink(t, targetPath, gitignorePath)
 
 	result := checkSageoxGitignore(false)
 

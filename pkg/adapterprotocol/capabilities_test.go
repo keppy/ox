@@ -9,7 +9,7 @@ import "testing"
 // caught against — see TestBundledAdapterCapabilities_AllNonEmptyAndKnown.
 var wantBundledAdapterNames = []string{
 	"claude-code", "gemini", "codex", "amp", "opencode",
-	"pi", "omp", "aider", "droid", "goose",
+	"pi", "omp", "aider", "droid", "goose", "hermes",
 }
 
 // TestBundledAdapterCapabilities_AllNonEmptyAndKnown is the compile-time

@@ -1,6 +1,8 @@
 package paths
 
 import (
+	"github.com/sageox/ox/internal/testguard"
+
 	"os"
 	"path/filepath"
 	"strings"
@@ -49,7 +51,7 @@ func TestConfigDir(t *testing.T) {
 
 	t.Run("default mode uses XDG", func(t *testing.T) {
 		clearXDGEnv()
-		dir := ConfigDir()
+		dir := filepath.ToSlash(ConfigDir())
 		// XDG is now the default
 		if !strings.Contains(dir, ".config") || !strings.HasSuffix(dir, "sageox") {
 			t.Errorf("ConfigDir() = %q, want ~/.config/sageox", dir)
@@ -58,9 +60,9 @@ func TestConfigDir(t *testing.T) {
 
 	t.Run("default mode respects XDG_CONFIG_HOME", func(t *testing.T) {
 		clearXDGEnv()
-		os.Setenv("XDG_CONFIG_HOME", "/custom/config")
-		dir := ConfigDir()
-		want := "/custom/config/sageox"
+		os.Setenv("XDG_CONFIG_HOME", testguard.FakePath("/custom/config"))
+		dir := filepath.ToSlash(ConfigDir())
+		want := filepath.ToSlash(testguard.FakePath("/custom/config/sageox"))
 		if dir != want {
 			t.Errorf("ConfigDir() = %q, want %q", dir, want)
 		}
@@ -68,7 +70,7 @@ func TestConfigDir(t *testing.T) {
 
 	t.Run("legacy mode uses .sageox", func(t *testing.T) {
 		setLegacyMode()
-		dir := ConfigDir()
+		dir := filepath.ToSlash(ConfigDir())
 		if !strings.Contains(dir, ".sageox") || !strings.HasSuffix(dir, "config") {
 			t.Errorf("ConfigDir() = %q in legacy mode, want ~/.sageox/config", dir)
 		}
@@ -76,8 +78,8 @@ func TestConfigDir(t *testing.T) {
 
 	t.Run("legacy mode ignores XDG_CONFIG_HOME", func(t *testing.T) {
 		setLegacyMode()
-		os.Setenv("XDG_CONFIG_HOME", "/custom/config")
-		dir := ConfigDir()
+		os.Setenv("XDG_CONFIG_HOME", testguard.FakePath("/custom/config"))
+		dir := filepath.ToSlash(ConfigDir())
 		// in legacy mode, XDG_CONFIG_HOME should be ignored
 		if strings.Contains(dir, "/custom/") {
 			t.Errorf("ConfigDir() = %q, should ignore XDG_CONFIG_HOME in legacy mode", dir)
@@ -96,22 +98,23 @@ func TestXDGPartialConfiguration(t *testing.T) {
 		clearXDGEnv()
 		os.Setenv("OX_XDG_ENABLE", "1")
 		// only set XDG_CONFIG_HOME, leave others unset
-		os.Setenv("XDG_CONFIG_HOME", "/custom/config")
+		os.Setenv("XDG_CONFIG_HOME", testguard.FakePath("/custom/config"))
 
 		// config should use custom path
-		configDir := ConfigDir()
-		if configDir != "/custom/config/sageox" {
-			t.Errorf("ConfigDir() = %q, want /custom/config/sageox", configDir)
+		configDir := filepath.ToSlash(ConfigDir())
+		wantConfig := filepath.ToSlash(testguard.FakePath("/custom/config/sageox"))
+		if configDir != wantConfig {
+			t.Errorf("ConfigDir() = %q, want %q", configDir, wantConfig)
 		}
 
 		// data should use default XDG path
-		dataDir := DataDir()
+		dataDir := filepath.ToSlash(DataDir())
 		if !strings.Contains(dataDir, ".local/share/sageox") {
 			t.Errorf("DataDir() = %q, want to contain .local/share/sageox", dataDir)
 		}
 
 		// cache should use default XDG path
-		cacheDir := CacheDir()
+		cacheDir := filepath.ToSlash(CacheDir())
 		if !strings.Contains(cacheDir, ".cache/sageox") {
 			t.Errorf("CacheDir() = %q, want to contain .cache/sageox", cacheDir)
 		}
@@ -120,18 +123,18 @@ func TestXDGPartialConfiguration(t *testing.T) {
 	t.Run("XDG mode with mixed custom paths", func(t *testing.T) {
 		clearXDGEnv()
 		os.Setenv("OX_XDG_ENABLE", "1")
-		os.Setenv("XDG_CONFIG_HOME", "/a/config")
-		os.Setenv("XDG_DATA_HOME", "/b/data")
+		os.Setenv("XDG_CONFIG_HOME", testguard.FakePath("/a/config"))
+		os.Setenv("XDG_DATA_HOME", testguard.FakePath("/b/data"))
 		// leave cache and runtime unset
 
-		if got := ConfigDir(); got != "/a/config/sageox" {
-			t.Errorf("ConfigDir() = %q, want /a/config/sageox", got)
+		if got, want := ConfigDir(), testguard.FakePath("/a/config/sageox"); got != want {
+			t.Errorf("ConfigDir() = %q, want %q", got, want)
 		}
-		if got := DataDir(); got != "/b/data/sageox" {
-			t.Errorf("DataDir() = %q, want /b/data/sageox", got)
+		if got, want := DataDir(), testguard.FakePath("/b/data/sageox"); got != want {
+			t.Errorf("DataDir() = %q, want %q", got, want)
 		}
 		// cache uses default
-		if got := CacheDir(); !strings.Contains(got, ".cache/sageox") {
+		if got := filepath.ToSlash(CacheDir()); !strings.Contains(got, ".cache/sageox") {
 			t.Errorf("CacheDir() = %q, want to contain .cache/sageox", got)
 		}
 	})
@@ -139,11 +142,12 @@ func TestXDGPartialConfiguration(t *testing.T) {
 	t.Run("XDG runtime dir for daemon state", func(t *testing.T) {
 		clearXDGEnv()
 		os.Setenv("OX_XDG_ENABLE", "1")
-		os.Setenv("XDG_RUNTIME_DIR", "/run/user/1000")
+		os.Setenv("XDG_RUNTIME_DIR", testguard.FakePath("/run/user/1000"))
 
-		stateDir := StateDir()
-		if stateDir != "/run/user/1000/sageox" {
-			t.Errorf("StateDir() = %q, want /run/user/1000/sageox", stateDir)
+		stateDir := filepath.ToSlash(StateDir())
+		want := filepath.ToSlash(testguard.FakePath("/run/user/1000/sageox"))
+		if stateDir != want {
+			t.Errorf("StateDir() = %q, want %q", stateDir, want)
 		}
 	})
 
@@ -152,7 +156,7 @@ func TestXDGPartialConfiguration(t *testing.T) {
 		os.Setenv("OX_XDG_ENABLE", "1")
 		// XDG_RUNTIME_DIR not set
 
-		stateDir := StateDir()
+		stateDir := filepath.ToSlash(StateDir())
 		// should fall back to temp dir
 		if !strings.Contains(stateDir, "sageox") {
 			t.Errorf("StateDir() = %q, want to contain sageox", stateDir)
@@ -168,10 +172,10 @@ func TestConsistencyBetweenModes(t *testing.T) {
 		clearXDGEnv()
 
 		baseDir := SageoxDir()
-		configDir := ConfigDir()
-		dataDir := DataDir()
-		cacheDir := CacheDir()
-		stateDir := StateDir()
+		configDir := filepath.ToSlash(ConfigDir())
+		dataDir := filepath.ToSlash(DataDir())
+		cacheDir := filepath.ToSlash(CacheDir())
+		stateDir := filepath.ToSlash(StateDir())
 
 		// all should be under ~/.sageox/
 		for name, dir := range map[string]string{
@@ -234,7 +238,7 @@ func TestDataDir(t *testing.T) {
 
 	t.Run("default mode uses XDG", func(t *testing.T) {
 		clearXDGEnv()
-		dir := DataDir()
+		dir := filepath.ToSlash(DataDir())
 		// XDG is now the default
 		if !strings.Contains(dir, ".local/share") || !strings.HasSuffix(dir, "sageox") {
 			t.Errorf("DataDir() = %q, want ~/.local/share/sageox", dir)
@@ -243,9 +247,9 @@ func TestDataDir(t *testing.T) {
 
 	t.Run("default mode respects XDG_DATA_HOME", func(t *testing.T) {
 		clearXDGEnv()
-		os.Setenv("XDG_DATA_HOME", "/custom/data")
-		dir := DataDir()
-		want := "/custom/data/sageox"
+		os.Setenv("XDG_DATA_HOME", testguard.FakePath("/custom/data"))
+		dir := filepath.ToSlash(DataDir())
+		want := filepath.ToSlash(testguard.FakePath("/custom/data/sageox"))
 		if dir != want {
 			t.Errorf("DataDir() = %q, want %q", dir, want)
 		}
@@ -253,7 +257,7 @@ func TestDataDir(t *testing.T) {
 
 	t.Run("legacy mode uses .sageox", func(t *testing.T) {
 		setLegacyMode()
-		dir := DataDir()
+		dir := filepath.ToSlash(DataDir())
 		if !strings.Contains(dir, ".sageox") || !strings.HasSuffix(dir, "data") {
 			t.Errorf("DataDir() = %q in legacy mode, want ~/.sageox/data", dir)
 		}
@@ -266,7 +270,7 @@ func TestCacheDir(t *testing.T) {
 
 	t.Run("default mode uses XDG", func(t *testing.T) {
 		clearXDGEnv()
-		dir := CacheDir()
+		dir := filepath.ToSlash(CacheDir())
 		// XDG is now the default
 		if !strings.Contains(dir, ".cache") || !strings.HasSuffix(dir, "sageox") {
 			t.Errorf("CacheDir() = %q, want ~/.cache/sageox", dir)
@@ -275,9 +279,9 @@ func TestCacheDir(t *testing.T) {
 
 	t.Run("default mode respects XDG_CACHE_HOME", func(t *testing.T) {
 		clearXDGEnv()
-		os.Setenv("XDG_CACHE_HOME", "/custom/cache")
-		dir := CacheDir()
-		want := "/custom/cache/sageox"
+		os.Setenv("XDG_CACHE_HOME", testguard.FakePath("/custom/cache"))
+		dir := filepath.ToSlash(CacheDir())
+		want := filepath.ToSlash(testguard.FakePath("/custom/cache/sageox"))
 		if dir != want {
 			t.Errorf("CacheDir() = %q, want %q", dir, want)
 		}
@@ -285,7 +289,7 @@ func TestCacheDir(t *testing.T) {
 
 	t.Run("legacy mode uses .sageox", func(t *testing.T) {
 		setLegacyMode()
-		dir := CacheDir()
+		dir := filepath.ToSlash(CacheDir())
 		if !strings.Contains(dir, ".sageox") || !strings.HasSuffix(dir, "cache") {
 			t.Errorf("CacheDir() = %q in legacy mode, want ~/.sageox/cache", dir)
 		}
@@ -298,9 +302,9 @@ func TestStateDir(t *testing.T) {
 
 	t.Run("default mode uses XDG_RUNTIME_DIR", func(t *testing.T) {
 		clearXDGEnv()
-		os.Setenv("XDG_RUNTIME_DIR", "/run/user/1000")
-		dir := StateDir()
-		want := "/run/user/1000/sageox"
+		os.Setenv("XDG_RUNTIME_DIR", testguard.FakePath("/run/user/1000"))
+		dir := filepath.ToSlash(StateDir())
+		want := filepath.ToSlash(testguard.FakePath("/run/user/1000/sageox"))
 		if dir != want {
 			t.Errorf("StateDir() = %q, want %q", dir, want)
 		}
@@ -309,7 +313,7 @@ func TestStateDir(t *testing.T) {
 	t.Run("default mode falls back to temp dir", func(t *testing.T) {
 		clearXDGEnv()
 		// no XDG_RUNTIME_DIR set, falls back to os.TempDir()
-		dir := StateDir()
+		dir := filepath.ToSlash(StateDir())
 		// should contain "sageox" suffix
 		if !strings.HasSuffix(dir, "sageox") {
 			t.Errorf("StateDir() = %q, want suffix 'sageox'", dir)
@@ -318,7 +322,7 @@ func TestStateDir(t *testing.T) {
 
 	t.Run("legacy mode uses .sageox", func(t *testing.T) {
 		setLegacyMode()
-		dir := StateDir()
+		dir := filepath.ToSlash(StateDir())
 		if !strings.Contains(dir, ".sageox") || !strings.HasSuffix(dir, "state") {
 			t.Errorf("StateDir() = %q in legacy mode, want ~/.sageox/state", dir)
 		}
@@ -331,15 +335,16 @@ func TestXDGStateHome(t *testing.T) {
 
 	t.Run("respects XDG_STATE_HOME", func(t *testing.T) {
 		clearXDGEnv()
-		os.Setenv("XDG_STATE_HOME", "/custom/state")
+		os.Setenv("XDG_STATE_HOME", testguard.FakePath("/custom/state"))
 		// xdgStateHome is not exported, but we can test it indirectly via StateDir
 		// when OX_XDG_DISABLE is NOT set (XDG mode), StateDir uses xdgRuntimeDir
 		// so we need legacy mode where StateDir uses SageoxDir()/state
 		// Actually xdgStateHome is used nowhere in production currently...
 		// Let's test it directly since we're in the same package
 		result := xdgStateHome()
-		if result != "/custom/state" {
-			t.Errorf("xdgStateHome() = %q, want /custom/state", result)
+		want := testguard.FakePath("/custom/state")
+		if result != want {
+			t.Errorf("xdgStateHome() = %q, want %q", result, want)
 		}
 	})
 

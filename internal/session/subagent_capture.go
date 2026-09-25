@@ -22,6 +22,7 @@ package session
 import (
 	"encoding/json"
 	"os"
+	"path"
 	"path/filepath"
 	"sort"
 	"strings"
@@ -468,9 +469,12 @@ func GetSubagentCaptureOptions(state *RecordingState) CaptureSubagentOptions {
 		TimeWindowBuffer:   5 * time.Minute,
 	}
 
-	// determine sessions base path from session path
+	// Determine the sessions base path from the session path. Session paths
+	// are recorded in portable (slash) form, so derive the base with path.Dir
+	// on the slashed value: filepath.Dir would rewrite the recorded form to
+	// backslashes on Windows and the base would no longer match it.
 	if state.SessionPath != "" {
-		opts.SessionsBasePath = filepath.Dir(state.SessionPath)
+		opts.SessionsBasePath = path.Dir(filepath.ToSlash(state.SessionPath))
 	}
 
 	return opts

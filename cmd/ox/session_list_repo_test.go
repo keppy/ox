@@ -17,7 +17,7 @@ import (
 // the life of the test, so session store fixtures never touch the
 // developer's real ~/.cache/sageox. XDG_CACHE_HOME is set directly (rather
 // than cleared to fall back through HOME) because paths.getHomeDir() caches
-// os.UserHomeDir() behind a sync.Once for the life of the test binary --
+// homedir.Dir() behind a sync.Once for the life of the test binary --
 // relying on a HOME override alone would only take effect if this happened
 // to be the first test in the package to resolve a path, which isn't
 // guaranteed.

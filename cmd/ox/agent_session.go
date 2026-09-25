@@ -16,6 +16,8 @@ import (
 	"testing"
 	"time"
 
+	"github.com/sageox/ox/internal/homedir"
+
 	"github.com/sageox/agentx"
 	"github.com/sageox/ox/internal/agentinstance"
 	"github.com/sageox/ox/internal/api"
@@ -695,7 +697,7 @@ func sessionPathVariants(repoRoot string) []string {
 // time window. This catches cases where the project hash doesn't match due to
 // path normalization differences (trailing slash, case, mount points).
 func scanClaudeProjectsForSession(agentID string, startedAt time.Time) string {
-	home, err := os.UserHomeDir()
+	home, err := homedir.Dir()
 	if err != nil {
 		return ""
 	}
@@ -2411,11 +2413,16 @@ func recordEntriesToSession(projectRoot string, state *session.RecordingState, e
 
 // readEntriesFromFile reads session entries from a JSONL file.
 func readEntriesFromFile(filePath string) ([]session.Entry, error) {
-	// walk up from filePath to find the sessions directory
+	// walk up from filePath to find the sessions directory. Stop when Dir
+	// stops changing — that is the root on every platform ("/" on Unix,
+	// `C:\` or `\` on Windows), where comparing against "/" alone spins forever.
 	dir := filepath.Dir(filePath)
 	sessionName := ""
-	for dir != "/" && dir != "." {
+	for dir != "." {
 		parent := filepath.Dir(dir)
+		if parent == dir {
+			break
+		}
 		if filepath.Base(parent) == "sessions" {
 			// dir is the session folder, parent's parent is the context dir
 			sessionName = filepath.Base(dir)

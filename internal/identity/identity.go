@@ -16,6 +16,8 @@ import (
 	"path/filepath"
 	"strings"
 
+	"github.com/sageox/ox/internal/homedir"
+
 	"github.com/sageox/ox/internal/auth"
 	"github.com/sageox/ox/internal/repotools"
 	"gopkg.in/yaml.v3"
@@ -384,7 +386,7 @@ func xdgConfigHome() string {
 	if dir := os.Getenv("XDG_CONFIG_HOME"); dir != "" {
 		return dir
 	}
-	home, err := os.UserHomeDir()
+	home, err := homedir.Dir()
 	if err != nil {
 		return ""
 	}

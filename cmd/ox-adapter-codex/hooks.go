@@ -9,6 +9,8 @@ import (
 	"regexp"
 	"strings"
 
+	"github.com/sageox/ox/internal/homedir"
+
 	toml "github.com/pelletier/go-toml/v2"
 
 	"github.com/sageox/ox/pkg/adapterprotocol"
@@ -183,7 +185,7 @@ func handleUninstallHooks(p adapterprotocol.HookParams) (*adapterprotocol.Uninst
 
 func resolveHooksPath(repoRoot, scope string) string {
 	if scope == "user" {
-		home, _ := os.UserHomeDir()
+		home, _ := homedir.Dir()
 		return filepath.Join(home, codexUserPath, codexHooksFileName)
 	}
 	if repoRoot == "" {
@@ -195,7 +197,7 @@ func resolveHooksPath(repoRoot, scope string) string {
 
 func resolveConfigPath(repoRoot, scope string) string {
 	if scope == "user" {
-		home, _ := os.UserHomeDir()
+		home, _ := homedir.Dir()
 		return filepath.Join(home, codexUserPath, codexConfigFile)
 	}
 	if repoRoot == "" {

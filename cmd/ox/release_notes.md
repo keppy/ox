@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### New
+
+- **ox works with Hermes Agent** — `ox integrate install --hermes` wires ox into Hermes's shell hooks so a Hermes session gets team context at start, whispers and recall before each model call, and is recorded and published like a Claude Code or Codex session. Hermes reads your `AGENTS.md`, so the prime marker `ox init` writes reaches it with no extra file. Every Hermes surface that writes to `state.db` — CLI, TUI, desktop app, gateway — is covered, per profile. Hermes asks once per hook before it runs; set `hooks_auto_accept: true` for the desktop app and gateway.
+- **ox runs on Windows** — `ox`, the daemon, and every adapter now build, install, and pass their tests natively on Windows. The install script works from Git Bash and adds ox to your user PATH; releases ship `windows_amd64` and `windows_arm64` zips; `ox upgrade` swaps the running `ox.exe` in place. Under the hood the pieces that quietly did nothing on Windows now do the real thing: file locks are real locks, "is that process still alive" is a real check, and adapter binaries are found by `PATHEXT` instead of Unix execute bits.
+
 ### Changed
 
 - **Plans are for any work your team executes, and now say so** — `ox plan --help` described "implementation plans", so a designer, a product marketer, or anyone planning a rollout reasonably concluded Plans was not for them. It always was: `ox plan save --kind` takes `plan`, `mockup`, `review`, or `evidence`. The help text, the guidance every AI coworker receives at prime, and the plan skill now name design, GTM, rollout, and engineering work alike.
@@ -15,6 +20,32 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - **Saving a mockup no longer asks you to add a mockup** — `ox plan save --kind mockup` ran a plan's craft checks against it and told the author their mockup had no mockup, and that a visual proposal needed a collapsed "Implementation notes" appendix for its implementer. Both expectations are plan-shaped: one asks you to *propose* a surface, the other serves a plan's second reader. A mockup, a review sheet, and an evidence page have neither, so they no longer fire — while the one check that applies to every kind, *did this page draw anything at all*, still does. `ox plan lint` and `ox plan render` take `--kind` too, so the check you get before saving is the check you get after.
 - **ox names what you actually saved** — saving a mockup said "Saved plan to ledger", which is the single-noun collapse `--kind` exists to end.
+## [0.17.1] - 2026-09-22
+Your team can install a curated add-on once and every teammate's AI coworker gets it, what ox tells you about your coworkers and your team rules is now true, and the lists you read every day fit on a screen.
+- **AI coworkers can discover the bulletin board before it syncs** — enrolled coworkers now learn how to post at session start. `ox guide bulletin` explains posting, reading, expiry, and troubleshooting.
+- **`ox adapter list` tells the truth about your AI coworkers** — it understated what 8 of the 10 bundled adapters can do, including Claude Code, so anyone choosing a coding agent from that table was reading fiction.
+- **A team rule can no longer stop reaching anyone** — if a repo's ignore rules stopped covering the managed rule folder, the rule froze in place *and* went unmentioned at session start, arriving through neither path while both looked healthy. It now always arrives at least once.
+- **A stuck `git` can no longer hang session start** — the check ox runs while priming had no time limit, so a wedged index lock or stalled network drive meant a coding session that simply never began.
+- **An approval that could never be satisfied** — in a checkout with no `origin` remote, a team skill could look approvable to `ox skills approve` while being invisible to the reconciler that had to act on it.
+- **A syncing outage no longer looks like a broken setup** — when the server returns an error, ox now recognizes it as temporary and retries, instead of suspending sync and telling you to go fix a checkout that was never wrong.
+- **A false data-loss alarm is gone** — renaming plans (which `ox plan backfill` does routinely) was reported as a wipe of your saved plans and sessions, on every check, for as long as the commit stayed in recent history. ox now asks whether anything was actually lost.
+- **Commands you don't have access to are hidden, not just unlisted** — a feature-gated command no longer appears in help or completions for accounts that cannot run it.
+## [0.17.0] - 2026-09-21
+Team rules now load natively in your coding tool and a skill you wrote can reach your whole team with one command, ox behaves predictably when a script, CI job, or AI coworker is driving it, and refreshing a large Ledger takes seconds instead of hours.
+- **Stray arguments are rejected instead of ignored** — `ox uninstall other-repo` used to act on the repo you were in, and `--force false` quietly meant `--force`. `ox init`, `login`, `logout`, `uninstall`, `sync`, `upgrade`, and `doctor` now fail before changing anything.
+- **`ox upgrade` installs exactly the version it reports** — `--target` works even when the latest-release check is unreachable and can reinstall or go back to an older release, and upgrades through Go install ox and its adapters at that same version. A failed check no longer claims you're up to date, and a failed install fails the command.
+- **`ox init` leaves your staged work alone** — in a brand-new repository, the first commit ox makes used to sweep in files you had already staged; it now commits only its own file.
+- **Sync stops reporting problems you don't have** — a laptop sleep or network blip no longer makes ox report merge conflicts that aren't there and hold sync until you confirm. A Ledger conflict ox created against itself — two machines disagreeing on how many times a summary was retried — now resolves on its own instead of stopping sync until someone repaired it by hand.
+- **Ledgers hit by an old upload bug can be read again** — sync used to fetch everything, fail its final check on a few empty files, and start from scratch on every retry. ox also no longer uploads files in that broken form.
+- **Knowledge Bubbles from your other teams are left alone** — when your projects span more than one team, cleanup in one project could move another team's Knowledge Bubbles to the trash. `ox doctor` also stops hanging for 30 seconds on every run trying to clear a stale bubble it never removed.
+- **`brew install ox` installs ox** — the documented Homebrew command resolved to an unrelated text editor of the same name, so a new coworker following the README got someone else's program and `ox version` printed `0.7.7`. The command is `brew install sageox/tap/ox`, and the README, `make install`, `ox doctor`, and the setup hints all say so now.
+- **Commands run by an AI coworker, a script, or CI no longer quietly do nothing** — `ox logout`, `ox login`, and `ox uninstall` used to take the default when a confirmation prompt had nobody to answer it, so the logout never happened and uninstall left your cloud records behind. Each now either does the thing or says plainly why it did not, and `--yes` reaches every prompt.
+- **A session still reaches your Ledger when its window closes without a clean stop** — a transcript whose client died mid-recording used to sit on disk indefinitely: not uploaded, not repaired in the background, not reported by `ox doctor`. ox now confirms the owning process is gone before finishing the upload, so a recording made by an older ox that never noted its process is deliberately left alone rather than risk cutting off a session that is still running.
+- **The PATH recovery instruction survives a directory with a space in it** — the fish version of the fix silently added two wrong directories instead, for exactly the user who needed it to work.
+- **Stopping the daemon no longer lets it start new work on the way out.**
+- **ox no longer hangs on Windows when its input is redirected** — choosing the light or dark markdown theme asks the terminal for its background colour, and on Windows that query opens the console directly whenever stdin isn't already a console: a pipe, a file, `NUL`, or Git Bash. The reply could never be interrupted, so the query's own two-second timeout never fired and the command waited forever instead of falling back to dark — `ox guide` and `ox doctor` from Git Bash, any AI coworker capturing ox's output, and two packages of the Windows test suite, which died at the Go test timeout with the read still parked in `ReadConsole`. The query is now only made when stdin really is the console, which is the only case where it can be interrupted and time out.
+- **A corrupt team-context checkout inside another repository is now repaired** — when a bubble's `.git` was emptied by an interrupted clone and the bubble sat inside a larger checkout (a home directory under git, a CI workspace), git answered for the enclosing repository and the corrupt bubble was reported healthy, never moved aside, and every later pull failed the same way. The daemon now insists the repository it found *is* the bubble.
+- **Team-context read sync no longer fails on Git for Windows** — Git for Windows records `core.symlinks` in every clone and uses the Windows certificate store for TLS; the read-sync transport rejected the former as an unsafe config key. Directory fsync, which Windows does not support, no longer turns a successful write into an error.
 
 ## [0.17.1] - 2026-09-22
 
@@ -105,6 +136,7 @@ Your team can publish a skill or a convention once and have it reach every teamm
 - **A session still reaches your Ledger when its window closes without a clean stop** — a transcript whose client died mid-recording used to sit on disk indefinitely: not uploaded, not repaired in the background, not reported by `ox doctor`. ox now confirms the owning process is gone before finishing the upload, so a recording made by an older ox that never noted its process is deliberately left alone rather than risk cutting off a session that is still running.
 - **The PATH recovery instruction survives a directory with a space in it** — the fish version of the fix silently added two wrong directories instead, for exactly the user who needed it to work.
 - **Stopping the daemon no longer lets it start new work on the way out.**
+
 
 ## [0.15.0] - 2026-09-11
 

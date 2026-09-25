@@ -12,6 +12,8 @@ import (
 	"testing"
 	"time"
 
+	"github.com/sageox/ox/internal/testguard"
+
 	"github.com/sageox/ox/internal/fileutil"
 
 	"github.com/sageox/agentx"
@@ -405,7 +407,7 @@ func TestSymlinkAndMalformedLockFailWithoutMutation(t *testing.T) {
 	target := sharedTarget()
 	external := t.TempDir()
 	require.NoError(t, os.MkdirAll(filepath.Join(repo, ".agents"), 0o755))
-	require.NoError(t, os.Symlink(external, filepath.Join(repo, ".agents", "skills")))
+	testguard.Symlink(t, external, filepath.Join(repo, ".agents", "skills"))
 	_, err := Plan(repo, "1.0.0", desiredFor(target), []adapterprotocol.SkillTarget{target})
 	require.ErrorContains(t, err, "symlink")
 
@@ -422,7 +424,7 @@ func TestSymlinkAndMalformedLockFailWithoutMutation(t *testing.T) {
 
 	symlinkLockRepo := t.TempDir()
 	require.NoError(t, os.MkdirAll(filepath.Dir(LockPath(symlinkLockRepo)), 0o755))
-	require.NoError(t, os.Symlink(filepath.Join(symlinkLockRepo, "outside.json"), LockPath(symlinkLockRepo)))
+	testguard.Symlink(t, filepath.Join(symlinkLockRepo, "outside.json"), LockPath(symlinkLockRepo))
 	_, err = Plan(symlinkLockRepo, "1.0.0", desiredFor(target), []adapterprotocol.SkillTarget{target})
 	require.ErrorContains(t, err, "symlink")
 }

@@ -8,6 +8,8 @@ import (
 	"strings"
 	"time"
 
+	"github.com/sageox/ox/internal/homedir"
+
 	"github.com/sageox/agentx"
 	friction "github.com/sageox/frictionax"
 	frictioncobra "github.com/sageox/frictionax/adapters/cobra"
@@ -50,7 +52,7 @@ func initFriction(rootCmd *cobra.Command) {
 func getCatalogCachePath() string {
 	cacheDir, err := os.UserCacheDir()
 	if err != nil {
-		homeDir, err := os.UserHomeDir()
+		homeDir, err := homedir.Dir()
 		if err != nil {
 			return ""
 		}

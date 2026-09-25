@@ -8,6 +8,7 @@ import (
 	"testing"
 
 	"github.com/sageox/ox/internal/config"
+	"github.com/sageox/ox/internal/testguard"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -80,10 +81,13 @@ func fakeGh(t *testing.T, jsonOutput string) {
 	dir := t.TempDir()
 	jsonPath := filepath.Join(dir, "response.json")
 	require.NoError(t, os.WriteFile(jsonPath, []byte(jsonOutput), 0o644))
-	scriptPath := filepath.Join(dir, "gh")
-	script := "#!/bin/sh\ncat " + jsonPath + "\n"
-	require.NoError(t, os.WriteFile(scriptPath, []byte(script), 0o755))
-	t.Setenv("PATH", dir+string(os.PathListSeparator)+os.Getenv("PATH"))
+	// A bare #!/bin/sh file cannot be exec'd on Windows; the shared helper
+	// installs a real .exe launcher there (bash is handed argv/stdio) and
+	// returns the plain script path on POSIX. The path inside the script is
+	// slash-form so bash never eats the Windows backslashes.
+	script := "#!/bin/sh\ncat " + filepath.ToSlash(jsonPath) + "\n"
+	scriptPath := testguard.WriteShellExecutable(t, dir, "gh", script)
+	t.Setenv("PATH", filepath.Dir(scriptPath)+string(os.PathListSeparator)+os.Getenv("PATH"))
 }
 
 // setupPRAttributionFixture builds a real initialized project + git repo on

@@ -23,6 +23,7 @@ import (
 
 	"github.com/sageox/ox/internal/api"
 	"github.com/sageox/ox/internal/endpoint"
+	"github.com/sageox/ox/internal/fileutil"
 	"github.com/sageox/ox/internal/paths"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -58,7 +59,7 @@ func TestSyncBubbles_Network_UnreachableRemoteIsContained(t *testing.T) {
 		KBID:    "kb_good_after_net",
 		KBType:  api.KBTypeTeam,
 		Slug:    "good",
-		RepoURL: "file://" + goodBare,
+		RepoURL: fileutil.FileURL(goodBare),
 	}
 	s.SetKBBubbleListerFactory(func(_, _ string) KBBubbleLister {
 		return &fakeKBLister{bubbles: []api.KB{bad, good}}
@@ -191,7 +192,7 @@ func TestSyncBubbles_Network_ContextAlreadyCanceledIsNoOp(t *testing.T) {
 		KBID:    "kb_canceled",
 		KBType:  api.KBTypePersonal,
 		Slug:    "canceled",
-		RepoURL: "file://" + bareDir,
+		RepoURL: fileutil.FileURL(bareDir),
 	}
 	s.SetKBBubbleListerFactory(func(_, _ string) KBBubbleLister {
 		return &fakeKBLister{bubbles: []api.KB{bubble}}
@@ -286,7 +287,7 @@ func TestSyncBubbles_Network_RepeatedPassesIdempotentUnderFlapping(t *testing.T)
 		KBID:    "kb_flap",
 		KBType:  api.KBTypeTeam,
 		Slug:    "flap",
-		RepoURL: "file://" + bareDir,
+		RepoURL: fileutil.FileURL(bareDir),
 	}
 	var n atomic.Int32
 	s.SetKBBubbleListerFactory(func(_, _ string) KBBubbleLister {

@@ -11,6 +11,8 @@ import (
 	"sync"
 	"time"
 
+	"github.com/sageox/ox/internal/homedir"
+
 	"github.com/sageox/ox/internal/fileutil"
 	"github.com/sageox/ox/internal/session"
 	"github.com/sageox/ox/internal/session/adapters"
@@ -61,7 +63,7 @@ type activeWatcher struct {
 
 // NewSessionWatcherManager creates a manager for tail-mode session watchers.
 func NewSessionWatcherManager(logger *slog.Logger) *SessionWatcherManager {
-	home, err := os.UserHomeDir()
+	home, err := homedir.Dir()
 	if err != nil {
 		// an empty home makes every root empty, so SafeSessionFilePath
 		// rejects everything — fail closed rather than watch unchecked paths

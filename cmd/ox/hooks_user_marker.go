@@ -11,6 +11,7 @@ import (
 
 	"github.com/sageox/agentx"
 	"github.com/sageox/ox/internal/cli"
+	"github.com/sageox/ox/internal/homedir"
 	"github.com/sageox/ox/internal/ui"
 )
 
@@ -152,7 +153,7 @@ func detectActiveAgent() agentx.AgentType {
 
 // userContextFilePath resolves the absolute path to the user-level context file.
 func userContextFilePath(agentType agentx.AgentType, contextFile string) (string, error) {
-	env := agentx.NewSystemEnvironment()
+	env := userHomeEnvironment{Environment: agentx.NewSystemEnvironment()}
 	agent, ok := agentx.DefaultRegistry.Get(agentType)
 	if !ok {
 		return "", fmt.Errorf("unknown agent type: %q", agentType)
@@ -165,6 +166,21 @@ func userContextFilePath(agentType agentx.AgentType, contextFile string) (string
 
 	return filepath.Join(userDir, contextFile), nil
 }
+
+// userHomeEnvironment is agentx's system environment with HomeDir resolved
+// through internal/homedir, so $HOME wins when it is set to an absolute path
+// for this platform — the ox-wide convention (see internal/homedir: "No
+// other package in ox should call os.UserHomeDir directly").
+//
+// agentx's SystemEnvironment reads os.UserHomeDir, which ignores $HOME on
+// Windows and reads %USERPROFILE% instead. Without this wrapper the doctor's
+// "Global ox prime" check and `ox integrate install --user` would read and
+// write the real profile directory even when the user — or a test — has
+// pointed HOME somewhere else, so ox would report the marker missing while
+// the file it just wrote sits in a home nobody looks at.
+type userHomeEnvironment struct{ agentx.Environment }
+
+func (e userHomeEnvironment) HomeDir() (string, error) { return homedir.Dir() }
 
 // agentDisplayName returns a human-friendly name for an agent type.
 func agentDisplayName(agentType agentx.AgentType) string {

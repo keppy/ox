@@ -9,6 +9,8 @@ import (
 	"testing"
 	"time"
 
+	"github.com/sageox/ox/internal/testguard"
+
 	"github.com/sageox/ox/internal/fileutil"
 	"github.com/sageox/ox/internal/gitutil"
 	"github.com/stretchr/testify/assert"
@@ -134,6 +136,7 @@ func TestTitleRepairConvergesThroughPull(t *testing.T) {
 // Upgrading must repair legacy error summaries without losing session identity,
 // content references, extension fields, diagnostics, or customer-authored text.
 func TestRecoverEmptyTitleMeta_PreservesLegacyData(t *testing.T) {
+	testguard.RequirePOSIXPerms(t) // asserts mode bits
 	const diagnostic = "Summary generation failed: legacy timeout"
 	for _, tc := range []struct {
 		name       string
@@ -260,7 +263,7 @@ func TestRecoverEmptyTitleMeta_PreservesSymlink(t *testing.T) {
 	require.NoError(t, err)
 	dir := t.TempDir()
 	link := filepath.Join(dir, "meta.json")
-	require.NoError(t, os.Symlink(target, link))
+	testguard.Symlink(t, target, link)
 	writeTestSummary(t, dir, "Recovered title")
 	for _, dryRun := range []bool{true, false} {
 		assert.Contains(t, RecoverEmptyTitleMeta(dir, dryRun).Error, "non-regular")

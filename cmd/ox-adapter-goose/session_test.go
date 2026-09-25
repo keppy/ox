@@ -366,9 +366,14 @@ func TestResolveSessionID_PrefersWorkingDir(t *testing.T) {
 // directory below the repo root, which records the subdirectory as working_dir.
 func TestResolveSessionID_MatchesSubdirectory(t *testing.T) {
 	db := newFixtureDB(t)
-	insertSession(t, db, "sub", filepath.Join("/repo", "internal", "pkg"), "2026-07-30 10:00:00")
+	// The repo root is built in platform form so it and the recorded
+	// working_dir beneath it agree on separators: a POSIX "/repo" literal
+	// queried against a filepath.Join'd working_dir would compare "\repo"
+	// with "/repo" on Windows.
+	repoRoot := filepath.FromSlash("/repo")
+	insertSession(t, db, "sub", filepath.Join(repoRoot, "internal", "pkg"), "2026-07-30 10:00:00")
 
-	got, err := resolveSessionID(db, "", "/repo", "")
+	got, err := resolveSessionID(db, "", repoRoot, "")
 	if err != nil {
 		t.Fatalf("resolveSessionID: %v", err)
 	}
@@ -403,17 +408,19 @@ func TestResolveSessionID_ExplicitIDWins(t *testing.T) {
 // attributed to this Ledger.
 func TestResolveSessionID_EscapesLikeWildcards(t *testing.T) {
 	db := newFixtureDB(t)
+	// Platform-form repo root, as in TestResolveSessionID_MatchesSubdirectory.
+	repoRoot := filepath.FromSlash("/repo")
 	// Decoy is NEWER, so if the wildcard leaks it wins on the ORDER BY.
-	insertSession(t, db, "decoy", filepath.Join("/repo", "myXapp", "sub"), "2026-07-30 23:00:00")
+	insertSession(t, db, "decoy", filepath.Join(repoRoot, "myXapp", "sub"), "2026-07-30 23:00:00")
 
-	_, err := resolveSessionID(db, "", filepath.Join("/repo", "my_app"), "")
+	_, err := resolveSessionID(db, "", filepath.Join(repoRoot, "my_app"), "")
 	if err == nil {
 		t.Fatal("`_` leaked as a LIKE wildcard: matched a different repo's session")
 	}
 
 	// The real subdirectory match must still work with the escape in place.
-	insertSession(t, db, "mine", filepath.Join("/repo", "my_app", "internal"), "2026-07-30 10:00:00")
-	got, err := resolveSessionID(db, "", filepath.Join("/repo", "my_app"), "")
+	insertSession(t, db, "mine", filepath.Join(repoRoot, "my_app", "internal"), "2026-07-30 10:00:00")
+	got, err := resolveSessionID(db, "", filepath.Join(repoRoot, "my_app"), "")
 	if err != nil {
 		t.Fatalf("escaped prefix broke legitimate subdirectory matching: %v", err)
 	}

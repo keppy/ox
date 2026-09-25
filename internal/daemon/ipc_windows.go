@@ -3,8 +3,10 @@
 package daemon
 
 import (
+	"errors"
 	"fmt"
 	"net"
+	"os"
 	"time"
 
 	"github.com/Microsoft/go-winio"
@@ -15,7 +17,7 @@ import (
 // SECURITY: Pipe is created with SDDL that restricts access to current user only.
 // This prevents other users on the same machine from connecting to the daemon.
 func listen(path string) (net.Listener, error) {
-	pipePath := `\\.\pipe\` + pipeName(path)
+	pipePath := endpointPath(path)
 
 	// get current user's SID for SDDL
 	sddl, err := currentUserSDDL()
@@ -51,9 +53,56 @@ func currentUserSDDL() (string, error) {
 // dial connects to a Windows named pipe with a timeout.
 // Uses 5 second timeout to prevent indefinite hangs if daemon is stuck.
 func dial(path string) (net.Conn, error) {
-	pipePath := `\\.\pipe\` + pipeName(path)
+	pipePath := endpointPath(path)
 	timeout := 5 * time.Second
-	return winio.DialPipe(pipePath, &timeout)
+	conn, err := winio.DialPipe(pipePath, &timeout)
+	if err != nil {
+		return nil, err
+	}
+	return &deadlineConn{Conn: conn}, nil
+}
+
+// deadlineConn maps go-winio's private timeout error onto
+// os.ErrDeadlineExceeded, which is what net.Conn implementations in the
+// standard library return and what every caller in this package checks
+// with errors.Is. Without it a stalled daemon is classified as a protocol
+// failure on Windows instead of a timeout.
+type deadlineConn struct{ net.Conn }
+
+func (c *deadlineConn) Read(p []byte) (int, error) {
+	n, err := c.Conn.Read(p)
+	return n, mapTimeout(err)
+}
+
+func (c *deadlineConn) Write(p []byte) (int, error) {
+	n, err := c.Conn.Write(p)
+	return n, mapTimeout(err)
+}
+
+func mapTimeout(err error) error {
+	if err != nil && errors.Is(err, winio.ErrTimeout) {
+		return fmt.Errorf("%w: %w", os.ErrDeadlineExceeded, err)
+	}
+	return err
+}
+
+// endpointExists reports whether the daemon's named pipe is currently
+// bound. The pipe namespace has no stale entries — a name exists only while
+// a server holds it — so this is a strict "listener present" check, unlike
+// a Unix socket file left behind by a crash. os.Stat cannot see pipe
+// paths; CreateFile with OPEN_EXISTING can, and ERROR_PIPE_BUSY (every
+// instance currently connected) still means a server is there.
+func endpointExists(path string) bool {
+	name, err := windows.UTF16PtrFromString(`\\.\pipe\` + pipeName(path))
+	if err != nil {
+		return false
+	}
+	h, err := windows.CreateFile(name, 0, 0, nil, windows.OPEN_EXISTING, 0, 0)
+	if err == nil {
+		_ = windows.CloseHandle(h)
+		return true
+	}
+	return errors.Is(err, windows.ERROR_PIPE_BUSY)
 }
 
 // cleanupSocket is a no-op on Windows (pipes are cleaned up automatically).

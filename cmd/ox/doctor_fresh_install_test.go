@@ -32,7 +32,7 @@ import (
 // test whose whole job is telling you that a fresh install is clean.
 //
 // Setting the XDG vars is what actually isolates it: internal/paths memoizes
-// os.UserHomeDir() process-wide via sync.Once, so in a shared test binary
+// homedir.Dir() process-wide via sync.Once, so in a shared test binary
 // t.Setenv("HOME", ...) alone does not redirect paths.*Dir() — but the XDG dirs
 // are consulted before the cached home.
 func sandboxDoctorEnv(t *testing.T) {

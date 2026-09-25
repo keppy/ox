@@ -11,6 +11,8 @@ import (
 	"sync"
 	"time"
 
+	"github.com/sageox/ox/internal/homedir"
+
 	"github.com/sageox/ox/internal/config"
 	"github.com/sageox/ox/internal/ephemeral"
 	"github.com/sageox/ox/internal/paths"
@@ -236,7 +238,7 @@ func StabilizeCWD() {
 	// also cache legacy ID while CWD is still valid
 	_ = LegacyWorkspaceID()
 
-	if home, err := os.UserHomeDir(); err == nil {
+	if home, err := homedir.Dir(); err == nil {
 		_ = os.Chdir(home)
 	}
 }

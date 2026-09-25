@@ -25,6 +25,7 @@ import (
 
 	"github.com/sageox/ox/internal/api"
 	"github.com/sageox/ox/internal/endpoint"
+	"github.com/sageox/ox/internal/fileutil"
 	"github.com/sageox/ox/internal/paths"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -55,7 +56,7 @@ func TestSyncBubbles_State_PersistsAcrossSchedulerRestart(t *testing.T) {
 		Slug:        "persist",
 		OwnerUserID: "u1",
 		ViewerRole:  "member",
-		RepoURL:     "file://" + bareDir,
+		RepoURL:     fileutil.FileURL(bareDir),
 	}
 
 	// First scheduler: clone + write meta.
@@ -142,7 +143,7 @@ func TestSyncBubbles_State_UpdatesAfterPull(t *testing.T) {
 		KBID:    "kb_stamp",
 		KBType:  api.KBTypeTeam,
 		Slug:    "stamp",
-		RepoURL: "file://" + bareDir,
+		RepoURL: fileutil.FileURL(bareDir),
 	}
 	s.SetKBBubbleListerFactory(func(_, _ string) KBBubbleLister {
 		return &fakeKBLister{bubbles: []api.KB{bubble}}
@@ -204,7 +205,7 @@ func TestSyncBubbles_State_ManualMetaDeletion_Recovered(t *testing.T) {
 		KBID:    "kb_metadel",
 		KBType:  api.KBTypePersonal,
 		Slug:    "metadel",
-		RepoURL: "file://" + bareDir,
+		RepoURL: fileutil.FileURL(bareDir),
 	}
 	s.SetKBBubbleListerFactory(func(_, _ string) KBBubbleLister {
 		return &fakeKBLister{bubbles: []api.KB{bubble}}
@@ -254,7 +255,7 @@ func TestSyncBubbles_State_MetaSurvivesScheduler_Without_Project(t *testing.T) {
 		KBID:    "kb_share",
 		KBType:  api.KBTypeTeam,
 		Slug:    "share",
-		RepoURL: "file://" + bareDir,
+		RepoURL: fileutil.FileURL(bareDir),
 	}
 
 	// scheduler 1: real, clones the bubble + writes meta.

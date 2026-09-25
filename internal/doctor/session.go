@@ -921,11 +921,16 @@ func (c *SessionIncompleteCheck) checkSessionFile(jsonlPath, ledgerPath string, 
 	missingHTML := os.IsNotExist(htmlErr)
 	missingSummary := os.IsNotExist(summaryErr)
 
-	// get relative path for git status check
+	// get relative path for git status check. Git reports paths with forward
+	// slashes on every platform, so the key is normalized to that form:
+	// filepath.Rel yields backslashes on Windows, which never matches a
+	// porcelain entry (and breaks the untracked-directory prefix check),
+	// silently dropping the untracked/staged signal for every session.
 	relPath, err := filepath.Rel(ledgerPath, jsonlPath)
 	if err != nil {
 		relPath = jsonlPath
 	}
+	relPath = filepath.ToSlash(relPath)
 
 	// check git tracking status
 	status, hasStatus := fileStatuses[relPath]
@@ -1181,6 +1186,9 @@ func (c *SessionAutoStageCheck) scanSessionFilesInDir(dir string) []string {
 		if err != nil {
 			return nil
 		}
+		// git-relative form: isSessionFile matches on the "sessions/" prefix
+		// and git pathspecs are slash-separated on every platform.
+		relPath = filepath.ToSlash(relPath)
 
 		if isSessionFile(relPath) {
 			files = append(files, relPath)

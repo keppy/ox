@@ -11,6 +11,7 @@ import (
 	"time"
 
 	"github.com/sageox/ox/internal/config"
+	"github.com/sageox/ox/internal/fileutil"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -118,7 +119,7 @@ func TestTriggerGC_RemainsSynchronousAfterRefactor(t *testing.T) {
 
 	tmp := t.TempDir()
 	bareDir, cloneDir := gcInitBareAndClone(t, tmp)
-	cloneURL := "file://" + bareDir
+	cloneURL := fileutil.FileURL(bareDir)
 
 	for _, f := range []string{"SOUL.md", ".sageox/config.json"} {
 		fullPath := filepath.Join(cloneDir, f)
@@ -221,7 +222,7 @@ func TestTriggerGC_IssueTypeGCFailed_SetOnFailureClearedOnSuccess(t *testing.T) 
 		Type:     WorkspaceTypeTeamContext,
 		TeamName: "test-team",
 		Path:     teamDir,
-		CloneURL: "file://" + bareDir,
+		CloneURL: fileutil.FileURL(bareDir),
 		Exists:   true,
 	}
 	registry.mu.Lock()

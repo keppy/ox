@@ -125,7 +125,7 @@ func TestKBGC_FullCycle_TriageThenReap_SamePass(t *testing.T) {
 	// pre-seed an expired trash entry from a prior pass
 	trashDir := filepath.Join(root, kbTrashDirName)
 	require.NoError(t, os.MkdirAll(trashDir, 0o755))
-	expiredTS := time.Now().UTC().Add(-(kbTrashGracePeriod + 24*time.Hour)).Format(time.RFC3339)
+	expiredTS := time.Now().UTC().Add(-(kbTrashGracePeriod + 24*time.Hour)).Format(kbTrashTimestampLayout)
 	expired := filepath.Join(trashDir, fmt.Sprintf("kb_old-%s", expiredTS))
 	require.NoError(t, os.MkdirAll(expired, 0o755))
 
@@ -216,7 +216,7 @@ func TestKBGC_PreExistingTrash_NewOrphansAddedAlongside(t *testing.T) {
 
 	// pre-existing recent trash entry (within grace, must survive)
 	require.NoError(t, os.MkdirAll(trashDir, 0o755))
-	recentTS := time.Now().UTC().Add(-1 * time.Hour).Format(time.RFC3339)
+	recentTS := time.Now().UTC().Add(-1 * time.Hour).Format(kbTrashTimestampLayout)
 	preExisting := filepath.Join(trashDir, fmt.Sprintf("kb_old_orphan-%s", recentTS))
 	require.NoError(t, os.MkdirAll(preExisting, 0o755))
 	require.NoError(t, os.WriteFile(filepath.Join(preExisting, "old-content"), []byte("preserved"), 0o644))

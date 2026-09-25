@@ -18,3 +18,20 @@
 extensions/skills/**/*.md text eol=lf
 extensions/rulecatalog/**/*.md text eol=lf
 extensions/packs/**/*.md text eol=lf
+
+# Normalize every text file to LF in the working tree, on every platform.
+# Golden/fixture tests compare bytes, and a core.autocrlf=true checkout on
+# Windows otherwise turns every LF fixture into CRLF and fails ~250 subtests.
+* text=auto eol=lf
+*.bat text eol=crlf
+*.cmd text eol=crlf
+*.ps1 text eol=crlf
+*.png binary
+*.gif binary
+*.jpg binary
+*.ico binary
+*.woff binary
+*.woff2 binary
+*.db binary
+*.sqlite binary
+

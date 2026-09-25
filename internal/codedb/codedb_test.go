@@ -1,6 +1,8 @@
 package codedb
 
 import (
+	"github.com/sageox/ox/internal/testguard"
+
 	"context"
 	"os"
 	"path/filepath"
@@ -38,6 +40,7 @@ func TestOpenAndClose(t *testing.T) {
 }
 
 func TestOpenInvalidPath(t *testing.T) {
+	testguard.RequirePOSIXPerms(t) // chmod-based failure injection
 	if testing.Short() {
 		t.Skip("short: git indexing")
 	}

@@ -152,7 +152,7 @@ func TestFaultDaemon_Fast_ConnectionCount(t *testing.T) {
 	d.Start()
 	defer d.Stop()
 
-	// baseline accounts for the probe connection from AwaitUnixSocket in Start()
+	// baseline accounts for the probe connection from AwaitDaemonEndpoint in Start()
 	time.Sleep(10 * time.Millisecond)
 	baseline := d.ConnectionCount()
 	_ = daemon.IsHealthy()
@@ -275,7 +275,7 @@ func TestFaultDaemon_Slow_FlakyConnection(t *testing.T) {
 	setupFaultTest(t)
 
 	// DropEveryN=3: every 3rd connection is dropped.
-	// AwaitUnixSocket probe in Start() consumes conn #1, so the first
+	// AwaitDaemonEndpoint probe in Start() consumes conn #1, so the first
 	// daemon.IsHealthy() call is conn #2, and conn #3 is the drop.
 	d := NewFlakyDaemon(t, 3)
 	d.Start()

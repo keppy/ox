@@ -40,20 +40,36 @@ var llmBinaryAllowlist = map[string]bool{
 
 // isAllowedLLMBinary returns true if binary names a permitted LLM tool.
 // Absolute paths pass through (operator-chosen); bare names must match
-// the allowlist; relative paths with a slash are refused outright.
+// the allowlist; relative paths with a separator are refused outright.
 func isAllowedLLMBinary(binary string) bool {
 	if binary == "" {
 		return false
 	}
-	if filepath.IsAbs(binary) {
+	if rootedLLMPath(binary) {
 		return true
 	}
 	// Reject relative paths containing a separator — those are neither
-	// allowlisted bare names nor explicit absolute paths.
-	if strings.ContainsRune(binary, filepath.Separator) {
+	// allowlisted bare names nor explicit absolute paths. Both separator
+	// spellings are checked on every platform: filepath.Separator alone is
+	// `\` on Windows, so a relative path spelled with a forward slash
+	// ("bin/claude") would otherwise skip this refusal and be classified by
+	// the allowlist lookup below instead of being refused outright.
+	if strings.ContainsRune(binary, filepath.Separator) || strings.ContainsRune(binary, '/') {
 		return false
 	}
 	return llmBinaryAllowlist[strings.ToLower(binary)]
+}
+
+// rootedLLMPath reports whether binary is an explicitly rooted path on any
+// platform ox supports, not only the one running. filepath.IsAbs is
+// platform-dependent: on Windows an absolute path needs a volume name
+// (`C:\…` or a UNC share), so IsAbs("/usr/local/bin/claude") is FALSE there
+// and the same configured value is trusted on Unix but refused on Windows.
+// A leading slash is rooted on every platform we support, whatever the local
+// volume grammar thinks, so the allowlist's decision does not change with
+// the platform it runs on.
+func rootedLLMPath(binary string) bool {
+	return filepath.IsAbs(binary) || strings.HasPrefix(binary, "/")
 }
 
 // tryLLMTier attempts a semantic merge for each remaining conflicted path.

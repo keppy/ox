@@ -7,9 +7,12 @@ import (
 	"net"
 	"os"
 	"path/filepath"
+	"runtime"
 	"sync"
 	"sync/atomic"
 	"time"
+
+	"github.com/sageox/ox/internal/daemon"
 )
 
 // maxRequestSize limits the maximum size of an incoming request.
@@ -51,13 +54,20 @@ func New(socketPath string, config Config) *FaultDaemon {
 func (d *FaultDaemon) Start() error {
 	d.ctx, d.cancel = context.WithCancel(context.Background())
 
-	// create socket
-	if err := os.MkdirAll(filepath.Dir(d.socketPath), 0755); err != nil {
-		return err
+	// A unix socket needs its parent directory to exist and any stale socket
+	// from a previous run removed; the Windows endpoint is a named pipe with
+	// neither to do.
+	if runtime.GOOS != "windows" {
+		if err := os.MkdirAll(filepath.Dir(d.socketPath), 0755); err != nil {
+			return err
+		}
+		os.Remove(d.socketPath) // remove stale socket
 	}
-	os.Remove(d.socketPath) // remove stale socket
 
-	listener, err := net.Listen("unix", d.socketPath)
+	// Bind through the daemon's mapping so the real client can reach us: on
+	// Windows it dials a named pipe derived from this path, and a fault daemon
+	// listening on a unix socket is invisible to it.
+	listener, err := daemon.ListenEndpoint(d.socketPath)
 	if err != nil {
 		return err
 	}
@@ -75,10 +85,10 @@ func (d *FaultDaemon) Stop() {
 	if d.cancel != nil {
 		d.cancel()
 	}
-	if d.listener != nil {
-		d.listener.Close()
-	}
-	d.wg.Wait()
+	// Bounded: go-winio's pipe Close can deadlock against a pending Accept
+	// (see daemon.StopEndpoint), and a test that leaves an accept in flight
+	// must not hang the run.
+	daemon.StopEndpoint(d.listener, &d.wg)
 
 	os.Remove(d.socketPath)
 }

@@ -24,6 +24,8 @@ import (
 	"strings"
 	"time"
 
+	"github.com/sageox/ox/internal/homedir"
+
 	"github.com/sageox/ox/internal/config"
 	"github.com/sageox/ox/internal/endpoint"
 	"github.com/sageox/ox/internal/gitserver"
@@ -117,7 +119,7 @@ func DefaultPathForEndpoint(endpointURL string) (string, error) {
 	}
 
 	// not in a SageOx project at all — legacy path
-	home, homeErr := os.UserHomeDir()
+	home, homeErr := homedir.Dir()
 	if homeErr != nil {
 		return "", fmt.Errorf("get home directory: %w", homeErr)
 	}

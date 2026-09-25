@@ -8,6 +8,7 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/sageox/ox/internal/fileutil"
 	"github.com/sageox/ox/internal/gitserver"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -170,7 +171,7 @@ include memory/
 sync_interval_minutes 10
 `
 	bareDir := setupTeamContextBareRepo(t, manifest, nil)
-	cloneURL := "file://" + bareDir
+	cloneURL := fileutil.FileURL(bareDir)
 
 	projectDir := setupProjectWithConfig(t, "")
 	scheduler := newTestScheduler(projectDir)
@@ -212,7 +213,7 @@ func TestTwoPhaseClone_NoManifest(t *testing.T) {
 	bareDir := setupTeamContextBareRepo(t, "", map[string]string{
 		"agents/rules/review.md": "# Team review rules\n",
 	})
-	cloneURL := "file://" + bareDir
+	cloneURL := fileutil.FileURL(bareDir)
 
 	projectDir := setupProjectWithConfig(t, "")
 	scheduler := newTestScheduler(projectDir)
@@ -253,7 +254,7 @@ deny assets/
 		"assets/large-file.bin": "binary data here",
 	}
 	bareDir := setupTeamContextBareRepo(t, manifest, extraFiles)
-	cloneURL := "file://" + bareDir
+	cloneURL := fileutil.FileURL(bareDir)
 
 	projectDir := setupProjectWithConfig(t, "")
 	scheduler := newTestScheduler(projectDir)
@@ -292,7 +293,7 @@ include .sageox/
 include SOUL.md
 `
 	bareDir := setupTeamContextBareRepo(t, manifest, nil)
-	cloneURL := "file://" + bareDir
+	cloneURL := fileutil.FileURL(bareDir)
 
 	projectDir := setupProjectWithConfig(t, "")
 	scheduler := newTestScheduler(projectDir)
@@ -333,7 +334,7 @@ include .sageox/
 include SOUL.md
 `
 	bareDir := setupTeamContextBareRepo(t, manifest, nil)
-	cloneURL := "file://" + bareDir
+	cloneURL := fileutil.FileURL(bareDir)
 
 	projectDir := setupProjectWithConfig(t, "")
 	scheduler := newTestScheduler(projectDir)
@@ -368,7 +369,7 @@ include TEAM.md
 include memory/
 `
 	bareDir := setupTeamContextBareRepo(t, manifest, nil)
-	cloneURL := "file://" + bareDir
+	cloneURL := fileutil.FileURL(bareDir)
 
 	projectDir := setupProjectWithConfig(t, "")
 	scheduler := newTestScheduler(projectDir)

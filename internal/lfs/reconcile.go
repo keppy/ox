@@ -3,6 +3,7 @@ package lfs
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"log/slog"
 	"net/http"
@@ -192,9 +193,11 @@ func reconcileUnpushedPointers(ctx context.Context, ledgerPath string, logger *s
 			continue
 		}
 		cachePath := filepath.Join(ledgerPath, ".sageox", "cache", p.relPath)
-		info, err := os.Stat(cachePath)
+		// StatStrict: a file blocking the cache directory must surface as a
+		// failure, not as "absent", on every platform.
+		info, err := fileutil.StatStrict(cachePath)
 		if err != nil {
-			if os.IsNotExist(err) {
+			if errors.Is(err, os.ErrNotExist) {
 				continue
 			}
 			return result, fmt.Errorf("inspect session recovery cache for %s: %w", p.relPath, err)

@@ -15,8 +15,11 @@ import (
 	"slices"
 	"strings"
 	"sync"
-	"syscall"
 	"time"
+
+	"github.com/sageox/ox/internal/proc"
+
+	"github.com/sageox/ox/internal/homedir"
 
 	"github.com/sageox/ox/internal/endpoint"
 	"github.com/sageox/ox/internal/fileutil"
@@ -2322,8 +2325,7 @@ func isStaleRecording(recPath string, info os.FileInfo, pidLookup func(string) i
 	// if we have a PID, check liveness — dead process = stale immediately,
 	// live process = never stale (wait for next cycle)
 	if pid > 0 {
-		proc, procErr := os.FindProcess(pid)
-		if procErr != nil || proc.Signal(syscall.Signal(0)) != nil {
+		if !proc.IsAlive(pid) {
 			// grace period: young recordings with dead PIDs may have stored a
 			// transient shell PID. Don't mark stale until grace period expires.
 			if age < session.GhostGracePeriod {
@@ -2628,7 +2630,7 @@ func recoverRawFromSessionFile(logger *slog.Logger, recPath, sessionDir, rawPath
 		}
 	}
 	if state.WatchMode == "tail" {
-		home, err := os.UserHomeDir()
+		home, err := homedir.Dir()
 		if err != nil {
 			return false, fmt.Errorf("resolve session source home: %w", err)
 		}
@@ -2777,16 +2779,7 @@ func recoverRawFromSessionFile(logger *slog.Logger, recPath, sessionDir, rawPath
 }
 
 // isPIDAlive checks if a process with the given PID exists.
-func isPIDAlive(pid int) bool {
-	if pid <= 0 {
-		return false
-	}
-	proc, err := os.FindProcess(pid)
-	if err != nil {
-		return false
-	}
-	return proc.Signal(syscall.Signal(0)) == nil
-}
+func isPIDAlive(pid int) bool { return proc.IsAlive(pid) }
 
 // maybeRunJudge runs the LLM-as-judge scorer against a validated
 // summary and writes the verdict to the ledger cache when enabled. See

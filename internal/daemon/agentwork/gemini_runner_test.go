@@ -1,6 +1,8 @@
 package agentwork
 
 import (
+	"github.com/sageox/ox/internal/testguard"
+
 	"context"
 	"log/slog"
 	"os"
@@ -28,7 +30,7 @@ for a in "$@"; do printf '%s\n' "$a" >> "` + argsFile + `"; done
 cat > "` + stdinFile + `"
 sleep 0.1
 `
-	require.NoError(t, os.WriteFile(script, []byte(body), 0o755))
+	script = testguard.WriteShellExecutable(t, filepath.Dir(script), filepath.Base(script), body)
 
 	r := &GeminiRunner{binaryPath: script, logger: slog.Default()}
 

@@ -8,6 +8,8 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/sageox/ox/internal/testguard"
+
 	"github.com/sageox/ox/internal/config"
 )
 
@@ -51,9 +53,7 @@ func newSymlinkCheckProject(t *testing.T) (repoRoot, ledgerTarget string) {
 
 func linkLedger(t *testing.T, repoRoot, target string) {
 	t.Helper()
-	if err := os.Symlink(target, filepath.Join(repoRoot, ".sageox", "ledger")); err != nil {
-		t.Fatalf("symlink ledger: %v", err)
-	}
+	testguard.Symlink(t, target, filepath.Join(repoRoot, ".sageox", "ledger"))
 }
 
 // TestCheckProjectSymlinks_DanglingTargetIsNotHealthy is the regression this
@@ -140,6 +140,9 @@ func TestCheckProjectSymlinks_WrongTargetIsRepaired(t *testing.T) {
 // regression in the classification refactor cannot silently downgrade "missing"
 // into an unfixable state.
 func TestCheckProjectSymlinks_MissingLinkIsCreated(t *testing.T) {
+	// the --fix step creates the symlink itself, so this test needs a host
+	// that can create symlinks (Windows without Developer Mode cannot).
+	testguard.SymlinksAvailable(t)
 	repoRoot, ledgerTarget := newSymlinkCheckProject(t)
 	if err := os.MkdirAll(ledgerTarget, 0o755); err != nil {
 		t.Fatalf("create ledger target: %v", err)

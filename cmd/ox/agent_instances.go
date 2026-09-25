@@ -3,10 +3,11 @@ package main
 import (
 	"fmt"
 	"io"
-	"os"
 	"path/filepath"
 	"strings"
 	"time"
+
+	"github.com/sageox/ox/internal/homedir"
 
 	"github.com/sageox/ox/internal/cli"
 	"github.com/sageox/ox/internal/daemon"
@@ -129,7 +130,7 @@ func shortenPath(path string) string {
 	}
 
 	// replace home dir with ~
-	home, _ := os.UserHomeDir()
+	home, _ := homedir.Dir()
 	if home != "" && strings.HasPrefix(path, home) {
 		path = "~" + path[len(home):]
 	}

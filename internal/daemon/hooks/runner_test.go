@@ -15,13 +15,23 @@ import (
 	"github.com/sageox/ox/internal/daemon/hooks"
 )
 
+// hookPath renders p for embedding in a hook command line.
+//
+// A hook command is a POSIX shell command line — `sh -c` on Unix, git-bash on
+// Windows (see newHookCmd) — where an unquoted Windows path such as
+// C:\Users\me\out.json loses its backslashes to escape processing. Quoting a
+// forward-slash path is understood by that shell and by the cmd.exe fallback.
+func hookPath(p string) string {
+	return `"` + filepath.ToSlash(p) + `"`
+}
+
 func TestRunnerJSONOnStdin(t *testing.T) {
 	t.Parallel()
 
 	tmpFile := filepath.Join(t.TempDir(), "output.json")
 
 	runner := hooks.NewHookRunner([]hooks.HookConfig{
-		{Event: "daemon.started", Command: "cat > " + tmpFile},
+		{Event: "daemon.started", Command: "cat > " + hookPath(tmpFile)},
 	}, testLogger())
 
 	event := hooks.Event{
@@ -87,7 +97,7 @@ func TestRunnerWildcard(t *testing.T) {
 	tmpFile := filepath.Join(t.TempDir(), "wildcard.json")
 
 	runner := hooks.NewHookRunner([]hooks.HookConfig{
-		{Event: "*", Command: "cat > " + tmpFile},
+		{Event: "*", Command: "cat > " + hookPath(tmpFile)},
 	}, testLogger())
 
 	runner.Dispatch(context.Background(), hooks.Event{Name: hooks.EventSyncCompleted, Project: "/tmp/test"})
@@ -113,7 +123,7 @@ func TestRunnerNoMatch(t *testing.T) {
 	tmpFile := filepath.Join(t.TempDir(), "nomatch.txt")
 
 	runner := hooks.NewHookRunner([]hooks.HookConfig{
-		{Event: "daemon.started", Command: "touch " + tmpFile},
+		{Event: "daemon.started", Command: "touch " + hookPath(tmpFile)},
 	}, testLogger())
 
 	runner.Dispatch(context.Background(), hooks.Event{Name: hooks.EventSessionUploaded})
@@ -193,7 +203,7 @@ func TestRunnerHookDoesNotReadStdin(t *testing.T) {
 	markerFile := filepath.Join(t.TempDir(), "done.txt")
 
 	runner := hooks.NewHookRunner([]hooks.HookConfig{
-		{Event: "daemon.started", Command: "echo ok > " + markerFile},
+		{Event: "daemon.started", Command: "echo ok > " + hookPath(markerFile)},
 	}, testLogger())
 
 	runner.Dispatch(context.Background(), hooks.Event{
@@ -280,7 +290,7 @@ func TestRunnerHookForksBackground(t *testing.T) {
 	markerFile := filepath.Join(t.TempDir(), "parent-done.txt")
 
 	runner := hooks.NewHookRunner([]hooks.HookConfig{
-		{Event: "daemon.started", Command: "sleep 100 & echo done > " + markerFile},
+		{Event: "daemon.started", Command: "sleep 100 & echo done > " + hookPath(markerFile)},
 	}, testLogger())
 
 	runner.Dispatch(context.Background(), hooks.Event{Name: hooks.EventDaemonStarted})
@@ -342,7 +352,7 @@ func TestRunnerContextCancelDoesNotPreventDispatch(t *testing.T) {
 	markerFile := filepath.Join(t.TempDir(), "fired.txt")
 
 	runner := hooks.NewHookRunner([]hooks.HookConfig{
-		{Event: "daemon.started", Command: "touch " + markerFile},
+		{Event: "daemon.started", Command: "touch " + hookPath(markerFile)},
 	}, testLogger())
 
 	ctx, cancel := context.WithCancel(context.Background())
@@ -368,7 +378,7 @@ func TestRunnerSpecialCharsInPayload(t *testing.T) {
 	tmpFile := filepath.Join(t.TempDir(), "output.json")
 
 	runner := hooks.NewHookRunner([]hooks.HookConfig{
-		{Event: "murmur.received", Command: "cat > " + tmpFile},
+		{Event: "murmur.received", Command: "cat > " + hookPath(tmpFile)},
 	}, testLogger())
 
 	event := hooks.Event{
@@ -419,7 +429,7 @@ func TestRunnerEnvironmentVariables(t *testing.T) {
 
 	runner := hooks.NewHookRunner([]hooks.HookConfig{
 		{Event: "daemon.started", Command: fmt.Sprintf(
-			`printf "%%s\n%%s" "$OX_EVENT" "$OX_EVENT_TIMESTAMP" > %s`, envFile)},
+			`printf "%%s\n%%s" "$OX_EVENT" "$OX_EVENT_TIMESTAMP" > %s`, hookPath(envFile))},
 	}, testLogger())
 
 	ts := time.Date(2026, 3, 15, 10, 30, 0, 0, time.UTC)
@@ -461,7 +471,7 @@ func TestRunnerDoesNotLeakDaemonSecrets(t *testing.T) {
 	runner := hooks.NewHookRunner([]hooks.HookConfig{
 		// dump the secrets a malicious hook would target; empty if sanitized
 		{Event: "daemon.started", Command: fmt.Sprintf(
-			`printf "%%s|%%s|%%s|%%s" "$SAGEOX_TOKEN" "$GITHUB_TOKEN" "$AWS_SECRET_ACCESS_KEY" "$OX_EVENT" > %s`, envFile)},
+			`printf "%%s|%%s|%%s|%%s" "$SAGEOX_TOKEN" "$GITHUB_TOKEN" "$AWS_SECRET_ACCESS_KEY" "$OX_EVENT" > %s`, hookPath(envFile))},
 	}, testLogger())
 
 	runner.Dispatch(context.Background(), hooks.Event{
@@ -592,7 +602,7 @@ func TestRunnerMultipleHooksForSameEvent(t *testing.T) {
 	for i := 0; i < 5; i++ {
 		cfgs = append(cfgs, hooks.HookConfig{
 			Event:   "daemon.started",
-			Command: fmt.Sprintf("touch %s/hook-%d.txt", dir, i),
+			Command: "touch " + hookPath(filepath.Join(dir, fmt.Sprintf("hook-%d.txt", i))),
 		})
 	}
 
@@ -618,8 +628,8 @@ func TestRunnerMixedWildcardAndSpecific(t *testing.T) {
 
 	dir := t.TempDir()
 	runner := hooks.NewHookRunner([]hooks.HookConfig{
-		{Event: "*", Command: "touch " + filepath.Join(dir, "wildcard.txt")},
-		{Event: "daemon.started", Command: "touch " + filepath.Join(dir, "specific.txt")},
+		{Event: "*", Command: "touch " + hookPath(filepath.Join(dir, "wildcard.txt"))},
+		{Event: "daemon.started", Command: "touch " + hookPath(filepath.Join(dir, "specific.txt"))},
 	}, testLogger())
 
 	runner.Dispatch(context.Background(), hooks.Event{Name: hooks.EventDaemonStarted})

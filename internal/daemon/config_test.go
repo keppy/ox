@@ -6,9 +6,13 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 	"time"
 
+	"github.com/sageox/ox/internal/homedir"
+
+	"github.com/sageox/ox/internal/paths"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -62,7 +66,7 @@ func TestSocketPath_LegacyMode(t *testing.T) {
 	workspaceID := CurrentWorkspaceID()
 	path := SocketPath()
 
-	home, err := os.UserHomeDir()
+	home, err := homedir.Dir()
 	assert.NoError(t, err)
 	expected := filepath.Join(home, ".sageox", "state", "daemon", "daemon-"+workspaceID+".sock")
 	assert.Equal(t, expected, path)
@@ -90,7 +94,7 @@ func TestLogPath_DefaultMode(t *testing.T) {
 	// Logs go to /tmp/<username>/sageox/logs (OS cleanup), regardless of XDG settings
 	path := LogPath()
 	assert.Contains(t, path, filepath.Join("sageox", "logs"))
-	assert.Contains(t, path, "tmp")
+	assert.True(t, strings.HasPrefix(path, paths.TempDir()), "log path %q must live under the OS temp root %q", path, paths.TempDir())
 }
 
 func TestLogPath_LegacyMode(t *testing.T) {
@@ -99,7 +103,7 @@ func TestLogPath_LegacyMode(t *testing.T) {
 
 	path := LogPath()
 	assert.Contains(t, path, filepath.Join("sageox", "logs"))
-	assert.Contains(t, path, "tmp")
+	assert.True(t, strings.HasPrefix(path, paths.TempDir()), "log path %q must live under the OS temp root %q", path, paths.TempDir())
 }
 
 func TestPidPath(t *testing.T) {
@@ -125,7 +129,7 @@ func TestRegistryPath_LegacyMode(t *testing.T) {
 	t.Setenv("OX_XDG_DISABLE", "1")
 
 	path := RegistryPath()
-	home, err := os.UserHomeDir()
+	home, err := homedir.Dir()
 	assert.NoError(t, err)
 	expected := filepath.Join(home, ".sageox", "state", "daemon", "registry.json")
 	assert.Equal(t, expected, path)
@@ -147,7 +151,7 @@ func TestSocketPathForWorkspace_LegacyMode(t *testing.T) {
 	t.Setenv("OX_XDG_DISABLE", "1")
 
 	path := SocketPathForWorkspace("abc12345")
-	home, err := os.UserHomeDir()
+	home, err := homedir.Dir()
 	assert.NoError(t, err)
 	expected := filepath.Join(home, ".sageox", "state", "daemon", "daemon-abc12345.sock")
 	assert.Equal(t, expected, path)
@@ -169,7 +173,7 @@ func TestPidPathForWorkspace_LegacyMode(t *testing.T) {
 	t.Setenv("OX_XDG_DISABLE", "1")
 
 	path := PidPathForWorkspace("abc12345")
-	home, err := os.UserHomeDir()
+	home, err := homedir.Dir()
 	assert.NoError(t, err)
 	expected := filepath.Join(home, ".sageox", "state", "daemon", "daemon-abc12345.pid")
 	assert.Equal(t, expected, path)
@@ -184,7 +188,7 @@ func TestLogPathForWorkspace_DefaultMode(t *testing.T) {
 	assert.Contains(t, path, "sageox")
 	assert.Contains(t, path, "logs")
 	assert.Contains(t, path, "daemon_repo_test123_abc12345.log")
-	assert.Contains(t, path, "tmp")
+	assert.True(t, strings.HasPrefix(path, paths.TempDir()), "log path %q must live under the OS temp root %q", path, paths.TempDir())
 }
 
 func TestLogPathForWorkspace_LegacyMode(t *testing.T) {
@@ -198,7 +202,7 @@ func TestLogPathForWorkspace_LegacyMode(t *testing.T) {
 	assert.Contains(t, path, "sageox")
 	assert.Contains(t, path, "logs")
 	assert.Contains(t, path, "daemon_repo_test123_abc12345.log")
-	assert.Contains(t, path, "tmp")
+	assert.True(t, strings.HasPrefix(path, paths.TempDir()), "log path %q must live under the OS temp root %q", path, paths.TempDir())
 }
 
 // --- Per-repo identity tests ---

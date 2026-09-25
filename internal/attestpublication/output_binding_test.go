@@ -11,9 +11,14 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
+
+	"github.com/sageox/ox/internal/testguard"
 )
 
 func TestPublishExportKeepsJournalInLockedDirectoryAfterAncestorReplacement(t *testing.T) {
+	if !testguard.SymlinksAvailable(t) {
+		t.Skip("fixture swaps a directory for a symlink from inside an HTTP handler; needs symlink privilege")
+	}
 	parent := t.TempDir()
 	original := filepath.Join(parent, "original")
 	output := filepath.Join(original, "output")

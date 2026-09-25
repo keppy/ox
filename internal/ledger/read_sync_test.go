@@ -9,10 +9,13 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"runtime"
 	"strings"
 	"sync/atomic"
 	"testing"
 	"time"
+
+	"github.com/sageox/ox/internal/testguard"
 
 	"github.com/sageox/ox/internal/gitserver"
 	"github.com/sageox/ox/internal/gitutil"
@@ -88,15 +91,30 @@ func newReadFixture(t *testing.T, lfsHandler ...http.HandlerFunc) *readFixture {
 	f.server = server
 	cert := filepath.Join(root, "ca.pem")
 	require.NoError(t, os.WriteFile(cert, pem.EncodeToMemory(&pem.Block{Type: "CERTIFICATE", Bytes: server.Certificate().Raw}), 0600))
-	// Add only this fixture CA at Git's invocation boundary; production TLS
+	// Pin only this fixture CA at Git's invocation boundary; production TLS
 	// validation and transport policy still run unchanged.
-	git, err := exec.LookPath("git")
-	require.NoError(t, err)
-	bin := filepath.Join(root, "bin")
-	require.NoError(t, os.Mkdir(bin, 0700))
-	quote := func(s string) string { return "'" + strings.ReplaceAll(s, "'", "'\\''") + "'" }
-	require.NoError(t, os.WriteFile(filepath.Join(bin, "git"), []byte("#!/bin/sh\nexec "+quote(git)+" -c "+quote("http.sslCAInfo="+cert)+" \"$@\"\n"), 0700))
-	t.Setenv("PATH", bin+string(os.PathListSeparator)+os.Getenv("PATH"))
+	//
+	// This used to shadow `git` on PATH with a script that exec'd the real
+	// binary with -c http.sslCAInfo=... . A shim named `git` is re-entered by
+	// git's own child processes (clone and fetch resolve `git` by name), which
+	// spawned an unbounded launcher -> bash -> git chain: the command never
+	// finished, and a test that should take seconds burned its whole timeout
+	// waiting on a child that could not exit. Handing the same two settings to
+	// the transport's test-only config hook does the job without a process in
+	// the middle — no recursion, and no bash spawn per git call.
+	prevGitConfig := gitserver.TestExtraGitConfig
+	tlsConfig := []string{"http.sslCAInfo=" + filepath.ToSlash(cert)}
+	if runtime.GOOS == "windows" {
+		// Git for Windows defaults to the schannel backend, which consults
+		// the Windows certificate store and ignores http.sslCAInfo — pin the
+		// openssl backend so the fixture CA is honored. Windows-only: on Unix
+		// http.sslBackend is not a usable knob (git there has a single
+		// backend compiled in and fails the operation when asked to switch),
+		// so passing it turns every clone into a fatal error.
+		tlsConfig = append(tlsConfig, "http.sslBackend=openssl")
+	}
+	gitserver.TestExtraGitConfig = tlsConfig
+	t.Cleanup(func() { gitserver.TestExtraGitConfig = prevGitConfig })
 	t.Setenv("SAGEOX_ENDPOINT", server.URL)
 	t.Setenv("SAGEOX_TOKEN", readTestToken)
 	old := gitserver.DefaultHelperCommand()
@@ -258,7 +276,7 @@ func TestReadSyncColdFailureAndIdentityIsolation(t *testing.T) {
 	target := filepath.Join(t.TempDir(), "untouched")
 	require.NoError(t, os.WriteFile(target, []byte("keep"), 0600))
 	require.NoError(t, os.Remove(filepath.Join(f.opts.Path, readReceiptRelative)))
-	require.NoError(t, os.Symlink(target, filepath.Join(f.opts.Path, readReceiptRelative)))
+	testguard.Symlink(t, target, filepath.Join(f.opts.Path, readReceiptRelative))
 	require.False(t, ReadSync(context.Background(), f.opts).Ready)
 	content, err := os.ReadFile(target)
 	require.NoError(t, err)

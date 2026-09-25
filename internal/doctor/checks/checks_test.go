@@ -5,9 +5,11 @@ import (
 	"errors"
 	"fmt"
 	"os"
+	"path/filepath"
 	"testing"
 
 	"github.com/sageox/ox/internal/doctor"
+	"github.com/sageox/ox/internal/testguard"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -58,6 +60,17 @@ func (m *mockFS) WriteFile(path string, data []byte, _ os.FileMode) error {
 	m.written[path] = data
 	return nil
 }
+
+// mockRepoRoot stands in for `git rev-parse --show-toplevel` output. The
+// checks join it with the file they inspect using filepath.Join, so the mock
+// filesystem must key on that joined result rather than on a POSIX literal —
+// otherwise every read misses on Windows and the check reports "no .gitignore"
+// for a file that is right there.
+var mockRepoRoot = testguard.FakePath("/repo")
+
+// mockRepoFile returns the path the check under test will look for, built the
+// same way the check builds it.
+func mockRepoFile(name string) string { return filepath.Join(mockRepoRoot, name) }
 
 // --- OxInPathCheck tests ---
 //
@@ -329,14 +342,14 @@ func TestGitignoreCheck_Detection(t *testing.T) {
 
 			fs := newMockFS()
 			if tt.fileContent != nil {
-				fs.files["/repo/.gitignore"] = []byte(*tt.fileContent)
+				fs.files[mockRepoFile(".gitignore")] = []byte(*tt.fileContent)
 			}
 
 			results := map[string]mockGitResult{}
 			if tt.gitErr != nil {
 				results["[rev-parse --show-toplevel]"] = mockGitResult{err: tt.gitErr}
 			} else {
-				results["[rev-parse --show-toplevel]"] = mockGitResult{output: "/repo"}
+				results["[rev-parse --show-toplevel]"] = mockGitResult{output: mockRepoRoot}
 			}
 
 			git := &mockGitRunner{results: results}
@@ -360,11 +373,11 @@ func TestGitignoreCheck_Fix(t *testing.T) {
 		t.Parallel()
 		// prevents: fix removes wrong lines or corrupts gitignore
 		fs := newMockFS()
-		fs.files["/repo/.gitignore"] = []byte("node_modules/\n.sageox/\n*.log\n")
+		fs.files[mockRepoFile(".gitignore")] = []byte("node_modules/\n.sageox/\n*.log\n")
 
 		git := &mockGitRunner{
 			results: map[string]mockGitResult{
-				"[rev-parse --show-toplevel]": {output: "/repo"},
+				"[rev-parse --show-toplevel]": {output: mockRepoRoot},
 			},
 		}
 		check := NewGitignoreCheck(git, fs)
@@ -374,7 +387,7 @@ func TestGitignoreCheck_Fix(t *testing.T) {
 		assert.Equal(t, doctor.StatusPass, result.Status)
 		assert.Equal(t, "fixed", result.Message)
 
-		written := string(fs.written["/repo/.gitignore"])
+		written := string(fs.written[mockRepoFile(".gitignore")])
 		assert.NotContains(t, written, ".sageox")
 		assert.Contains(t, written, "node_modules/")
 		assert.Contains(t, written, "*.log")
@@ -384,12 +397,12 @@ func TestGitignoreCheck_Fix(t *testing.T) {
 		t.Parallel()
 		// prevents: fix silently fails, user thinks issue is resolved
 		fs := newMockFS()
-		fs.files["/repo/.gitignore"] = []byte(".sageox/\n")
+		fs.files[mockRepoFile(".gitignore")] = []byte(".sageox/\n")
 		fs.writeErr = errors.New("permission denied")
 
 		git := &mockGitRunner{
 			results: map[string]mockGitResult{
-				"[rev-parse --show-toplevel]": {output: "/repo"},
+				"[rev-parse --show-toplevel]": {output: mockRepoRoot},
 			},
 		}
 		check := NewGitignoreCheck(git, fs)
@@ -405,11 +418,11 @@ func TestGitignoreCheck_Fix(t *testing.T) {
 		t.Parallel()
 		// prevents: removing the only line leaves a malformed file
 		fs := newMockFS()
-		fs.files["/repo/.gitignore"] = []byte(".sageox\n")
+		fs.files[mockRepoFile(".gitignore")] = []byte(".sageox\n")
 
 		git := &mockGitRunner{
 			results: map[string]mockGitResult{
-				"[rev-parse --show-toplevel]": {output: "/repo"},
+				"[rev-parse --show-toplevel]": {output: mockRepoRoot},
 			},
 		}
 		check := NewGitignoreCheck(git, fs)
@@ -419,7 +432,7 @@ func TestGitignoreCheck_Fix(t *testing.T) {
 		assert.Equal(t, doctor.StatusPass, result.Status)
 		assert.Equal(t, "fixed", result.Message)
 
-		written := string(fs.written["/repo/.gitignore"])
+		written := string(fs.written[mockRepoFile(".gitignore")])
 		assert.NotContains(t, written, ".sageox")
 	})
 
@@ -427,11 +440,11 @@ func TestGitignoreCheck_Fix(t *testing.T) {
 		t.Parallel()
 		// prevents: fix=true on clean gitignore causes unnecessary write
 		fs := newMockFS()
-		fs.files["/repo/.gitignore"] = []byte("node_modules/\n")
+		fs.files[mockRepoFile(".gitignore")] = []byte("node_modules/\n")
 
 		git := &mockGitRunner{
 			results: map[string]mockGitResult{
-				"[rev-parse --show-toplevel]": {output: "/repo"},
+				"[rev-parse --show-toplevel]": {output: mockRepoRoot},
 			},
 		}
 		check := NewGitignoreCheck(git, fs)

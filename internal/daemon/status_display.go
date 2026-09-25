@@ -2,10 +2,11 @@ package daemon
 
 import (
 	"fmt"
-	"os"
 	"path/filepath"
 	"strings"
 	"time"
+
+	"github.com/sageox/ox/internal/homedir"
 
 	"charm.land/lipgloss/v2"
 
@@ -1150,7 +1151,7 @@ func shortenPath(path string) string {
 	if path == "" {
 		return path
 	}
-	home, err := os.UserHomeDir()
+	home, err := homedir.Dir()
 	if err != nil {
 		return path
 	}

@@ -8,6 +8,8 @@ import (
 	"path/filepath"
 	"strings"
 	"time"
+
+	"github.com/sageox/ox/internal/homedir"
 )
 
 // AgentUsability describes whether an agent CLI is installed and authenticated.
@@ -50,7 +52,7 @@ func checkClaudeUsability() AgentUsability {
 	}
 
 	// check OAuth in ~/.claude.json
-	home, err := os.UserHomeDir()
+	home, err := homedir.Dir()
 	if err != nil {
 		result.AuthDetail = "unable to check"
 		return result

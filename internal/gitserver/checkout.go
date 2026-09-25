@@ -7,6 +7,7 @@ import (
 	"net/url"
 	"os"
 	"os/exec"
+	"path"
 	"path/filepath"
 	"strings"
 
@@ -62,6 +63,11 @@ func DefaultCheckoutPath(repoName, workDir string) string {
 
 // repoNameFromURL extracts the repository name from a git URL.
 // Returns empty string if parsing fails or URL is empty.
+//
+// The path components of a URL are always '/'-separated, so this must use
+// path.Base, not filepath.Base: on Windows filepath.Base("/") returns `\`,
+// which slipped past the empty-name guard and produced a repo name of `\`
+// for a root-path URL.
 func repoNameFromURL(repoURL string) string {
 	if repoURL == "" {
 		return ""
@@ -71,8 +77,8 @@ func repoNameFromURL(repoURL string) string {
 	if isSSHURL(repoURL) {
 		parts := strings.Split(repoURL, ":")
 		if len(parts) == 2 {
-			path := parts[1]
-			base := filepath.Base(path)
+			sshPath := parts[1]
+			base := path.Base(sshPath)
 			return strings.TrimSuffix(base, ".git")
 		}
 		return ""
@@ -89,8 +95,8 @@ func repoNameFromURL(repoURL string) string {
 		return ""
 	}
 
-	base := filepath.Base(parsed.Path)
-	// filepath.Base returns "." for empty paths
+	base := path.Base(parsed.Path)
+	// path.Base returns "." for empty paths and "/" for root paths
 	if base == "." || base == "/" {
 		return ""
 	}

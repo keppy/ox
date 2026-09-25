@@ -45,6 +45,40 @@ builds:
       - -X 'github.com/sageox/ox/internal/signing.EmbeddedPublicKey={{ .Env.SAGEOX_CLI_PUBLIC_KEY }}'
       - -X 'github.com/sageox/ox/internal/signing.EmbeddedSignatures={{ .Env.SAGEOX_CLI_SIGNATURES }}'
 
+  - id: ox-windows-amd64
+    main: ./cmd/ox
+    binary: ox
+    env:
+      - CGO_ENABLED=0
+    goos:
+      - windows
+    goarch:
+      - amd64
+    ldflags:
+      - -s -w
+      - -X github.com/sageox/ox/internal/version.Version={{.Version}}
+      - -X github.com/sageox/ox/internal/version.GitCommit={{.ShortCommit}}
+      - -X github.com/sageox/ox/internal/version.BuildDate={{.Date}}
+      - -X 'github.com/sageox/ox/internal/signing.EmbeddedPublicKey={{ .Env.SAGEOX_CLI_PUBLIC_KEY }}'
+      - -X 'github.com/sageox/ox/internal/signing.EmbeddedSignatures={{ .Env.SAGEOX_CLI_SIGNATURES }}'
+
+  - id: ox-windows-arm64
+    main: ./cmd/ox
+    binary: ox
+    env:
+      - CGO_ENABLED=0
+    goos:
+      - windows
+    goarch:
+      - arm64
+    ldflags:
+      - -s -w
+      - -X github.com/sageox/ox/internal/version.Version={{.Version}}
+      - -X github.com/sageox/ox/internal/version.GitCommit={{.ShortCommit}}
+      - -X github.com/sageox/ox/internal/version.BuildDate={{.Date}}
+      - -X 'github.com/sageox/ox/internal/signing.EmbeddedPublicKey={{ .Env.SAGEOX_CLI_PUBLIC_KEY }}'
+      - -X 'github.com/sageox/ox/internal/signing.EmbeddedSignatures={{ .Env.SAGEOX_CLI_SIGNATURES }}'
+
   - id: ox-darwin-amd64
     main: ./cmd/ox
     binary: ox
@@ -109,6 +143,7 @@ builds:
       - linux
       - darwin
       - freebsd
+      - windows
     goarch:
       - amd64
       - arm64
@@ -127,6 +162,7 @@ builds:
       - linux
       - darwin
       - freebsd
+      - windows
     goarch:
       - amd64
       - arm64
@@ -145,6 +181,7 @@ builds:
       - linux
       - darwin
       - freebsd
+      - windows
     goarch:
       - amd64
       - arm64
@@ -163,6 +200,7 @@ builds:
       - linux
       - darwin
       - freebsd
+      - windows
     goarch:
       - amd64
       - arm64
@@ -181,6 +219,7 @@ builds:
       - linux
       - darwin
       - freebsd
+      - windows
     goarch:
       - amd64
       - arm64
@@ -199,6 +238,7 @@ builds:
       - linux
       - darwin
       - freebsd
+      - windows
     goarch:
       - amd64
       - arm64
@@ -217,6 +257,7 @@ builds:
       - linux
       - darwin
       - freebsd
+      - windows
     goarch:
       - amd64
       - arm64
@@ -235,6 +276,7 @@ builds:
       - linux
       - darwin
       - freebsd
+      - windows
     goarch:
       - amd64
       - arm64
@@ -253,6 +295,7 @@ builds:
       - linux
       - darwin
       - freebsd
+      - windows
     goarch:
       - amd64
       - arm64
@@ -271,6 +314,7 @@ builds:
       - linux
       - darwin
       - freebsd
+      - windows
     goarch:
       - amd64
       - arm64
@@ -280,10 +324,34 @@ builds:
     ldflags:
       - -s -w
 
+
+  - id: ox-adapter-hermes
+    main: ./cmd/ox-adapter-hermes
+    binary: ox-adapter-hermes
+    env:
+      - CGO_ENABLED=0
+    goos:
+      - linux
+      - darwin
+      - freebsd
+      - windows
+    goarch:
+      - amd64
+      - arm64
+    ignore:
+      - goos: freebsd
+        goarch: arm64
+    ldflags:
+      - -s -w
 archives:
+
   - id: ox-archive
     formats:
       - tar.gz
+    format_overrides:
+      - goos: windows
+        formats:
+          - zip
     name_template: "{{ .ProjectName }}_{{ .Version }}_{{ .Os }}_{{ .Arch }}"
     files:
       - LICENSE
@@ -353,6 +421,7 @@ brews:
       bin.install "ox-adapter-aider"
       bin.install "ox-adapter-droid"
       bin.install "ox-adapter-goose"
+      bin.install "ox-adapter-hermes"
 
 announce:
   skip: true

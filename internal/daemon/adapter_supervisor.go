@@ -9,13 +9,13 @@ import (
 	"log/slog"
 	"os"
 	"os/exec"
-	"path/filepath"
 	"strings"
 	"sync"
 	"sync/atomic"
 	"time"
 
 	"github.com/sageox/ox/internal/envutil"
+	"github.com/sageox/ox/internal/fileutil"
 	"github.com/sageox/ox/pkg/adapterprotocol"
 	"github.com/sageox/ox/pkg/ndjson"
 )
@@ -609,15 +609,9 @@ func (s *AdapterSupervisor) handleCrash(adapterType string) (*AdapterProcess, er
 func (s *AdapterSupervisor) findBinary(adapterType string) (string, error) {
 	binaryName := adapterBinaryPrefix + adapterType
 	for _, dir := range s.adapterDirs {
-		path := filepath.Join(dir, binaryName)
-		fi, err := os.Stat(path)
-		if err != nil {
-			continue
+		if path, ok := fileutil.FindExecutable(dir, binaryName); ok {
+			return path, nil
 		}
-		if fi.Mode()&0111 == 0 {
-			continue // not executable
-		}
-		return path, nil
 	}
 	return "", fmt.Errorf("%w: %s (searched: %s)", ErrAdapterNotFound, binaryName, strings.Join(s.adapterDirs, ", "))
 }

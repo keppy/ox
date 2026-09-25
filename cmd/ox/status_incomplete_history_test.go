@@ -9,6 +9,8 @@ import (
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+
+	"github.com/sageox/ox/internal/fileutil"
 )
 
 // TestGetGitRepoStatus_ShallowSetsIncompleteHistory verifies the end-to-end
@@ -37,7 +39,7 @@ func TestGetGitRepoStatus_ShallowSetsIncompleteHistory(t *testing.T) {
 
 	parent := t.TempDir()
 	dst := filepath.Join(parent, "shallow")
-	clone := exec.Command("git", "clone", "-q", "--depth", "1", "--no-local", "file://"+src, dst)
+	clone := exec.Command("git", "clone", "-q", "--depth", "1", "--no-local", fileutil.FileURL(src), dst)
 	out, err := clone.CombinedOutput()
 	require.NoError(t, err, "%s", out)
 
@@ -71,7 +73,7 @@ func TestGetGitRepoStatus_PartialClonePreservesDivergence(t *testing.T) {
 
 	parent := t.TempDir()
 	dst := filepath.Join(parent, "partial")
-	clone := exec.Command("git", "clone", "-q", "--filter=blob:none", "--no-local", "file://"+src, dst)
+	clone := exec.Command("git", "clone", "-q", "--filter=blob:none", "--no-local", fileutil.FileURL(src), dst)
 	out, err := clone.CombinedOutput()
 	require.NoError(t, err, "%s", out)
 

@@ -6,6 +6,8 @@ import (
 	"path/filepath"
 	"strings"
 
+	"github.com/sageox/ox/internal/homedir"
+
 	"github.com/sageox/ox/internal/session/omppaths"
 )
 
@@ -25,7 +27,7 @@ import (
 //
 // homeDir is the absolute path to the caller's home directory ($HOME). Passing
 // it in keeps the function pure and testable; production callers should pass
-// os.UserHomeDir() — KnownSessionRootsForCurrentUser does that for them.
+// homedir.Dir() — KnownSessionRootsForCurrentUser does that for them.
 func KnownSessionRoots(adapterName, homeDir string) []string {
 	if homeDir == "" {
 		return nil
@@ -62,7 +64,7 @@ func containsRoot(roots []string, candidate string) bool {
 // KnownSessionRootsForCurrentUser is a convenience wrapper that resolves
 // $HOME via os.UserHomeDir.
 func KnownSessionRootsForCurrentUser(adapterName string) []string {
-	home, err := os.UserHomeDir()
+	home, err := homedir.Dir()
 	if err != nil {
 		return nil
 	}
@@ -238,6 +240,8 @@ var adapterSessionHandles = map[string]string{
 	"opencode": "opencode:",
 	// stores sessions in ~/.local/share/goose/sessions/sessions.db
 	"goose": "goose:",
+	// stores sessions in $HERMES_HOME/state.db
+	"hermes": "hermes:",
 }
 
 // adapterSessionRoots is the canonical map of adapter name → ~-relative path
@@ -272,6 +276,7 @@ var adapterSessionRoots = map[string][]string{
 	"aider": {".sageox/cache/sessions", ".cache/sageox/sessions"},
 	// Droid writes transcripts to ~/.factory/sessions/<project-slug>/<uuid>.jsonl
 	// and ox tails them in place, same as pi.
-	"droid": {".sageox/cache/sessions", ".cache/sageox/sessions", ".factory/sessions"},
-	"goose": {".sageox/cache/sessions", ".cache/sageox/sessions", ".local/share/goose/sessions"},
+	"droid":  {".sageox/cache/sessions", ".cache/sageox/sessions", ".factory/sessions"},
+	"goose":  {".sageox/cache/sessions", ".cache/sageox/sessions", ".local/share/goose/sessions"},
+	"hermes": {".sageox/cache/sessions", ".cache/sageox/sessions", ".hermes"},
 }

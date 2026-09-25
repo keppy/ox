@@ -20,7 +20,7 @@ NC='\033[0m' # No Color
 REPO="sageox/ox"
 BINARY="ox"
 # bundled adapter binaries shipped alongside ox in the release tarball
-ADAPTER_BINARIES="ox-adapter-claude-code ox-adapter-gemini ox-adapter-codex ox-adapter-amp ox-adapter-opencode ox-adapter-pi ox-adapter-omp ox-adapter-aider ox-adapter-droid ox-adapter-goose"
+ADAPTER_BINARIES="ox-adapter-claude-code ox-adapter-gemini ox-adapter-codex ox-adapter-amp ox-adapter-opencode ox-adapter-pi ox-adapter-omp ox-adapter-aider ox-adapter-droid ox-adapter-goose ox-adapter-hermes"
 LAST_INSTALL_PATH=""
 
 log_info() {
@@ -69,6 +69,36 @@ print_path_warning() {
     install_dir=$(dirname "$binary_path")
 
     if [[ ":$PATH:" == *":$install_dir:"* ]]; then
+        return 0
+    fi
+
+    if is_windows; then
+        # Persist to the per-user PATH so every future shell (cmd, PowerShell,
+        # Git Bash, and the agents' hook runners) can find ox without a
+        # shell rc. HKCU\Environment is user-writable; no elevation needed.
+        local win_dir posix_dir
+        win_dir=$(cygpath -w "$install_dir" 2>/dev/null || printf '%s' "$install_dir")
+        # The containment check below compares against MSYS's POSIX-style
+        # $PATH; the Windows-form dir would never match it.
+        posix_dir=$(cygpath -u "$win_dir" 2>/dev/null || printf '%s' "$install_dir")
+        if [[ ":$PATH:" == *":$posix_dir:"* ]]; then
+            return 0
+        fi
+        if command -v powershell.exe &> /dev/null && powershell.exe -NoProfile -Command \
+            "\$p=[Environment]::GetEnvironmentVariable('Path','User'); if (\$null -eq \$p) { \$p='' }; if (-not ((';'+\$p+';').Split(';') -contains '$win_dir')) { [Environment]::SetEnvironmentVariable('Path', (\$p.TrimEnd(';')+';$win_dir'), 'User') }; Add-Type -Namespace Win32 -Name NativeMethods -MemberDefinition '[DllImport(\"user32.dll\", SetLastError = true, CharSet = CharSet.Auto)] public static extern IntPtr SendMessageTimeout(IntPtr hWnd, uint Msg, UIntPtr wParam, string lParam, uint fuFlags, uint uTimeout, out UIntPtr lpdwResult);'; [Win32.NativeMethods]::SendMessageTimeout([IntPtr]0xFFFF, 0x1A, [UIntPtr]::Zero, 'Environment', 2, 5000, [ref]([UIntPtr]::Zero)) | Out-Null" \
+            > /dev/null 2>&1; then
+            echo ""
+            log_warning "$BINARY is installed at $binary_path. Added $win_dir to your user PATH."
+            echo "Open a new terminal (and restart any running coding agents) before using ox."
+            echo ""
+        else
+            echo ""
+            log_warning "$BINARY is installed at $binary_path but $win_dir is not on PATH."
+            echo "Add it via Settings → System → About → Advanced system settings → Environment Variables,"
+            echo "or in PowerShell:"
+            echo "    [Environment]::SetEnvironmentVariable('Path', \$env:Path + ';$win_dir', 'User')"
+            echo ""
+        fi
         return 0
     fi
 
@@ -138,6 +168,86 @@ release_has_asset() {
     return 1
 }
 
+# is_windows reports whether we are running under Git Bash / MSYS2 / Cygwin.
+is_windows() {
+    case "$(uname -s)" in
+        MINGW*|MSYS*|CYGWIN*) return 0 ;;
+        *) return 1 ;;
+    esac
+}
+
+# exe_suffix prints ".exe" on Windows, nothing elsewhere.
+exe_suffix() {
+    if is_windows; then printf '.exe'; fi
+}
+
+# choose_install_dir prints the directory to install into and creates it.
+# Unix: /usr/local/bin when writable, else ~/.local/bin.
+# Windows: %LOCALAPPDATA%\Programs\ox — the per-user, no-elevation location
+# Windows itself uses for user-scoped installs. The user is told if it is not
+# on PATH.
+choose_install_dir() {
+    local dir
+    if is_windows; then
+        dir="${LOCALAPPDATA:-$HOME/AppData/Local}/Programs/ox"
+    elif [[ -w /usr/local/bin ]]; then
+        dir="/usr/local/bin"
+    else
+        dir="$HOME/.local/bin"
+    fi
+    mkdir -p "$dir"
+    printf '%s' "$dir"
+}
+
+# install_binary moves one extracted binary into install_dir, using sudo only
+# when the directory is not writable (never on Windows).
+install_binary() {
+    local bin="$1" install_dir="$2"
+    if [[ -w "$install_dir" ]] || is_windows; then
+        # a running ox.exe cannot be overwritten on Windows; move it aside first
+        if is_windows && [[ -f "$install_dir/$bin" ]]; then
+            mv -f "$install_dir/$bin" "$install_dir/.$bin.old" 2>/dev/null || true
+            rm -f "$install_dir/.$bin.old" 2>/dev/null || true
+        fi
+        mv -f "$bin" "$install_dir/"
+    else
+        sudo mv "$bin" "$install_dir/"
+    fi
+    chmod +x "$install_dir/$bin"
+    resign_for_macos "$install_dir/$bin"
+}
+
+# extract_archive unpacks a release archive (.tar.gz or .zip) into the cwd.
+extract_archive() {
+    local archive="$1"
+    case "$archive" in
+        *.zip)
+            # Presence of a tool is not support for zip: Git Bash's tar is GNU
+            # tar (cannot read zip), so `command -v tar` must not be the gate.
+            # Prefer unzip, then bsdtar explicitly (tar --version mentions
+            # libarchive/bsdtar), then PowerShell's Expand-Archive.
+            if command -v unzip &> /dev/null; then
+                unzip -oq "$archive"
+            elif command -v tar &> /dev/null && tar --version 2>/dev/null | grep -qi 'bsdtar\|libarchive'; then
+                # bsdtar (shipped with Windows 10+) reads zip natively
+                tar -xf "$archive"
+            elif command -v powershell.exe &> /dev/null; then
+                # MSYS converts POSIX paths in arguments; hand PowerShell a
+                # Windows-form -LiteralPath and an absolute destination.
+                local win_archive win_dest
+                win_archive=$(cygpath -w "$archive" 2>/dev/null || printf '%s' "$archive")
+                win_dest=$(cygpath -w "$(pwd)" 2>/dev/null || printf '%s' "$(pwd)")
+                powershell.exe -NoProfile -Command "Expand-Archive -Force -LiteralPath '$win_archive' -DestinationPath '$win_dest'"
+            else
+                return 1
+            fi
+            ;;
+        *)
+            tar -xzf "$archive"
+            ;;
+    esac
+}
+
 # Re-sign binary for macOS to avoid slow Gatekeeper checks
 resign_for_macos() {
     local binary_path=$1
@@ -176,9 +286,13 @@ detect_platform() {
         FreeBSD)
             os="freebsd"
             ;;
+        MINGW*|MSYS*|CYGWIN*)
+            # Git Bash / MSYS2 on Windows. Binaries carry .exe and ship zipped.
+            os="windows"
+            ;;
         *)
             log_error "Unsupported operating system: $(uname -s)"
-            log_error "For Windows, download manually from https://github.com/$REPO/releases"
+            log_error "On Windows run this script from Git Bash, or download from https://github.com/$REPO/releases"
             exit 1
             ;;
     esac
@@ -233,6 +347,9 @@ install_from_release() {
 
     # Download URL
     local archive_name="ox_${version#v}_${platform}.tar.gz"
+    if [[ "$platform" == windows_* ]]; then
+        archive_name="ox_${version#v}_${platform}.zip"
+    fi
     local download_url="https://github.com/$REPO/releases/download/${version}/${archive_name}"
 
     if ! release_has_asset "$release_json" "$archive_name"; then
@@ -310,7 +427,7 @@ install_from_release() {
 
     # Extract archive
     log_info "Extracting archive..."
-    if ! tar -xzf "$archive_name"; then
+    if ! extract_archive "$archive_name"; then
         log_error "Failed to extract archive"
         cd - > /dev/null || cd "$HOME"
         rm -rf "$tmp_dir"
@@ -319,31 +436,21 @@ install_from_release() {
 
     # Determine install location
     local install_dir
-    if [[ -w /usr/local/bin ]]; then
-        install_dir="/usr/local/bin"
-    else
-        install_dir="$HOME/.local/bin"
-        mkdir -p "$install_dir"
-    fi
+    install_dir=$(choose_install_dir)
 
     # Install ox binary and bundled adapter binaries
     log_info "Installing to $install_dir..."
     for bin in "$BINARY" $ADAPTER_BINARIES; do
+        bin="${bin}$(exe_suffix)"
         if [[ ! -f "$bin" ]]; then
             # adapters may not exist in older releases — skip silently
             continue
         fi
-        if [[ -w "$install_dir" ]]; then
-            mv "$bin" "$install_dir/"
-        else
-            sudo mv "$bin" "$install_dir/"
-        fi
-        chmod +x "$install_dir/$bin"
-        resign_for_macos "$install_dir/$bin"
+        install_binary "$bin" "$install_dir"
     done
 
-    LAST_INSTALL_PATH="$install_dir/$BINARY"
-    log_success "$BINARY installed to $install_dir/$BINARY"
+    LAST_INSTALL_PATH="$install_dir/$BINARY$(exe_suffix)"
+    log_success "$BINARY installed to $LAST_INSTALL_PATH"
 
     cd - > /dev/null || cd "$HOME"
     rm -rf "$tmp_dir"
@@ -433,28 +540,19 @@ build_from_source() {
         if go build $build_targets; then
             # Determine install location
             local install_dir
-            if [[ -w /usr/local/bin ]]; then
-                install_dir="/usr/local/bin"
-            else
-                install_dir="$HOME/.local/bin"
-                mkdir -p "$install_dir"
-            fi
+            install_dir=$(choose_install_dir)
 
             log_info "Installing to $install_dir..."
             for bin in "$BINARY" $ADAPTER_BINARIES; do
+                bin="${bin}$(exe_suffix)"
                 if [[ ! -f "$bin" ]]; then
                     continue
                 fi
-                if [[ -w "$install_dir" ]]; then
-                    mv "$bin" "$install_dir/"
-                else
-                    sudo mv "$bin" "$install_dir/"
-                fi
-                resign_for_macos "$install_dir/$bin"
+                install_binary "$bin" "$install_dir"
             done
 
-            log_success "$BINARY installed to $install_dir/$BINARY"
-            LAST_INSTALL_PATH="$install_dir/$BINARY"
+            LAST_INSTALL_PATH="$install_dir/$BINARY$(exe_suffix)"
+            log_success "$BINARY installed to $LAST_INSTALL_PATH"
 
             cd - > /dev/null || cd "$HOME"
             rm -rf "$tmp_dir"

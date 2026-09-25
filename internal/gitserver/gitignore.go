@@ -316,9 +316,13 @@ func commitCheckoutGitignore(ctx context.Context, repoPath string) error {
 		"commit", "-m", "chore: add .sageox/.gitignore to exclude daemon cache files",
 		"--", ".sageox/.gitignore")
 	if output, err := commitCmd.CombinedOutput(); err != nil {
-		// exit code 1 = nothing to commit (file already committed)
+		// exit code 1 = nothing to commit (file already committed). Guard
+		// against a commit the context killed: on Windows a kill terminates
+		// with exit code 1, so without this check a timed-out commit reads
+		// as "nothing to commit" while the file stays uncommitted and the
+		// worktree dirty.
 		var exitErr *exec.ExitError
-		if errors.As(err, &exitErr) && exitErr.ExitCode() == 1 {
+		if errors.As(err, &exitErr) && exitErr.ExitCode() == 1 && ctx.Err() == nil {
 			return nil
 		}
 		return fmt.Errorf("git commit .sageox/.gitignore: %w: %s", err, output)

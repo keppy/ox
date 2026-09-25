@@ -42,6 +42,8 @@ import (
 	"strings"
 	"time"
 
+	"github.com/sageox/ox/internal/homedir"
+
 	"github.com/sageox/ox/pkg/adapterprotocol"
 	"github.com/sageox/ox/pkg/adapterruntime"
 )
@@ -79,7 +81,7 @@ func handleReadMetadata(p adapterprotocol.ReadParams) (*adapterprotocol.ReadMeta
 }
 
 func findGeminiSession(repoRoot, agentID, since, agentSessionID string) (string, error) {
-	home, err := os.UserHomeDir()
+	home, err := homedir.Dir()
 	if err != nil {
 		return "", fmt.Errorf("cannot determine home directory: %w", err)
 	}

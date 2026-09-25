@@ -12,6 +12,7 @@ import (
 
 	"github.com/sageox/ox/internal/api"
 	"github.com/sageox/ox/internal/endpoint"
+	"github.com/sageox/ox/internal/fileutil"
 	"github.com/sageox/ox/internal/paths"
 	"github.com/stretchr/testify/require"
 )
@@ -55,7 +56,7 @@ func TestKBSync_NoFDLeak_AtScale(t *testing.T) {
 			KBID:    fmt.Sprintf("kb_%03d", i),
 			KBType:  api.KBTypePersonal,
 			Slug:    fmt.Sprintf("personal-%03d", i),
-			RepoURL: "file://" + bareDir,
+			RepoURL: fileutil.FileURL(bareDir),
 		}
 	}
 	s.SetKBBubbleListerFactory(func(_, _ string) KBBubbleLister {
@@ -125,7 +126,7 @@ func TestKBSync_SecondPass_IsFastAndIdempotent(t *testing.T) {
 			KBID:    fmt.Sprintf("kb_%03d", i),
 			KBType:  api.KBTypePersonal,
 			Slug:    fmt.Sprintf("personal-%03d", i),
-			RepoURL: "file://" + bareDir,
+			RepoURL: fileutil.FileURL(bareDir),
 		}
 	}
 	lister := &fakeKBLister{bubbles: bubbles}

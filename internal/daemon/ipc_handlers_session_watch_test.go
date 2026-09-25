@@ -10,6 +10,8 @@ import (
 	"testing"
 	"time"
 
+	"github.com/sageox/ox/internal/testguard"
+
 	projectconfig "github.com/sageox/ox/internal/config"
 	"github.com/sageox/ox/internal/daemon/agentwork"
 	"github.com/sageox/ox/internal/paths"
@@ -27,7 +29,7 @@ func TestSessionWatchStart_CapturesInRecordingCache(t *testing.T) {
 	if testing.Short() {
 		t.Skip("short: builds Codex adapter and waits for session polling")
 	}
-	binaryPath := filepath.Join(t.TempDir(), "ox-adapter-codex")
+	binaryPath := filepath.Join(t.TempDir(), testguard.ExeName("ox-adapter-codex"))
 	build := exec.Command("go", "build", "-o", binaryPath, "./cmd/ox-adapter-codex")
 	build.Dir = supFindRepoRoot(t)
 	out, err := build.CombinedOutput()

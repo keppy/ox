@@ -10,14 +10,17 @@ import (
 )
 
 // tryFlock attempts a non-blocking exclusive lock. Returns nil on
-// success, or an error (typically EWOULDBLOCK) if another process
-// holds the lock. Callers retry; the polling cadence lives in
-// WithFileLock.
+// success, ErrLocked if another process holds the lock, or any other
+// error for a real I/O failure. Callers retry; the polling cadence lives
+// in WithFileLock.
 func tryFlock(f *os.File) error {
 	if err := unix.Flock(int(f.Fd()), unix.LOCK_EX|unix.LOCK_NB); err != nil {
-		// Wrap so callers (and the timeout path) can still match a
-		// real I/O error vs the expected "would block" via errors.Is
-		// against the underlying syscall error.
+		// Both EWOULDBLOCK and EAGAIN signal "another holder" on POSIX
+		// systems; they are the same value on Linux but distinct on some
+		// BSDs. Treat both as the expected contention case.
+		if errors.Is(err, unix.EWOULDBLOCK) || errors.Is(err, unix.EAGAIN) {
+			return ErrLocked
+		}
 		return err
 	}
 	return nil

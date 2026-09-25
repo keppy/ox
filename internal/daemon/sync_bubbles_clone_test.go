@@ -19,6 +19,7 @@ import (
 
 	"github.com/sageox/ox/internal/api"
 	"github.com/sageox/ox/internal/endpoint"
+	"github.com/sageox/ox/internal/fileutil"
 	"github.com/sageox/ox/internal/kb"
 	"github.com/sageox/ox/internal/paths"
 	"github.com/stretchr/testify/assert"
@@ -66,7 +67,7 @@ func TestSyncBubbles_Clone_AllKinds(t *testing.T) {
 				KBID:    "kb_" + tc.name + "_clone",
 				KBType:  tc.kbType,
 				Slug:    "slug-" + tc.name,
-				RepoURL: "file://" + bareDir,
+				RepoURL: fileutil.FileURL(bareDir),
 			}
 			s.SetKBBubbleListerFactory(func(_, _ string) KBBubbleLister {
 				return &fakeKBLister{bubbles: []api.KB{bubble}}
@@ -125,7 +126,7 @@ func TestSyncBubbles_Clone_EndpointScoping(t *testing.T) {
 			KBID:    "kb_same_id",
 			KBType:  api.KBTypePersonal,
 			Slug:    "shared",
-			RepoURL: "file://" + bareA,
+			RepoURL: fileutil.FileURL(bareA),
 		}
 		s.SetKBBubbleListerFactory(func(_, _ string) KBBubbleLister {
 			return &fakeKBLister{bubbles: []api.KB{bubble}}
@@ -151,7 +152,7 @@ func TestSyncBubbles_Clone_EndpointScoping(t *testing.T) {
 			KBID:    "kb_same_id",
 			KBType:  api.KBTypePersonal,
 			Slug:    "shared",
-			RepoURL: "file://" + bareB,
+			RepoURL: fileutil.FileURL(bareB),
 		}
 		s.SetKBBubbleListerFactory(func(_, _ string) KBBubbleLister {
 			return &fakeKBLister{bubbles: []api.KB{bubble}}
@@ -197,7 +198,7 @@ func TestSyncBubbles_Clone_EmptyRepoURL_NoClone(t *testing.T) {
 		KBID:    "kb_after_empty",
 		KBType:  api.KBTypeTeam,
 		Slug:    "after",
-		RepoURL: "file://" + bareGood,
+		RepoURL: fileutil.FileURL(bareGood),
 	}
 	s.SetKBBubbleListerFactory(func(_, _ string) KBBubbleLister {
 		return &fakeKBLister{bubbles: []api.KB{unprovisioned, good}}
@@ -307,7 +308,7 @@ func TestSyncBubbles_Clone_PostCloneMergeAttrsInstalled(t *testing.T) {
 		KBID:    "kb_preflight",
 		KBType:  api.KBTypeTeam,
 		Slug:    "preflight",
-		RepoURL: "file://" + bareDir,
+		RepoURL: fileutil.FileURL(bareDir),
 	}
 	s.SetKBBubbleListerFactory(func(_, _ string) KBBubbleLister {
 		return &fakeKBLister{bubbles: []api.KB{bubble}}
@@ -349,7 +350,7 @@ func TestSyncBubbles_Clone_Idempotent(t *testing.T) {
 		KBID:    "kb_idempotent",
 		KBType:  api.KBTypePersonal,
 		Slug:    "idem",
-		RepoURL: "file://" + bareDir,
+		RepoURL: fileutil.FileURL(bareDir),
 	}
 	s.SetKBBubbleListerFactory(func(_, _ string) KBBubbleLister {
 		return &fakeKBLister{bubbles: []api.KB{bubble}}
@@ -395,7 +396,7 @@ func TestSyncBubbles_Clone_RestoresAfterManualGitDirRemoval(t *testing.T) {
 		KBID:    "kb_restore",
 		KBType:  api.KBTypePersonal,
 		Slug:    "restore",
-		RepoURL: "file://" + bareDir,
+		RepoURL: fileutil.FileURL(bareDir),
 	}
 	s.SetKBBubbleListerFactory(func(_, _ string) KBBubbleLister {
 		return &fakeKBLister{bubbles: []api.KB{bubble}}
@@ -445,7 +446,7 @@ func TestSyncBubbles_Clone_ShallowAndPartialFilter(t *testing.T) {
 		KBID:    "kb_shallow",
 		KBType:  api.KBTypeTeam,
 		Slug:    "shallow",
-		RepoURL: "file://" + bareDir,
+		RepoURL: fileutil.FileURL(bareDir),
 	}
 	s.SetKBBubbleListerFactory(func(_, _ string) KBBubbleLister {
 		return &fakeKBLister{bubbles: []api.KB{bubble}}
@@ -513,7 +514,7 @@ func TestSyncBubbles_Clone_HasGitignoreEntries(t *testing.T) {
 		KBID:    "kb_gitignore",
 		KBType:  api.KBTypeTeam,
 		Slug:    "gitignore",
-		RepoURL: "file://" + bareDir,
+		RepoURL: fileutil.FileURL(bareDir),
 	}
 	s.SetKBBubbleListerFactory(func(_, _ string) KBBubbleLister {
 		return &fakeKBLister{bubbles: []api.KB{bubble}}
@@ -592,7 +593,7 @@ resolve auto data/
 		KBID:    "kb_resolve",
 		KBType:  api.KBTypeTeam,
 		Slug:    "resolve",
-		RepoURL: "file://" + bareDir,
+		RepoURL: fileutil.FileURL(bareDir),
 	}
 	s.SetKBBubbleListerFactory(func(_, _ string) KBBubbleLister {
 		return &fakeKBLister{bubbles: []api.KB{bubble}}

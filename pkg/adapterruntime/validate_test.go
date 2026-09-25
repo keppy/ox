@@ -4,6 +4,8 @@ import (
 	"os"
 	"path/filepath"
 	"testing"
+
+	"github.com/sageox/ox/internal/testguard"
 )
 
 // --- A. ValidateRepoRoot ---
@@ -112,9 +114,7 @@ func TestValidateRepoRoot_SymlinkedSageox(t *testing.T) {
 	if err := os.MkdirAll(realDir, 0o755); err != nil {
 		t.Fatal(err)
 	}
-	if err := os.Symlink(realDir, filepath.Join(tmpDir, ".sageox")); err != nil {
-		t.Fatal(err)
-	}
+	testguard.Symlink(t, realDir, filepath.Join(tmpDir, ".sageox"))
 	if err := ValidateRepoRoot(tmpDir); err != nil {
 		t.Fatalf("symlinked .sageox should pass: %v", err)
 	}

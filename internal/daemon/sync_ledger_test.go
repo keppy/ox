@@ -10,6 +10,7 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/sageox/ox/internal/fileutil"
 	"github.com/sageox/ox/internal/ledger"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -49,7 +50,7 @@ func setupClonedLedger(t *testing.T) (string, string, *SyncScheduler) {
 	isolateCredentials(t)
 
 	bareDir := setupLedgerBareRepo(t)
-	cloneURL := "file://" + bareDir
+	cloneURL := fileutil.FileURL(bareDir)
 
 	projectDir := setupProjectWithConfig(t, "")
 	scheduler := newTestScheduler(projectDir)
@@ -74,7 +75,7 @@ func TestBlueGreenGC_Ledger_Success(t *testing.T) {
 		ID:       "ledger",
 		Type:     WorkspaceTypeLedger,
 		Path:     ledgerDir,
-		CloneURL: "file://" + bareDir,
+		CloneURL: fileutil.FileURL(bareDir),
 		Exists:   true,
 	}
 	registry := scheduler.WorkspaceRegistry()
@@ -119,7 +120,7 @@ func TestBlueGreenGC_Ledger_PreservesCacheDir(t *testing.T) {
 		ID:       "ledger",
 		Type:     WorkspaceTypeLedger,
 		Path:     ledgerDir,
-		CloneURL: "file://" + bareDir,
+		CloneURL: fileutil.FileURL(bareDir),
 		Exists:   true,
 	}
 	registry := scheduler.WorkspaceRegistry()
@@ -159,7 +160,7 @@ func TestBlueGreenGC_Ledger_PreservesUncommittedChanges(t *testing.T) {
 		ID:       "ledger",
 		Type:     WorkspaceTypeLedger,
 		Path:     ledgerDir,
-		CloneURL: "file://" + bareDir,
+		CloneURL: fileutil.FileURL(bareDir),
 		Exists:   true,
 	}
 
@@ -196,7 +197,7 @@ func TestBlueGreenGC_Ledger_PreservesUntrackedFiles(t *testing.T) {
 		ID:       "ledger",
 		Type:     WorkspaceTypeLedger,
 		Path:     ledgerDir,
-		CloneURL: "file://" + bareDir,
+		CloneURL: fileutil.FileURL(bareDir),
 		Exists:   true,
 	}
 
@@ -237,7 +238,7 @@ func TestBlueGreenGC_Ledger_PushesUnpushedCommits(t *testing.T) {
 		ID:       "ledger",
 		Type:     WorkspaceTypeLedger,
 		Path:     ledgerDir,
-		CloneURL: "file://" + bareDir,
+		CloneURL: fileutil.FileURL(bareDir),
 		Exists:   true,
 	}
 
@@ -278,7 +279,7 @@ func TestBlueGreenGC_Ledger_SkipsWhenPushFails(t *testing.T) {
 		ID:       "ledger",
 		Type:     WorkspaceTypeLedger,
 		Path:     ledgerDir,
-		CloneURL: "file://" + bareDir,
+		CloneURL: fileutil.FileURL(bareDir),
 		Exists:   true,
 	}
 
@@ -357,14 +358,14 @@ func TestBlueGreenGC_Ledger_ValidationFailsKeepsOld(t *testing.T) {
 	projectDir := setupProjectWithConfig(t, "")
 	scheduler := newTestScheduler(projectDir)
 	ledgerDir := filepath.Join(t.TempDir(), "ledger")
-	require.NoError(t, ledger.CloneWithSparseCheckout(ledgerDir, "file://"+goodBareDir))
+	require.NoError(t, ledger.CloneWithSparseCheckout(ledgerDir, fileutil.FileURL(goodBareDir)))
 
 	// now GC with the broken bare repo (no sessions/)
 	ws := WorkspaceState{
 		ID:       "ledger",
 		Type:     WorkspaceTypeLedger,
 		Path:     ledgerDir,
-		CloneURL: "file://" + bareDir, // points to repo without sessions/
+		CloneURL: fileutil.FileURL(bareDir), // points to repo without sessions/
 		Exists:   true,
 	}
 
@@ -404,7 +405,7 @@ func TestBlueGreenGC_Ledger_CacheWithNestedSubdirs(t *testing.T) {
 		ID:       "ledger",
 		Type:     WorkspaceTypeLedger,
 		Path:     ledgerDir,
-		CloneURL: "file://" + bareDir,
+		CloneURL: fileutil.FileURL(bareDir),
 		Exists:   true,
 	}
 	registry := scheduler.WorkspaceRegistry()
@@ -460,7 +461,7 @@ func TestBlueGreenGC_Ledger_AllPreservationMechanisms(t *testing.T) {
 		ID:       "ledger",
 		Type:     WorkspaceTypeLedger,
 		Path:     ledgerDir,
-		CloneURL: "file://" + bareDir,
+		CloneURL: fileutil.FileURL(bareDir),
 		Exists:   true,
 	}
 	registry := scheduler.WorkspaceRegistry()
@@ -516,7 +517,7 @@ func TestBlueGreenGC_Ledger_NoCacheDir(t *testing.T) {
 		ID:       "ledger",
 		Type:     WorkspaceTypeLedger,
 		Path:     ledgerDir,
-		CloneURL: "file://" + bareDir,
+		CloneURL: fileutil.FileURL(bareDir),
 		Exists:   true,
 	}
 	registry := scheduler.WorkspaceRegistry()
@@ -581,7 +582,7 @@ func TestBlueGreenGC_Ledger_PreservesStagedChanges(t *testing.T) {
 		ID:       "ledger",
 		Type:     WorkspaceTypeLedger,
 		Path:     ledgerDir,
-		CloneURL: "file://" + bareDir,
+		CloneURL: fileutil.FileURL(bareDir),
 		Exists:   true,
 	}
 	registry := scheduler.WorkspaceRegistry()
@@ -619,7 +620,7 @@ func TestBlueGreenGC_Ledger_PreservesMixedStagedAndUnstaged(t *testing.T) {
 		ID:       "ledger",
 		Type:     WorkspaceTypeLedger,
 		Path:     ledgerDir,
-		CloneURL: "file://" + bareDir,
+		CloneURL: fileutil.FileURL(bareDir),
 		Exists:   true,
 	}
 	registry := scheduler.WorkspaceRegistry()
@@ -657,7 +658,7 @@ func TestBlueGreenGC_Ledger_PreservesUntrackedInSubdirs(t *testing.T) {
 		ID:       "ledger",
 		Type:     WorkspaceTypeLedger,
 		Path:     ledgerDir,
-		CloneURL: "file://" + bareDir,
+		CloneURL: fileutil.FileURL(bareDir),
 		Exists:   true,
 	}
 	registry := scheduler.WorkspaceRegistry()
@@ -695,7 +696,7 @@ func TestBlueGreenGC_Ledger_PreservesBinaryUntrackedFile(t *testing.T) {
 		ID:       "ledger",
 		Type:     WorkspaceTypeLedger,
 		Path:     ledgerDir,
-		CloneURL: "file://" + bareDir,
+		CloneURL: fileutil.FileURL(bareDir),
 		Exists:   true,
 	}
 	registry := scheduler.WorkspaceRegistry()
@@ -730,7 +731,7 @@ func TestBlueGreenGC_Ledger_StagedDeletePreserved(t *testing.T) {
 		ID:       "ledger",
 		Type:     WorkspaceTypeLedger,
 		Path:     ledgerDir,
-		CloneURL: "file://" + bareDir,
+		CloneURL: fileutil.FileURL(bareDir),
 		Exists:   true,
 	}
 	registry := scheduler.WorkspaceRegistry()
@@ -776,7 +777,7 @@ func TestBlueGreenGC_Ledger_DiffConflictPreservesDiffFile(t *testing.T) {
 		ID:       "ledger",
 		Type:     WorkspaceTypeLedger,
 		Path:     ledgerDir,
-		CloneURL: "file://" + bareDir,
+		CloneURL: fileutil.FileURL(bareDir),
 		Exists:   true,
 	}
 	registry := scheduler.WorkspaceRegistry()
@@ -813,7 +814,7 @@ func TestBlueGreenGC_Ledger_CleanTreeStillWorks(t *testing.T) {
 		ID:       "ledger",
 		Type:     WorkspaceTypeLedger,
 		Path:     ledgerDir,
-		CloneURL: "file://" + bareDir,
+		CloneURL: fileutil.FileURL(bareDir),
 		Exists:   true,
 	}
 	registry := scheduler.WorkspaceRegistry()
@@ -891,7 +892,7 @@ func TestBlueGreenGC_Ledger_MutexReleasedAfterSuccess(t *testing.T) {
 		ID:       "ledger",
 		Type:     WorkspaceTypeLedger,
 		Path:     ledgerDir,
-		CloneURL: "file://" + bareDir,
+		CloneURL: fileutil.FileURL(bareDir),
 		Exists:   true,
 	}
 	registry := scheduler.WorkspaceRegistry()
@@ -932,7 +933,7 @@ func TestBlueGreenGC_Ledger_MutexReleasedOnCloneFailure(t *testing.T) {
 	assert.Equal(t, gcFailed, result)
 
 	// second GC with correct URL — if mutex leaked, this deadlocks
-	ws.CloneURL = "file://" + bareDir
+	ws.CloneURL = fileutil.FileURL(bareDir)
 	registry := scheduler.WorkspaceRegistry()
 	registry.mu.Lock()
 	registry.ledger = &ws
@@ -954,7 +955,7 @@ func TestBlueGreenGC_Ledger_FullCloneUpgrade(t *testing.T) {
 	// create bare repo and clone it as a FULL clone (not sparse)
 	isolateCredentials(t)
 	bareDir := setupLedgerBareRepo(t)
-	cloneURL := "file://" + bareDir
+	cloneURL := fileutil.FileURL(bareDir)
 
 	projectDir := setupProjectWithConfig(t, "")
 	scheduler := newTestScheduler(projectDir)

@@ -1,6 +1,8 @@
 package fileutil
 
 import (
+	"github.com/sageox/ox/internal/testguard"
+
 	"encoding/json"
 	"os"
 	"path/filepath"
@@ -16,6 +18,7 @@ import (
 // write (AGENTS.md, CONVENTIONS.md, CLAUDE_ENV_FILE) to leave partial or
 // wrongly-permissioned content.
 func TestAtomicWriteBytes_RoundTrip(t *testing.T) {
+	testguard.RequirePOSIXPerms(t) // asserts mode bits
 	dir := t.TempDir()
 	path := filepath.Join(dir, "target.md")
 
@@ -187,6 +190,7 @@ func TestAtomicWriteJSON_NoPartialOnFailure(t *testing.T) {
 }
 
 func TestAtomicWriteJSON_Permissions(t *testing.T) {
+	testguard.RequirePOSIXPerms(t) // asserts mode bits
 	dir := t.TempDir()
 	path := filepath.Join(dir, "perms.json")
 

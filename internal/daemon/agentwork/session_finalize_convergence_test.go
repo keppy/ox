@@ -32,6 +32,7 @@ import (
 	"sync"
 	"testing"
 
+	"github.com/sageox/ox/internal/fileutil"
 	"github.com/sageox/ox/internal/lfs"
 )
 
@@ -111,7 +112,8 @@ func TestAntiEntropy_ConvergesAfterTransientPushFailure(t *testing.T) {
 
 	// --- cycle 2: the remote is back. Content is already at HEAD, so nothing
 	// stages. This is the cycle that repeated ~114 times a day per session.
-	runGitCmd(t, clonePath, "remote", "set-url", "--push", "origin", "file://"+barePath)
+	runGitCmd(t, clonePath, "remote", "set-url", "--push", "origin", fileutil.FileURL(barePath))
+
 
 	second, err := handler.Detect(clonePath)
 	if err != nil {

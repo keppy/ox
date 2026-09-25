@@ -52,12 +52,16 @@ func FindSageoxFiles(repoRoot string) ([]SageoxFileItem, error) {
 			return nil
 		}
 
-		// get relative path from git root
+		// get relative path from git root, in git's slash form: git ls-files
+		// reports forward slashes on every platform, so a platform-form
+		// relPath would never match the tracked set on Windows — every tracked
+		// file would be reported untracked in the uninstall preview.
 		relPath, err := filepath.Rel(repoRoot, path)
 		if err != nil {
 			slog.Warn("failed to get relative path", "path", path, "error", err)
 			return nil
 		}
+		relPath = filepath.ToSlash(relPath)
 
 		var size int64
 		isDir := d.IsDir()

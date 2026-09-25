@@ -6,6 +6,8 @@ import (
 	"testing"
 	"time"
 
+	"github.com/sageox/ox/internal/testguard"
+
 	"github.com/sageox/ox/internal/daemon"
 	"github.com/stretchr/testify/assert"
 )
@@ -246,7 +248,7 @@ func TestShortenPathViaSymlink_Coverage(t *testing.T) {
 
 		// create symlink: .sageox/ledger -> targetDir
 		symlinkPath := filepath.Join(sageoxDir, "ledger")
-		assert.NoError(t, os.Symlink(targetDir, symlinkPath))
+		testguard.Symlink(t, targetDir, symlinkPath)
 
 		got := shortenPathViaSymlink(dir, targetDir, ".sageox/ledger")
 		assert.Equal(t, ".sageox/ledger", got)

@@ -15,6 +15,8 @@ import (
 	"testing"
 	"time"
 
+	"github.com/sageox/ox/internal/testguard"
+
 	"github.com/stretchr/testify/require"
 )
 
@@ -112,7 +114,7 @@ func TestReadTransportRejectsUnsafeConfigFiles(t *testing.T) {
 			case "git file":
 				require.NoError(t, os.WriteFile(gitDir, []byte("gitdir: /other"), 0o600))
 			case "git symlink":
-				require.NoError(t, os.Symlink(t.TempDir(), gitDir))
+				testguard.Symlink(t, t.TempDir(), gitDir)
 			default:
 				require.NoError(t, os.Mkdir(gitDir, 0o700))
 				configPath := filepath.Join(gitDir, "config")
@@ -120,7 +122,7 @@ func TestReadTransportRejectsUnsafeConfigFiles(t *testing.T) {
 				case "config symlink":
 					target := filepath.Join(t.TempDir(), "config")
 					require.NoError(t, os.WriteFile(target, nil, 0o600))
-					require.NoError(t, os.Symlink(target, configPath))
+					testguard.Symlink(t, target, configPath)
 				case "malformed config":
 					require.NoError(t, os.WriteFile(configPath, []byte("[unterminated"), 0o600))
 				case "worktree override":

@@ -19,6 +19,15 @@ type TwoPhaseCloneResult struct {
 	SparsePaths    []string
 }
 
+// TestExtraGitConfig is a test-only escape hatch that appends `-c key=value`
+// flags to every read-transport git invocation. It exists so a fixture can pin
+// its own TLS trust (Git for Windows defaults to the schannel backend, which
+// ignores http.sslCAInfo) without shadowing `git` on PATH — a shim named `git`
+// is re-entered by git's own child processes, which spawns an unbounded
+// launcher chain instead of completing the command. Empty in production, and
+// nothing else in the package reads it.
+var TestExtraGitConfig []string
+
 // TestAllowFileTransport is a test-only escape hatch that disables the
 // `-c protocol.file.allow=never` hardening in TwoPhaseClone. The Blue-green
 // GC tests clone from a local bare repo via file:// to simulate a remote;
@@ -183,9 +192,11 @@ func phaseOneCloneArgs(cloneURL, repoPath string) []string {
 		"--single-branch",
 		"--branch", "main",
 		"--quiet",
-		"--",
-		cloneURL, repoPath,
 	)
+	// Same reason as HardenedCloneArgs: the flag must be on the command line,
+	// and it has to precede the positional <url> <path> operands.
+	args = append(args, gitutil.LongPathsArgs()...)
+	args = append(args, "--", cloneURL, repoPath)
 	return args
 }
 

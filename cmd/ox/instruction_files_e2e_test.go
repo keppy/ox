@@ -10,6 +10,8 @@ import (
 	"sync"
 	"testing"
 
+	"github.com/sageox/ox/internal/testguard"
+
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -515,7 +517,7 @@ func TestInstructionFiles_SymlinkResolvedDedup(t *testing.T) {
 	claudePath := filepath.Join(root, "CLAUDE.md")
 
 	require.NoError(t, os.WriteFile(agentsPath, []byte(userContent), 0644))
-	require.NoError(t, os.Symlink("AGENTS.md", claudePath))
+	testguard.Symlink(t, "AGENTS.md", claudePath)
 
 	_, err := EnsureInstructionFileMarkers(root)
 	require.NoError(t, err)
@@ -567,7 +569,7 @@ func TestInstructionFiles_SymlinkPreservedOnInjection(t *testing.T) {
 	claudePath := filepath.Join(root, "CLAUDE.md")
 
 	require.NoError(t, os.WriteFile(agentsPath, []byte(userContent), 0644))
-	require.NoError(t, os.Symlink("AGENTS.md", claudePath))
+	testguard.Symlink(t, "AGENTS.md", claudePath)
 
 	_, err := EnsureInstructionFileMarkers(root)
 	require.NoError(t, err)

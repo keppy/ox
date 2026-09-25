@@ -13,6 +13,9 @@ import (
 	"strings"
 	"syscall"
 	"time"
+
+	"github.com/sageox/ox/internal/fileutil"
+	"github.com/sageox/ox/internal/proc"
 )
 
 // MinFetchHeadAge is the minimum age of FETCH_HEAD before we'll fetch again.
@@ -93,19 +96,22 @@ func lockOwnerPID(lockName string) (int, bool) {
 // Biased toward reporting "alive": a false positive merely leaves a lock in
 // place (recoverable — the next sweep retries), while a false negative deletes a
 // lock a live git still holds, which can corrupt the index and lose uncommitted
-// work. Ambiguity therefore resolves to alive.
+// work. Ambiguity therefore resolves to alive — including a process that
+// exists but cannot be queried (an elevated git, or one owned by another
+// user): IsAliveOrDenied reads OpenProcess ACCESS_DENIED / kill EPERM as
+// "alive but not ours to inspect", where plain IsAlive would read it as dead.
 func processAlive(pid int) bool {
-	proc, err := os.FindProcess(pid)
-	if err != nil {
-		return false // Windows: the process does not exist
-	}
 	if runtime.GOOS == "windows" {
-		// FindProcess succeeding is as much as we can cheaply establish here,
-		// and the conservative reading is "still running".
-		return true
+		// OpenProcess + GetExitCodeProcess; os.FindProcess never fails here and
+		// Signal(0) is unsupported, so neither can answer the question.
+		return proc.IsAliveOrDenied(pid)
+	}
+	p, err := os.FindProcess(pid)
+	if err != nil {
+		return false
 	}
 	// Unix: FindProcess always succeeds, so probe with signal 0.
-	err = proc.Signal(syscall.Signal(0))
+	err = p.Signal(syscall.Signal(0))
 	switch {
 	case err == nil:
 		return true
@@ -205,15 +211,22 @@ func RebaseAge(repoPath string) (time.Duration, bool) {
 	gitDir := filepath.Join(repoPath, ".git")
 	for _, dir := range []string{"rebase-merge", "rebase-apply"} {
 		p := filepath.Join(gitDir, dir)
-		info, err := os.Stat(p)
+		// StatStrict, not os.Stat: when a path component is a file (a .git
+		// file, or a rebase dir blocked by one), Unix returns ENOTDIR but
+		// Windows returns ERROR_PATH_NOT_FOUND, which Go maps to
+		// os.ErrNotExist. Reading that as "no rebase in progress" would let
+		// the daemon pull on a repo whose state it could not read — the
+		// exact fail-open this conservative branch exists to prevent.
+		info, err := fileutil.StatStrict(p)
 		if err != nil {
 			if errors.Is(err, os.ErrNotExist) {
 				continue // this backend's dir is absent; check the other
 			}
-			// A genuine stat failure (permission, I/O) is NOT proof the repo is
-			// clean. Treat it conservatively as an in-progress rebase so the
-			// caller skips rather than pulling on a possibly-wedged repo, and
-			// report it as fresh (age 0) so we never auto-abort on a guess.
+			// A genuine stat failure (permission, I/O, ENOTDIR) is NOT proof
+			// the repo is clean. Treat it conservatively as an in-progress
+			// rebase so the caller skips rather than pulling on a
+			// possibly-wedged repo, and report it as fresh (age 0) so we
+			// never auto-abort on a guess.
 			return 0, true
 		}
 		// Use the OLDEST mtime among the dir and its entries. The rebase

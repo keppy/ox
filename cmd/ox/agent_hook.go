@@ -76,16 +76,26 @@ type HookContext struct {
 	Marker      *SessionMarker    // nil if not yet primed
 	ProjectRoot string            // git root with .sageox/
 
+	// AgentTypeKnown reports whether AgentType came from a real signal
+	// (--agent flag or AGENT_ENV) rather than the backward-compat
+	// claude-code default. Consumers that have their own detection must not
+	// treat the default as an explicit answer (see runPrimeForHook).
+	AgentTypeKnown bool
+
 	// ClearNotice carries finalized-prior-session info from stopSessionForClear
 	// to the prime subprocess so prime can emit a user-facing notice. See ADR-019.
 	ClearNotice *ClearNoticeInfo
 }
 
-// runAgentHook is the entry point for `ox agent hook <event>`.
+// runAgentHook is the entry point for `ox agent hook <event> [--agent <type>]`.
 // It maps the agent's native event to a lifecycle phase and dispatches to the handler.
-func runAgentHook(args []string) error {
+//
+// agentFlag is the value of `--agent <type>`, for hosts that exec the hook
+// without a shell (Hermes splits the command string itself), where an
+// AGENT_ENV=<type> prefix is not expressible. It wins over the env var.
+func runAgentHook(args []string, agentFlag string) error {
 	if len(args) == 0 {
-		return fmt.Errorf("usage: ox agent hook <event>")
+		return fmt.Errorf("usage: ox agent hook <event> [--agent <type>]")
 	}
 	eventName := args[0]
 
@@ -104,8 +114,17 @@ func runAgentHook(args []string) error {
 		return nil
 	}
 
-	// 2. read AGENT_ENV
-	agentType := os.Getenv("AGENT_ENV")
+	// 2. read AGENT_ENV (or the --agent flag)
+	agentType := agentFlag
+	if agentType == "" {
+		agentType = os.Getenv("AGENT_ENV")
+	}
+	// agentTypeKnown records whether the type came from a real signal
+	// (flag or env) or from the backward-compat default. Passing the default
+	// to prime as an explicit --agent would launder the guess into a fact:
+	// prime's requireDetectedOrExplicitAgent short-circuits on --agent and
+	// skips its own (better) filesystem detection.
+	agentTypeKnown := agentType != ""
 	if agentType == "" {
 		agentType = "claude-code" // default for backward compatibility
 	}
@@ -134,14 +153,59 @@ func runAgentHook(args []string) error {
 
 	// 7. dispatch to handler
 	ctx := &HookContext{
-		Phase:       phase,
-		AgentType:   agentType,
-		Input:       input,
-		Marker:      marker,
-		ProjectRoot: projectRoot,
+		Phase:          phase,
+		AgentType:      agentType,
+		AgentTypeKnown: agentTypeKnown,
+		Input:          input,
+		Marker:         marker,
+		ProjectRoot:    projectRoot,
 	}
 
+	if agentType == "hermes" {
+		return dispatchPhaseAsHermesContext(ctx)
+	}
 	return dispatchPhase(ctx)
+}
+
+// dispatchPhaseAsHermesContext runs the phase with stdout captured and
+// re-emits it in Hermes's shell-hook response shape.
+//
+// Every other agent ox supports injects raw hook stdout into the model
+// (Claude Code's <system-reminder>, Gemini's systemMessage). Hermes instead
+// parses stdout as JSON and, for pre_llm_call only, injects the value of a
+// {"context": "..."} object into the next turn; any other stdout is a logged
+// warning and is discarded. So the phase handlers keep writing plain text to
+// os.Stdout exactly as they do for Claude Code, and this wrapper turns that
+// text into the one JSON object Hermes understands. Non-prompt phases emit
+// nothing: Hermes ignores their stdout anyway, and an empty response is the
+// documented silent no-op.
+func dispatchPhaseAsHermesContext(ctx *HookContext) error {
+	realStdout := os.Stdout
+	r, w, err := os.Pipe()
+	if err != nil {
+		return dispatchPhase(ctx)
+	}
+	os.Stdout = w
+	captured := make(chan []byte, 1)
+	go func() {
+		data, _ := io.ReadAll(r)
+		captured <- data
+	}()
+
+	dispatchErr := dispatchPhase(ctx)
+
+	_ = w.Close()
+	os.Stdout = realStdout
+	text := strings.TrimSpace(string(<-captured))
+	_ = r.Close()
+
+	if ctx.Phase == phasePrompt && text != "" {
+		out, err := json.Marshal(map[string]string{"context": text})
+		if err == nil {
+			fmt.Fprintln(realStdout, string(out))
+		}
+	}
+	return dispatchErr
 }
 
 // localEventPhases supplements the agentx registry with phase mappings for
@@ -164,6 +228,19 @@ var localEventPhases = map[string]map[agentx.HookEvent]agentx.Phase{
 		"UserPromptSubmit": agentx.PhasePrompt,
 		"Stop":             agentx.PhaseStop,
 		"SessionEnd":       agentx.PhaseEnd,
+	},
+	// the five Hermes shell-hook events cmd/ox-adapter-hermes installs
+	// (hookEvents). Hermes spells its events snake_case, so these never
+	// collide with the PascalCase names in the agentx registry — but they
+	// also never match the "try all maps" fallback, which is why the entry
+	// is required rather than nice-to-have. on_session_end fires per turn
+	// (Hermes's Stop), on_session_finalize on teardown (SessionEnd).
+	"hermes": {
+		"on_session_start":    agentx.PhaseStart,
+		"pre_llm_call":        agentx.PhasePrompt,
+		"post_tool_call":      agentx.PhaseAfterTool,
+		"on_session_end":      agentx.PhaseStop,
+		"on_session_finalize": agentx.PhaseEnd,
 	},
 }
 
@@ -831,8 +908,11 @@ func handleStop(ctx *HookContext) error {
 //   - <ledger>/.sageox/cache/sessions/<name>
 //   - <ledger>/sessions/<name>
 func deriveLedgerPath(sessionPath string) string {
-	// check for .sageox/cache/sessions pattern
-	if idx := strings.Index(sessionPath, "/.sageox/cache/sessions/"); idx >= 0 {
+	// check for .sageox/cache/sessions pattern. Compare on a slash-normalised
+	// copy so a recording.json written on Windows (backslashes) resolves,
+	// but slice the original so the caller gets the path in its own form.
+	slashed := filepath.ToSlash(sessionPath)
+	if idx := strings.Index(slashed, "/.sageox/cache/sessions/"); idx >= 0 {
 		return sessionPath[:idx]
 	}
 	// check for /sessions/ pattern (direct ledger path)
@@ -884,11 +964,22 @@ func runPrimeForHook(agentID string, ctx *HookContext) error {
 	}
 
 	args := []string{"agent", "prime"}
+	if ctx.AgentTypeKnown {
+		// The hook knows which agent fired it (--agent or AGENT_ENV). Prime
+		// must not re-guess from filesystem hints — a stray .codex/ in the
+		// repo would otherwise register a Hermes session as Codex. When the
+		// type is the backward-compat default rather than a real signal,
+		// leave it to prime's own detection, which is better than the guess.
+		args = append(args, "--agent", ctx.AgentType)
+	}
 
 	slog.Debug("hook: running prime", "agent_id", agentID, "phase", ctx.Phase)
 
 	cmd := exec.Command(oxPath, args...)
 	env := buildPrimeEnv(agentID)
+	if ctx.AgentTypeKnown && os.Getenv("AGENT_ENV") == "" {
+		env = append(env, "AGENT_ENV="+ctx.AgentType)
+	}
 	if pair := serializeClearNoticeEnv(ctx.ClearNotice); pair != "" {
 		env = append(env, pair)
 	}

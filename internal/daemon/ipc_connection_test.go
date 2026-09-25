@@ -87,7 +87,7 @@ func TestIsHealthy_DaemonNotRunning(t *testing.T) {
 
 func TestIsHealthy_DaemonHung(t *testing.T) {
 	// Use /tmp directly to avoid long socket paths (Unix socket path limit ~104 chars)
-	tmpDir := "/tmp"
+	tmpDir := shortRuntimeDir()
 	t.Setenv("OX_XDG_ENABLE", "1")
 	t.Setenv("XDG_RUNTIME_DIR", tmpDir)
 
@@ -98,7 +98,12 @@ func TestIsHealthy_DaemonHung(t *testing.T) {
 	defer listener.Close()
 	defer cleanupSocket(socketPath)
 
-	// Accept connections but never respond
+	// Accept connections but never respond. The held connection is released
+	// at test end: on Windows a pipe instance that is still open keeps the
+	// pipe name reserved, so the next test's listen() on the same path
+	// would be refused with "Access is denied".
+	hung := make(chan struct{})
+	t.Cleanup(func() { close(hung) })
 	go func() {
 		for {
 			conn, err := listener.Accept()
@@ -106,8 +111,10 @@ func TestIsHealthy_DaemonHung(t *testing.T) {
 				return
 			}
 			// Hold connection open but never respond - simulates hung daemon
-			time.Sleep(10 * time.Second)
-			conn.Close()
+			go func() {
+				<-hung
+				conn.Close()
+			}()
 		}
 	}()
 
@@ -119,7 +126,7 @@ func TestIsHealthy_DaemonHung(t *testing.T) {
 
 func TestIsHealthy_DaemonHealthy(t *testing.T) {
 	// Use /tmp directly to avoid long socket paths
-	tmpDir := "/tmp"
+	tmpDir := shortRuntimeDir()
 	t.Setenv("OX_XDG_ENABLE", "1")
 	t.Setenv("XDG_RUNTIME_DIR", tmpDir)
 
@@ -154,7 +161,7 @@ func TestIsHealthy_DaemonHealthy(t *testing.T) {
 // Test that client handles unresponsive server
 func TestClient_Timeout(t *testing.T) {
 	// use /tmp directly to avoid long socket paths (Unix socket path limit ~104 chars)
-	tmpDir := "/tmp"
+	tmpDir := shortRuntimeDir()
 	t.Setenv("OX_XDG_ENABLE", "1")
 	t.Setenv("XDG_RUNTIME_DIR", tmpDir)
 
@@ -165,11 +172,14 @@ func TestClient_Timeout(t *testing.T) {
 	defer listener.Close()
 	defer cleanupSocket(socketPath)
 
-	// accept but don't respond
+	// accept but don't respond; release the held instance at test end so
+	// the pipe name is free for the next test (see TestIsHealthy_DaemonHung).
+	hung := make(chan struct{})
+	t.Cleanup(func() { close(hung) })
 	go func() {
 		conn, _ := listener.Accept()
 		if conn != nil {
-			time.Sleep(10 * time.Second) // simulate unresponsive
+			<-hung
 			conn.Close()
 		}
 	}()

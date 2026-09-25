@@ -207,3 +207,34 @@ jobs:
 
       - name: Skill inventory tests
         run: go test ./internal/skillmanager/... ./internal/sageoxignore/... ./extensions/skills/... -count=1
+
+  # ox ships Windows binaries (windows_amd64 / windows_arm64 zips), the
+  # installer runs from Git Bash, and the daemon uses named pipes — so the
+  # whole suite is expected to pass on Windows, not just the skills
+  # installer above. This job is the thing that keeps that true: without it,
+  # a Windows-only regression (an exec-bit check, a no-op file lock, a
+  # separator assumption) is invisible until a user hits it. Runs the same
+  # full suite as the Linux PR gate — no -short, since the tests it skips
+  # include the ledger read-sync family that has the most platform-sensitive
+  # code in the tree.
+  test-windows:
+    runs-on: windows-latest
+    # Windows runners are 2-core and process spawn is expensive there: the
+    # daemon package alone needs >15 minutes locally on a fast machine.
+    timeout-minutes: 120
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7.0.0
+        with:
+          go-version-file: 'go.mod'
+
+      - name: Configure git identity for tests
+        run: |
+          git config --global user.email "ci@sageox.ai"
+          git config --global user.name "CI"
+
+      - name: Windows test suite
+        run: go test ./... -count=1 -timeout 90m

@@ -11,6 +11,8 @@ import (
 	"strings"
 	"time"
 
+	"github.com/sageox/ox/internal/homedir"
+
 	"github.com/sageox/ox/internal/session/omppaths"
 	"github.com/sageox/ox/pkg/adapterprotocol"
 	"github.com/sageox/ox/pkg/adapterruntime"
@@ -149,7 +151,7 @@ type ompSessionRoot struct {
 }
 
 func ompSessionRoots() ([]ompSessionRoot, error) {
-	home, err := os.UserHomeDir()
+	home, err := homedir.Dir()
 	if err != nil {
 		return nil, fmt.Errorf("cannot determine home directory: %w", err)
 	}
@@ -162,7 +164,7 @@ func ompSessionRoots() ([]ompSessionRoot, error) {
 }
 
 func ompSessionDirNames(cwd string) []string {
-	home, _ := os.UserHomeDir()
+	home, _ := homedir.Dir()
 	return omppaths.ProjectDirectoryNames(cwd, home)
 }
 

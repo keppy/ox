@@ -9,6 +9,7 @@ import (
 	"sync"
 	"testing"
 
+	"github.com/sageox/ox/internal/fileutil"
 	"github.com/sageox/ox/internal/session"
 )
 
@@ -78,7 +79,7 @@ func TestProcessResult_RealGit(t *testing.T) {
 
 	// verify push reached the remote
 	verifyClone := t.TempDir()
-	runGitCmd(t, t.TempDir(), "clone", "file://"+barePath, verifyClone)
+	runGitCmd(t, t.TempDir(), "clone", fileutil.FileURL(barePath), verifyClone)
 	remoteMeta := filepath.Join(verifyClone, "sessions", sessionName, "meta.json")
 	if _, statErr := os.Stat(remoteMeta); os.IsNotExist(statErr) {
 		t.Error("meta.json not found on remote — push may have failed")
@@ -162,7 +163,7 @@ func setupBareAndCloneLedger(t *testing.T) (string, string) {
 	clonePath := filepath.Join(base, "ledger")
 
 	runGitCmd(t, base, "init", "--bare", barePath)
-	runGitCmd(t, base, "clone", "file://"+barePath, clonePath)
+	runGitCmd(t, base, "clone", fileutil.FileURL(barePath), clonePath)
 	runGitCmd(t, clonePath, "config", "user.email", "test@test.com")
 	runGitCmd(t, clonePath, "config", "user.name", "Test")
 

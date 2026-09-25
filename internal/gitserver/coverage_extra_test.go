@@ -7,6 +7,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"runtime"
 	"strings"
 	"testing"
 	"time"
@@ -41,7 +42,13 @@ func TestSaveCredentialsForEndpoint_FileStorage(t *testing.T) {
 	require.NoError(t, err)
 	info, err := os.Stat(credsPath)
 	require.NoError(t, err)
-	assert.Equal(t, os.FileMode(0600), info.Mode().Perm())
+	// NTFS has no POSIX permission bits: os.Chmod maps only the read-only
+	// attribute, so the 0600 requested at write time reads back as 0666 on
+	// Windows. The owner-only guarantee is asserted where the platform can
+	// enforce it; the round-trip below still runs everywhere.
+	if runtime.GOOS != "windows" {
+		assert.Equal(t, os.FileMode(0600), info.Mode().Perm())
+	}
 
 	loaded, err := LoadCredentialsForEndpoint("https://example.com")
 	require.NoError(t, err)
@@ -275,7 +282,16 @@ func TestWriteAskpassScript_CreatesExecutableFile(t *testing.T) {
 
 	info, err := os.Stat(path)
 	require.NoError(t, err)
-	assert.Equal(t, os.FileMode(0700), info.Mode().Perm())
+	// NTFS has no POSIX permission bits — the 0700 chmod only toggles the
+	// read-only attribute — so the mode is asserted where it exists, and on
+	// Windows the property that makes the script runnable instead: a regular,
+	// non-empty script Git for Windows hands to its bundled sh.
+	if runtime.GOOS == "windows" {
+		require.True(t, info.Mode().IsRegular())
+		require.NotZero(t, info.Size(), "script must have content to run")
+	} else {
+		assert.Equal(t, os.FileMode(0700), info.Mode().Perm())
+	}
 	content, err := os.ReadFile(path)
 	require.NoError(t, err)
 	assert.Contains(t, string(content), "#!/bin/sh")

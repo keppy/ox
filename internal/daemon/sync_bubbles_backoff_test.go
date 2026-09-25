@@ -35,6 +35,7 @@ import (
 
 	"github.com/sageox/ox/internal/api"
 	"github.com/sageox/ox/internal/endpoint"
+	"github.com/sageox/ox/internal/fileutil"
 	"github.com/sageox/ox/internal/paths"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -63,7 +64,7 @@ func TestSyncBubbles_Backoff_NoStickyState(t *testing.T) {
 		KBID:    "kb_recover",
 		KBType:  api.KBTypeTeam,
 		Slug:    "recover",
-		RepoURL: "file://" + bareDir,
+		RepoURL: fileutil.FileURL(bareDir),
 	}
 
 	// pass 1: lister fails with a transient error.
@@ -114,7 +115,7 @@ func TestSyncBubbles_Backoff_RateLimitedThenRecovers(t *testing.T) {
 		KBType:  api.KBTypeTeam,
 		Slug:    "rate",
 		Name:    "rate-limited",
-		RepoURL: "file://" + bareDir,
+		RepoURL: fileutil.FileURL(bareDir),
 	}
 
 	// rotating handler: first call 429, second 503, third returns the
@@ -194,7 +195,7 @@ func TestSyncBubbles_Backoff_FailedBubbleSucceedsOnLaterPass(t *testing.T) {
 		KBID:    "kb_later",
 		KBType:  api.KBTypeTeam,
 		Slug:    "later",
-		RepoURL: "file://" + bareLater, // doesn't exist on pass 1
+		RepoURL: fileutil.FileURL(bareLater), // doesn't exist on pass 1
 	}
 	s.SetKBBubbleListerFactory(func(_, _ string) KBBubbleLister {
 		return &fakeKBLister{bubbles: []api.KB{bubble}}

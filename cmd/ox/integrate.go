@@ -64,6 +64,7 @@ var (
 	integratePiFlag       bool
 	integrateOMPFlag      bool
 	integrateDroidFlag    bool
+	integrateHermesFlag   bool
 	integrateAllFlag      bool
 	integrateForceFlag    bool
 )
@@ -128,7 +129,7 @@ var integrateListCmd = &cobra.Command{
 func hasAnyAgentFlag() bool {
 	return integratePiFlag || integrateOMPFlag || integrateAmpFlag ||
 		integrateCodexFlag || integrateGeminiFlag || integrateOpenCodeFlag ||
-		integrateDroidFlag || integrateUserFlag
+		integrateDroidFlag || integrateHermesFlag || integrateUserFlag
 }
 
 // integrateAgentInfo pairs adapter metadata with its current install status.
@@ -320,6 +321,21 @@ func runIntegrateInstall(cmd *cobra.Command, args []string) error {
 		return nil
 	}
 
+	// Hermes Agent installation. Hermes hooks live in the profile's
+	// config.yaml, so this is always user-level; the per-repo half is the
+	// AGENTS.md prime marker that ox init writes and Hermes reads natively.
+	if integrateHermesFlag {
+		if err := installHermesHooks(); err != nil {
+			return fmt.Errorf("installing Hermes Agent integration: %w", err)
+		}
+		cli.PrintSuccess("Installed Hermes Agent hooks (user-level config.yaml)")
+		cli.PrintInfo(hermesHookConsentHint)
+
+		userCfg, _ := config.LoadUserConfig()
+		tips.MaybeShow("hooks", tips.WhenMinimal, false, !userCfg.AreTipsEnabled(), false)
+		return nil
+	}
+
 	// Factory Droid installation
 	if integrateDroidFlag {
 		if err := installDroidHooks(integrateUserFlag); err != nil {
@@ -486,6 +502,18 @@ func runIntegrateUninstall(cmd *cobra.Command, args []string) error {
 		}
 
 		fmt.Printf("✓ Amp CLI project-level integration uninstalled\n")
+
+		userCfg, _ := config.LoadUserConfig()
+		tips.MaybeShow("hooks", tips.WhenMinimal, false, !userCfg.AreTipsEnabled(), false)
+		return nil
+	}
+
+	// Hermes Agent uninstallation
+	if integrateHermesFlag {
+		if err := uninstallHermesHooks(); err != nil {
+			return fmt.Errorf("uninstalling Hermes Agent integration: %w", err)
+		}
+		fmt.Println("✓ Hermes Agent integration uninstalled")
 
 		userCfg, _ := config.LoadUserConfig()
 		tips.MaybeShow("hooks", tips.WhenMinimal, false, !userCfg.AreTipsEnabled(), false)
@@ -689,6 +717,12 @@ func uninstallAllIntegrations(force bool) error {
 		installed = append(installed, "Factory Droid (user)")
 	}
 
+	// check Hermes Agent (user-level only)
+	hermesInstalled := hasHermesHooks()
+	if hermesInstalled {
+		installed = append(installed, "Hermes Agent (user)")
+	}
+
 	// check Amp CLI
 	if hasAmpHooks(false) {
 		installed = append(installed, "Amp CLI (project)")
@@ -771,6 +805,16 @@ func uninstallAllIntegrations(force bool) error {
 	if droidUserInstalled {
 		if err := uninstallDroidHooks(true); err != nil {
 			errors = append(errors, fmt.Sprintf("Factory Droid (user): %v", err))
+		}
+	}
+	// Hermes hooks uninstall through the hermes adapter when it is detected;
+	// uninstallHermesHooks errors when the adapter is absent, so gate on
+	// detection like droid above — otherwise "uninstall all" would list
+	// Hermes in its confirmation but leave the hooks installed while still
+	// reporting success.
+	if hermesInstalled {
+		if err := uninstallHermesHooks(); err != nil {
+			errors = append(errors, fmt.Sprintf("Hermes Agent (user): %v", err))
 		}
 	}
 	if err := uninstallAmpHooks(false); err != nil {
@@ -862,6 +906,7 @@ func init() {
 	integrateInstallCmd.Flags().BoolVar(&integrateOMPFlag, "omp", false, "install OMP integration (.omp/AGENTS.md marker)")
 	_ = integrateInstallCmd.Flags().MarkHidden("omp")
 	integrateInstallCmd.Flags().BoolVar(&integrateDroidFlag, "droid", false, "install Factory Droid hooks instead of Claude Code hooks")
+	integrateInstallCmd.Flags().BoolVar(&integrateHermesFlag, "hermes", false, "install Hermes Agent shell hooks (user-level config.yaml) instead of Claude Code hooks")
 	_ = integrateInstallCmd.Flags().MarkHidden("droid")
 
 	// uninstall flags
@@ -881,6 +926,7 @@ func init() {
 	integrateUninstallCmd.Flags().BoolVar(&integrateOMPFlag, "omp", false, "uninstall OMP integration (.omp/AGENTS.md marker)")
 	_ = integrateUninstallCmd.Flags().MarkHidden("omp")
 	integrateUninstallCmd.Flags().BoolVar(&integrateDroidFlag, "droid", false, "uninstall Factory Droid hooks instead of Claude Code hooks")
+	integrateUninstallCmd.Flags().BoolVar(&integrateHermesFlag, "hermes", false, "uninstall Hermes Agent shell hooks")
 	_ = integrateUninstallCmd.Flags().MarkHidden("droid")
 	_ = integrateUninstallCmd.Flags().MarkHidden("all")
 	_ = integrateUninstallCmd.Flags().MarkHidden("force")

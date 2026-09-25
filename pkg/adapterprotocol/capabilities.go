@@ -128,6 +128,18 @@ var (
 		CapServeMode,
 		CapSkillsInstaller,
 	}
+
+	// HermesCapabilities carries no CapFileWatcher and no CapSkillsInstaller:
+	// the session handle is virtual ("hermes:<id>"), so there is no path for
+	// fsnotify to watch, and recording is hook-driven rather than file-driven.
+	HermesCapabilities = []string{
+		CapSessionReader,
+		CapHookInstaller,
+		CapIncrementalReader,
+		CapSessionImporter,
+		CapCapturePrior,
+		CapServeMode,
+	}
 )
 
 // BundledAdapterCapabilities maps each bundled adapter's registry.yaml `name`
@@ -151,4 +163,5 @@ var BundledAdapterCapabilities = map[string][]string{
 	"aider":       AiderCapabilities,
 	"droid":       DroidCapabilities,
 	"goose":       GooseCapabilities,
+	"hermes":      HermesCapabilities,
 }

@@ -22,6 +22,7 @@ const (
 	agentOpenCode   = "opencode"
 	agentAmp        = "amp"
 	agentGoose      = "goose"
+	agentHermes     = "hermes"
 )
 
 // Marker format constants.
@@ -188,6 +189,15 @@ var InstructionFileRegistry = []InstructionFileSpec{
 	// check, uninstall, diagnose) under its own ox:prime:aider markers; adding a
 	// CONVENTIONS.md entry here would stack a second, differently-marked copy of
 	// the same prime instruction on top of the adapter's block. See ox-fbrm.
+	{
+		AgentType:   agentHermes,
+		DisplayName: "Hermes Agent",
+		// Hermes loads AGENTS.md (git root → cwd chain) natively, before
+		// CLAUDE.md and .cursorrules. Marking AGENTS.md is enough.
+		ProjectFiles: []string{"AGENTS.md"},
+		MarkerFormat: markerFormatMarkdown,
+		DetectFn:     nil, // shares AGENTS.md
+	},
 	{
 		AgentType:   agentGoose,
 		DisplayName: "Goose",

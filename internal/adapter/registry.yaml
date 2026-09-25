@@ -103,6 +103,19 @@ adapters:
     capabilities: [session_reader, hook_installer, skills_installer, incremental_reader, serve_mode, session_importer, capture_prior]
     detect_commands: [goose]
 
+  # Hermes declares no file_watcher: sessions live in $HERMES_HOME/state.db
+  # (SQLite) behind a virtual "hermes:<id>" handle. Hooks are shell hooks in
+  # the profile's config.yaml, so hook installation is always user-scoped.
+  - name: hermes
+    display_name: Hermes Agent
+    description: Reads Hermes Agent sessions from state.db, installs Hermes shell hooks
+    type: session
+    bundled: true
+    binary: ox-adapter-hermes
+    repo: sageox/ox
+    capabilities: [session_reader, hook_installer, incremental_reader, serve_mode, session_importer, capture_prior]
+    detect_commands: [hermes]
+
   # --- External (non-bundled) adapters ---
   #
   # SECURITY (ADR-022, ox-5ihl): the short-name install path treats SageOx as the

@@ -261,6 +261,7 @@ from, whichever agent your team uses.
 | **Pi** | ✅ | ✅ | `AGENTS.md` |
 | **Aider** | ✅ | ✅ | `CONVENTIONS.md` |
 | **Goose** | ✅ | ✅ | hooks — session, prompt, tool, and tool-failure |
+| **Hermes Agent** | ✅ | ✅ | shell hooks — session, prompt, tool, and finalize; `AGENTS.md` primes |
 | **Cursor** | ✅ | ➖ | instruction file |
 | Windsurf · Cline · Copilot · Kiro | ✅ | ➖ | instruction file |
 

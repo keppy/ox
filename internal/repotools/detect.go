@@ -95,7 +95,7 @@ func findMainGitRoot() (string, error) {
 	gitCommonDir := strings.TrimSpace(string(output))
 
 	// parent of .git is the main repo root
-	return filepath.Dir(gitCommonDir), nil
+	return filepath.Dir(filepath.Clean(gitCommonDir)), nil
 }
 
 func findGitRoot() (string, error) {
@@ -104,7 +104,9 @@ func findGitRoot() (string, error) {
 	if err != nil {
 		return "", fmt.Errorf("failed to find git root: %w", err)
 	}
-	return strings.TrimSpace(string(output)), nil
+	// git prints forward slashes even on Windows; Clean gives the platform
+	// form so a repo root has exactly one spelling wherever it is keyed on.
+	return filepath.Clean(strings.TrimSpace(string(output))), nil
 }
 
 func findSvnRoot() (string, error) {
@@ -114,5 +116,5 @@ func findSvnRoot() (string, error) {
 	if err != nil {
 		return "", fmt.Errorf("failed to find svn root: %w", err)
 	}
-	return strings.TrimSpace(string(output)), nil
+	return filepath.Clean(strings.TrimSpace(string(output))), nil
 }

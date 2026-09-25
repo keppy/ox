@@ -3,6 +3,8 @@
 package main
 
 import (
+	"github.com/sageox/ox/internal/logger"
+
 	"encoding/json"
 	"net/http"
 	"net/http/httptest"
@@ -96,6 +98,10 @@ func newOxE2E(t *testing.T) *oxE2E {
 	// back to SageoxDir() when XDG mode is off, so setting XDG_DATA_HOME alone
 	// still lets a test read and write the developer's real ~/.sageox.
 	home := t.TempDir()
+	// prime/hook switch the process logger to a file under this home;
+	// release it before TempDir's (earlier-registered, so later-run) cleanup
+	// removes the directory — an open handle blocks RemoveAll on Windows.
+	t.Cleanup(logger.ResetPayloadMode)
 	t.Setenv("HOME", home)
 	t.Setenv("XDG_CONFIG_HOME", filepath.Join(home, "config"))
 	t.Setenv("XDG_DATA_HOME", filepath.Join(home, "data"))
